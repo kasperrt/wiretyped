@@ -15,7 +15,7 @@
     "fix:format": "pnpm exec biome format --write",
     "fix:lint": "pnpm exec biome lint --write",
     "fix": "pnpm exec biome check --write",
-    "build": "pnpm run build:types && vite build",
+    "build": "vite build && pnpm run build:types",
     "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
     "smoke": "node scripts/smoke-test.mjs",
     "smoke:build": "pnpm run build && pnpm run smoke",

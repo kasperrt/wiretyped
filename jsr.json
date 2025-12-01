@@ -2,8 +2,9 @@
   "name": "@kasperrt/wiretyped",
   "version": "0.0.1",
   "exports": {
-    ".": "./dist/index.mjs",
-    "./core": "./dist/core.mjs",
-    "./error": "./dist/error.mjs"
-  }
+    ".": "./src/index.ts",
+    "./core": "./src/core/index.ts",
+    "./error": "./src/error/index.ts"
+  },
+  "exclude": ["scripts/**", "**/*.test.*", "**/*.spec.*", "coverage/**"]
 }

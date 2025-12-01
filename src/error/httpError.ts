@@ -6,7 +6,7 @@ export class HTTPError extends Error {
   name = 'HTTPError';
   public response: FetchResponse;
 
-  constructor(response: Response, message = `HTTP Error: ${response.status}`, opts?: ErrorOptions) {
+  constructor(response: Response, message: string = `HTTP Error: ${response.status}`, opts?: ErrorOptions) {
     super(message, opts);
     this.response = response as FetchResponse;
   }
