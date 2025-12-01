@@ -1,0 +1,30 @@
+# Ignore development artifacts from the published package
+.DS_Store
+.vscode
+.idea
+.githooks
+.github
+.editorconfig
+.nvmrc
+
+# Logs and caches
+pnpm-debug.log*
+npm-debug.log*
+yarn-*.log*
+.turbo
+.cache
+.parcel-cache
+
+# Source and tests (only ship dist/)
+src
+scripts
+coverage
+node_modules
+
+# Config and build tooling not needed at runtime
+tsconfig*.json
+vitest.config.ts
+vite.config.ts
+biome.json
+pnpm-lock.yaml
+pnpm-workspace.yaml

@@ -1,0 +1,133 @@
+import type { Interval } from '../utils/timeout';
+
+export interface CacheClientOptions {
+  /**
+   * Cache time to live.
+   * @default 500
+   */
+  ttl: number;
+  /**
+   * Cache cleanup interval.
+   * @default 30_000
+   */
+  cleanupInterval: number;
+}
+
+interface CacheItem<T = unknown> {
+  key: string;
+  data: T;
+  expires: number;
+}
+
+/**
+ * Cache layer for HttpClient
+ * @param {Object} opts - Cache options
+ * @property {number} opts.ttl - Time to live for requests in milliseconds
+ * @property {number} opts.cleanupInterval - Cleanup interval in ms
+ */
+export class CacheClient {
+  #ttl: number;
+  #cleanupInterval: number;
+  #intervalId: Interval;
+  #cache: Record<string, CacheItem> = {};
+  // biome-ignore lint/suspicious/noExplicitAny: As return-types on pending cache can basically be anything, we still need to respect that.
+  #pending: Record<string, Promise<any>> = {};
+
+  constructor(opts: CacheClientOptions = { ttl: 500, cleanupInterval: 30_000 }) {
+    this.#ttl = opts.ttl;
+    this.#cleanupInterval = opts.cleanupInterval;
+
+    this.#cleanup();
+  }
+
+  /**
+   * Add item to cache by provided key
+   * @param {string} key - cache key
+   * @param {Object} data - cache data
+   */
+  #add<T = unknown>(key: string, data: T, ttl: number) {
+    const expires = Date.now() + ttl;
+    this.#cache[key] = {
+      key,
+      data,
+      expires,
+    };
+  }
+
+  /**
+   * Get item from cache by provided key if exists
+   * @param {string} key - Cache key
+   */
+  #getItem<T>(key: string) {
+    const item = this.#cache[key];
+    if (!item) {
+      return null;
+    }
+    const remaining = item.expires - Date.now();
+    if (remaining > 0) {
+      return item as T;
+    }
+
+    delete this.#cache[key];
+    delete this.#pending[key];
+    return null;
+  }
+
+  /**
+   * Add request to the pending list. This will be reused by other requests using the same key/endpoint.
+   * After the request is complete, it will resolve the pending request by calling the resolvePendingRequest.
+   * @param {string} key - cache key
+   * @param {Promise} request - http request to put in the pending object
+   */
+  #addPendingRequest = <T = unknown>(key: string, request: Promise<T>, ttl: number) => {
+    const pending = new Promise((resolve, reject) => {
+      request
+        .then((res) => {
+          this.#add(key, res, ttl);
+          resolve(res);
+        })
+        .catch((res) => {
+          delete this.#pending[key];
+          reject(res);
+        })
+        .finally(() => {
+          delete this.#pending[key];
+        });
+    });
+
+    this.#pending[key] = pending;
+  };
+
+  /**
+   * Pass a request to the cache
+   * @param {string} key - cache key
+   * @param {Function} res - http request and data returned.
+   */
+  public get = <T = unknown>(key: string, res: () => Promise<T>, ttl = this.#ttl) => {
+    const cachedData = this.#getItem<CacheItem<T>>(key);
+    if (cachedData) {
+      return Promise.resolve(cachedData.data);
+    }
+
+    if (this.#pending[key] !== undefined) {
+      return this.#pending[key];
+    }
+
+    this.#addPendingRequest(key, res(), ttl);
+    return this.#pending[key] as T;
+  };
+
+  /**
+   * cleanup that does housekeeping every 30 seconds, removing
+   * invalid cache items to prevent unecessary memory usage;
+   */
+  #cleanup = () => {
+    clearInterval(this.#intervalId);
+
+    this.#intervalId = setInterval(() => {
+      for (const key of Object.keys(this.#cache)) {
+        this.#getItem(key);
+      }
+    }, this.#cleanupInterval);
+  };
+}

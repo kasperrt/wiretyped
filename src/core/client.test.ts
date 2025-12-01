@@ -1,0 +1,2483 @@
+import { ErrorEvent } from 'eventsource';
+import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
+import { ZodError, z } from 'zod';
+import { TimeoutError } from '../error';
+import { isErrorType } from '../error/isErrorType';
+import { RequestClient } from './client';
+import type {
+  HttpClientProvider,
+  HttpClientProviderDefinition,
+  HttpRequestOptions,
+  RequestDefinitions,
+  SSEClientProvider,
+  SSEClientProviderDefinition,
+  SSEClientSourceInit,
+} from './types';
+
+type MockedHTTPClientProvider = MockedFunction<HttpClientProvider>;
+
+const MOCK_HTTP_PROVIDER = vi.fn(function (
+  this: HttpClientProviderDefinition,
+  baseUrl: string | URL,
+  options: HttpRequestOptions,
+) {
+  Object.defineProperties(this, {
+    baseUrl: {
+      value: typeof baseUrl === 'string' ? baseUrl : baseUrl.toString(),
+      writable: false,
+    },
+    opts: { value: options, writable: false },
+  });
+}) as unknown as MockedHTTPClientProvider;
+
+MOCK_HTTP_PROVIDER.prototype.get = vi.fn();
+MOCK_HTTP_PROVIDER.prototype.post = vi.fn();
+MOCK_HTTP_PROVIDER.prototype.put = vi.fn();
+MOCK_HTTP_PROVIDER.prototype.patch = vi.fn();
+MOCK_HTTP_PROVIDER.prototype.delete = vi.fn();
+
+type MockedSSEClientProvider = MockedFunction<SSEClientProvider>;
+
+const MOCK_SSE_PROVIDER = vi.fn(function (
+  this: SSEClientProviderDefinition,
+  url: string | URL,
+  init?: SSEClientSourceInit,
+) {
+  Object.defineProperties(this, {
+    url: {
+      value: typeof url === 'string' ? url : url.toString(),
+      writable: false,
+    },
+    withCredentials: { value: init?.withCredentials ?? true, writable: false },
+    readyState: { value: 0, writable: true }, // start CONNECTING to be realistic
+    CLOSED: { value: 2, writable: false },
+    CONNECTING: { value: 0, writable: false },
+    OPEN: { value: 1, writable: false },
+  });
+
+  this.onopen = null;
+  this.onmessage = null;
+  this.onerror = null;
+
+  this.close = vi.fn(() => {
+    // biome-ignore lint/suspicious/noExplicitAny: Overriding on purpose to access internal state
+    (this as any).readyState = this.CLOSED;
+  });
+  this.addEventListener = vi.fn();
+  this.removeEventListener = vi.fn();
+  this.dispatchEvent = vi.fn().mockReturnValue(true);
+
+  // Simulate async successful open
+  queueMicrotask(() => {
+    // biome-ignore lint/suspicious/noExplicitAny: Overriding on purpose to access internal state
+    (this as any).readyState = this.OPEN;
+    this.onopen?.(new Event('open'));
+  });
+}) as unknown as MockedSSEClientProvider;
+
+const DEFAULT_HEADERS = {
+  Accept: 'application/json',
+};
+
+const DEFAULT_HEADERS_SEND = {
+  'Content-Type': 'application/json',
+};
+
+const defaultEndpoints: RequestDefinitions = {};
+
+// AsyncWrap helpers
+// biome-ignore lint/suspicious/noExplicitAny: We are testing and don't want to go too deep in on types
+const asyncOk = (response: any): Promise<[null, any]> => Promise.resolve([null, response]);
+// biome-ignore lint/suspicious/noExplicitAny: We are testing and don't want to go too deep in on types
+const asyncErr = (error: any): Promise<[any, null]> => Promise.resolve([error, null]);
+
+describe('RequestClient', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('Create', () => {
+    test('Constructs http provider with expected params, and class has expected properties', () => {
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: defaultEndpoints,
+        validation: true,
+        fetchOpts: {
+          credentials: 'include',
+          mode: 'cors',
+          timeout: 10_000,
+        },
+        debug: true,
+      });
+
+      expect(MOCK_HTTP_PROVIDER).toHaveBeenCalledOnce();
+      const firstCall = MOCK_HTTP_PROVIDER.mock.calls[0];
+      const options = firstCall[1];
+
+      expect(options).toEqual({
+        credentials: 'include',
+        mode: 'cors',
+        timeout: 10_000,
+        headers: new Headers(DEFAULT_HEADERS),
+      });
+
+      expect(requestClient).toHaveProperty('url');
+      expect(requestClient).toHaveProperty('get');
+      expect(requestClient).toHaveProperty('put');
+      expect(requestClient).toHaveProperty('post');
+      expect(requestClient).toHaveProperty('patch');
+      expect(requestClient).toHaveProperty('delete');
+      expect(requestClient).toHaveProperty('download');
+
+      consoleLogSpy.mockRestore();
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('Constructs http provider with expected params, and class has expected properties, but missing sseProvider doesnt crash', () => {
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        // @ts-expect-error
+        sseProvider: null,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: defaultEndpoints,
+        validation: true,
+        debug: true,
+      });
+
+      expect(MOCK_HTTP_PROVIDER).toHaveBeenCalledOnce();
+      const firstCall = MOCK_HTTP_PROVIDER.mock.calls[0];
+      const options = firstCall[1];
+
+      expect(options).toEqual({
+        headers: new Headers(DEFAULT_HEADERS),
+      });
+
+      expect(requestClient).toHaveProperty('url');
+      expect(requestClient).toHaveProperty('get');
+      expect(requestClient).toHaveProperty('put');
+      expect(requestClient).toHaveProperty('post');
+      expect(requestClient).toHaveProperty('patch');
+      expect(requestClient).toHaveProperty('delete');
+      expect(requestClient).toHaveProperty('download');
+
+      consoleLogSpy.mockRestore();
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe('Retry', () => {
+    test("Calls provider's get method with expected retry params", async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } as const satisfies RequestDefinitions;
+
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => {
+        const response = {
+          json: () => ({ data: 'GET request data no params' }),
+          text: () => '{ "data": "GET request data no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        };
+
+        // AsyncWrap<Error, FetchResponse>
+        return [null, response];
+      });
+
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockGetEndpoints,
+        validation: true,
+      });
+      const retryObject = {
+        limit: 1,
+      };
+
+      const [_, __] = await requestClient.get('/api/my-endpoint', null, {
+        retry: retryObject,
+      });
+
+      expect(getSpy).toHaveBeenCalledOnce();
+      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {
+        retry: retryObject,
+      });
+    });
+  });
+
+  describe('Url', () => {
+    const mockEndpoints = {
+      '/api/my-endpoint': {
+        url: {
+          $search: z.object({
+            a: z.string(),
+          }),
+          response: z.string(),
+        },
+      },
+      '/api/my-endpoint/{integration}': {
+        url: {
+          $path: z.object({ integration: z.enum(['test']) }),
+          response: z.string(),
+        },
+      },
+      '/api/my-bad-endpoint/{ye}}': {
+        url: {
+          $search: z.object({
+            a: z.string(),
+          }),
+          response: z.string(),
+        },
+      },
+    } as const satisfies RequestDefinitions;
+
+    let requestClient: RequestClient<typeof mockEndpoints>;
+    let consoleLogSpy: MockedFunction<VoidFunction>;
+    let consoleDebugSpy: MockedFunction<VoidFunction>;
+    let consoleWarnSpy: MockedFunction<VoidFunction>;
+
+    beforeEach(() => {
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: '/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockEndpoints,
+        validation: true,
+        debug: true,
+      });
+    });
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('No endpoint: errors if endpoint dont exit', () => {
+      //@ts-expect-error
+      const [err, res] = requestClient.url('/api/non-existing', null);
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
+      expect(res).toBeNull();
+    });
+
+    test('Returns full url for endpoint with search params', () => {
+      const [err, res] = requestClient.url('/api/my-endpoint', {
+        $search: { a: 'b' },
+      });
+
+      expect(err).toBeNull();
+      expect(res).toBe('https://api.example.com/base/api/my-endpoint?a=b');
+    });
+
+    test('Returns error and null data when constructUrl errors due to bad url', () => {
+      const [err, res] = requestClient.url('/api/my-bad-endpoint/{ye}}', {
+        $search: { a: 'b' },
+        ye: 'heh',
+      });
+
+      expect(res).toBeNull();
+      expect(err?.message).toMatch(/error constructing url in.*/);
+    });
+  });
+
+  describe('Download', () => {
+    const mockGetEndpoints = {
+      '/api/my-endpoint': { download: { response: z.instanceof(Blob) } },
+      '/api/my-endpoint/{my-param}': {
+        download: { response: z.instanceof(Blob) },
+      },
+      '/api/my-bad-endpoint/{ye}}': {
+        download: { response: z.instanceof(Blob) },
+      },
+    } as const satisfies RequestDefinitions;
+
+    let requestClient: RequestClient<typeof mockGetEndpoints>;
+    let consoleLogSpy: MockedFunction<VoidFunction>;
+    let consoleDebugSpy: MockedFunction<VoidFunction>;
+    let consoleWarnSpy: MockedFunction<VoidFunction>;
+
+    beforeEach(() => {
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockGetEndpoints,
+        validation: true,
+        debug: true,
+      });
+    });
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('No endpoint: errors if endpoint dont exit', async () => {
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => null);
+
+      const [err, res] = await requestClient.download(
+        //@ts-expect-error
+        '/api/non-existing',
+        null,
+      );
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
+      expect(getSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('Returns error and null data when request returns error tuple', async () => {
+      const underlyingError = {
+        cause: 'something bad with delete',
+        status: 400,
+      };
+
+      const getSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+        .mockImplementation(async () => asyncErr(underlyingError));
+
+      const [err, res] = await requestClient.download('/api/my-endpoint', null);
+
+      expect(res).toBeNull();
+      expect(getSpy).toHaveBeenCalledOnce();
+      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message.toLowerCase()).toContain('error doing request');
+      expect((err as Error).cause).toStrictEqual(underlyingError);
+    });
+
+    test("No params: returns blob data from provider's get when request was successful", async () => {
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => {
+        const response = {
+          blob: () => {
+            throw new Error('error in blob');
+          },
+          status: 200,
+          headers: { get: () => 'application/json' },
+        };
+
+        return [null, response];
+      });
+
+      const [err, res] = await requestClient.download('/api/my-endpoint', null);
+
+      expect(err).toStrictEqual(new Error('error getting blob in download'));
+      expect(getSpy).toHaveBeenCalledOnce();
+      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(res).toBeNull();
+    });
+
+    test("No params: returns blob data from provider's get when request was successful", async () => {
+      const dummyBlob = new Blob(['hello'], { type: 'application/pdf' });
+
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => {
+        const response = {
+          blob: (() => Promise.resolve(dummyBlob)) as () => Promise<Blob>,
+          status: 200,
+          headers: { get: () => 'application/json' },
+        };
+
+        return [null, response];
+      });
+
+      const [err, res] = await requestClient.download('/api/my-endpoint', null);
+
+      expect(err).toBeNull();
+      expect(getSpy).toHaveBeenCalledOnce();
+      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(res?.type).toBe('application/pdf');
+
+      const blobText = await res?.text();
+      expect(blobText).toBe('hello');
+    });
+
+    test("With params: returns blob data from provider's get when request was successful", async () => {
+      const dummyBlob = new Blob(['hello'], { type: 'application/pdf' });
+
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => {
+        const response = {
+          blob: (() => Promise.resolve(dummyBlob)) as () => Promise<Blob>,
+          status: 200,
+          headers: { get: () => 'application/json' },
+        };
+
+        return [null, response];
+      });
+
+      const [err, res] = await requestClient.download('/api/my-endpoint/{my-param}', {
+        'my-param': 'download-this',
+      });
+
+      expect(err).toBeNull();
+      expect(getSpy).toHaveBeenCalledOnce();
+      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint/download-this', {});
+      expect(res?.type).toBe('application/pdf');
+
+      const blobText = await res?.text();
+      expect(blobText).toBe('hello');
+    });
+
+    test('Returns error and null data when constructUrl errors due to bad url', async () => {
+      const dummyBlob = new Blob(['hello'], { type: 'application/pdf' });
+
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => {
+        const response = {
+          blob: (() => Promise.resolve(dummyBlob)) as () => Promise<Blob>,
+          status: 200,
+          headers: { get: () => 'application/json' },
+        };
+
+        return [null, response];
+      });
+
+      const [err, res] = await requestClient.download('/api/my-bad-endpoint/{ye}}', { ye: 'heh' });
+
+      expect(res).toBeNull();
+      expect(getSpy).not.toHaveBeenCalled();
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message.toLowerCase()).toContain('error constructing url');
+    });
+  });
+
+  describe('GET', () => {
+    const mockGetEndpoints = {
+      '/api/my-endpoint': { get: { response: z.object({ data: z.string() }) } },
+      'api/my-param-endpoint/{param}': {
+        get: {
+          $search: z.object({ test: z.number(), optional: z.string().optional() }).optional(),
+          $path: z.object({ param: z.enum(['foo', 'bar']) }),
+          response: z.object({ data: z.string() }),
+        },
+      },
+      '/api/my-empty-endpoint': {
+        get: {
+          $search: z.object().optional(),
+          $path: z.object().optional(),
+          response: z.null(),
+        },
+      },
+      '/api/my-string-endpoint': { get: { response: z.string() } },
+      '/api/my-endpoint/{my-param}': {
+        get: { response: z.object({ data: z.string() }) },
+      },
+      '/api/my-bad-endpoint/{ye}}': {
+        get: { response: z.object({ data: z.string() }) },
+      },
+    } as const satisfies RequestDefinitions;
+
+    describe('Without caching', () => {
+      let requestClient: RequestClient<typeof mockGetEndpoints>;
+      let consoleLogSpy: MockedFunction<VoidFunction>;
+      let consoleDebugSpy: MockedFunction<VoidFunction>;
+
+      beforeEach(() => {
+        consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+        requestClient = new RequestClient({
+          httpProvider: MOCK_HTTP_PROVIDER,
+          sseProvider: MOCK_SSE_PROVIDER,
+          baseUrl: 'https://api.example.com/base',
+          hostname: 'https://api.example.com',
+          endpoints: mockGetEndpoints,
+          validation: true,
+          debug: true,
+        });
+      });
+
+      afterEach(() => {
+        consoleLogSpy.mockRestore();
+        consoleDebugSpy.mockRestore();
+      });
+
+      test('No endpoint: errors if endpoint dont exit', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => null);
+
+        //@ts-expect-error
+        const [err, res] = await requestClient.get('/api/non-existing', null);
+
+        expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
+        expect(getSpy).toHaveBeenCalledTimes(0);
+        expect(res).toBeNull();
+      });
+
+      test('No params: returns json parsed data when request was successful', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => ({ data: 'GET request data no params' }),
+            text: () => '{ "data": "GET request data no params" }',
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('/api/my-endpoint', null);
+
+        expect(err).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(res).toStrictEqual({ data: 'GET request data no params' });
+      });
+
+      test('No params: returns json parsed data when request was successful non-validated', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => ({ data: 'GET request data no params' }),
+            text: () => '{ "data": "GET request data no params" }',
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('/api/my-endpoint', null, {
+          validate: false,
+        });
+
+        expect(err).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {
+          validate: false,
+        });
+        expect(res).toStrictEqual({ data: 'GET request data no params' });
+      });
+
+      test('No params: returns json parsed data when request was successful non-validated on client', async () => {
+        requestClient = new RequestClient({
+          httpProvider: MOCK_HTTP_PROVIDER,
+          sseProvider: MOCK_SSE_PROVIDER,
+          baseUrl: 'https://api.example.com/base',
+          hostname: 'https://api.example.com',
+          endpoints: mockGetEndpoints,
+          validation: false,
+          debug: false,
+        });
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => ({ data: 'GET request data no params' }),
+            text: () => '{ "data": "GET request data no params" }',
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('/api/my-endpoint', null);
+
+        expect(err).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(res).toStrictEqual({ data: 'GET request data no params' });
+      });
+
+      test('No params: response wrong schema parsing', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => null,
+            text: () => '{ "data": "GET request data no params" }',
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('/api/my-endpoint', null);
+        expect(isErrorType(ZodError, err)).toEqual(true);
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(res).toStrictEqual(null);
+      });
+
+      test('No params: returns null on 204', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => null,
+            text: () => 'null',
+            status: 204,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('/api/my-empty-endpoint', {
+          $path: {},
+          $search: {},
+        });
+
+        expect(err).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-empty-endpoint', {});
+        expect(res).toStrictEqual(null);
+      });
+
+      test('No params: returns null on 200 empty string', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => '',
+            text: () => '',
+            status: 200,
+            headers: { get: () => 'text/plain' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('/api/my-empty-endpoint', {
+          $path: undefined,
+          $search: undefined,
+        });
+
+        expect(err).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-empty-endpoint', {});
+        expect(res).toStrictEqual(null);
+      });
+
+      test('No params: returns string on 200', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => 'test',
+            text: () => 'test',
+            status: 200,
+            headers: { get: () => 'text/plain' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('/api/my-string-endpoint', null);
+        expect(err).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-string-endpoint', {});
+        expect(res).toStrictEqual('test');
+      });
+
+      test('No params: returns string on 200', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => {
+              throw new Error('json-error');
+            },
+            text: () => {
+              throw new Error('text-error');
+            },
+            status: 200,
+            headers: { get: () => 'text/plain' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('/api/my-string-endpoint', null);
+        expect(err).toStrictEqual(new Error('error getting response in get'));
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-string-endpoint', {});
+        expect(res).toBeNull;
+      });
+
+      test('With params: should return json parsed data when request was successful', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => ({ data: 'GET request data with params' }),
+            text: () => '{ "data": "GET request data with params" }',
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('/api/my-endpoint/{my-param}', {
+          'my-param': 23,
+        });
+
+        expect(err).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint/23', {});
+        expect(res).toStrictEqual({ data: 'GET request data with params' });
+      });
+
+      test('Returns error and null data when request returns error tuple', async () => {
+        const underlyingError = {
+          cause: 'something bad',
+          status: 400,
+        };
+
+        const getSpy = vi
+          .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+          .mockImplementation(async () => asyncErr(underlyingError));
+
+        const [err, res] = await requestClient.get('/api/my-endpoint', null);
+
+        expect(res).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(err).toBeInstanceOf(Error);
+        expect(err?.message.toLowerCase()).toContain('error doing request');
+        expect((err as Error).cause).toStrictEqual(underlyingError);
+      });
+
+      test('All params: Returns json parsed data when request was successful', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => ({ data: 'GET request data no params' }),
+            text: () => '{ "data": "GET request data no params" }',
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('api/my-param-endpoint/{param}', {
+          $path: { param: 'foo' },
+          $search: { test: 1, optional: undefined },
+        });
+
+        expect(err).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-param-endpoint/foo?test=1', {});
+        expect(res).toStrictEqual({ data: 'GET request data no params' });
+      });
+
+      test('All params: Errors on bad search param', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => ({ data: 'GET request data no params' }),
+            text: () => '{ "data": "GET request data no params" }',
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+        const [err, res] = await requestClient.get('api/my-param-endpoint/{param}', {
+          $path: { param: 'foo' },
+          // @ts-expect-error
+          $search: { test: 'not-a-number' },
+        });
+
+        expect(err).toStrictEqual(new Error('error constructing URL in get'));
+        expect(getSpy).toHaveBeenCalledTimes(0);
+        expect(res).toBeNull();
+      });
+
+      test('Returns error and null data when constructUrl errors due to bad url', async () => {
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get');
+
+        // note extra trailing } here in the endpoint
+        const [err, res] = await requestClient.get('/api/my-bad-endpoint/{ye}}', {
+          ye: 'something',
+        });
+
+        expect(res).toBeNull();
+        expect(getSpy).not.toHaveBeenCalled();
+        expect(err).toBeInstanceOf(Error);
+        expect(err?.message.toLowerCase()).toContain('error constructing url');
+      });
+    });
+
+    describe('With cacheRequest: true', () => {
+      test('Calls get() to fetch fresh data if key was not in cache and returns data', async () => {
+        const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const requestClientWithCache = new RequestClient({
+          httpProvider: MOCK_HTTP_PROVIDER,
+          sseProvider: MOCK_SSE_PROVIDER,
+          baseUrl: 'https://api.example.com/base',
+          hostname: 'https://api.example.com',
+          endpoints: mockGetEndpoints,
+          validation: true,
+          debug: true,
+        });
+
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => ({ data: 'GET request data with cacheRequest' }),
+            text: () => '{ "data": "GET request data with cacheRequest" }',
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+        const [err, res] = await requestClientWithCache.get('/api/my-endpoint', null, {
+          cacheRequest: true,
+        });
+
+        expect(err).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {
+          cacheRequest: false, // Intentional, see implementation
+          body: undefined,
+        });
+        expect(res).toStrictEqual({
+          data: 'GET request data with cacheRequest',
+        });
+        consoleLogSpy.mockRestore();
+        consoleDebugSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+      });
+
+      test('Does not call get() if key was in cache, and returns cached value', async () => {
+        const requestClientWithCache = new RequestClient({
+          httpProvider: MOCK_HTTP_PROVIDER,
+          sseProvider: MOCK_SSE_PROVIDER,
+          baseUrl: 'https://api.example.com/base',
+          hostname: 'https://api.example.com',
+          endpoints: mockGetEndpoints,
+          validation: true,
+        });
+
+        // Step 1: call get() on endpoint so it gets added to the cache
+        const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () =>
+          asyncOk({
+            json: () => ({ data: 'GET request data with cacheRequest' }),
+            text: () => '{ "data": "GET request data with cacheRequest" }',
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+        const [err, res] = await requestClientWithCache.get('/api/my-endpoint', null, {
+          cacheRequest: true,
+        });
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {
+          cacheRequest: false,
+          body: undefined,
+        });
+        expect(err).toBeNull();
+        expect(res).toStrictEqual({
+          data: 'GET request data with cacheRequest',
+        });
+
+        // Set the times called back to 0 before step 2
+        getSpy.mockClear();
+
+        // Step 2: call get() again to ensure it gets the value from the cache
+        const [errCached, resCached] = await requestClientWithCache.get('/api/my-endpoint', null, {
+          cacheRequest: true,
+        });
+        expect(getSpy).not.toHaveBeenCalled();
+        expect(errCached).toBeNull();
+        expect(resCached).toStrictEqual({
+          data: 'GET request data with cacheRequest',
+        });
+      });
+
+      test('Returns error and null data when request returns error tuple in cacheRequest: true', async () => {
+        const requestClientWithCache = new RequestClient({
+          httpProvider: MOCK_HTTP_PROVIDER,
+          sseProvider: MOCK_SSE_PROVIDER,
+          baseUrl: 'https://api.example.com/base',
+          hostname: 'https://api.example.com',
+          endpoints: mockGetEndpoints,
+          validation: true,
+        });
+
+        const underlyingError = {
+          cause: 'something bad',
+          status: 400,
+        };
+
+        const getSpy = vi
+          .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+          .mockImplementation(async () => asyncErr(underlyingError));
+
+        const [err, res] = await requestClientWithCache.get('/api/my-endpoint', null, {
+          cacheRequest: true,
+        });
+
+        expect(res).toBeNull();
+        expect(getSpy).toHaveBeenCalledOnce();
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {
+          cacheRequest: false, // Se implementation
+          body: undefined,
+        });
+        expect(err).toBeInstanceOf(Error);
+        expect(err?.message.toLowerCase()).toContain('error getting cached response in get');
+        expect((((err as Error).cause as Error).cause as Error).cause).toStrictEqual(underlyingError);
+      });
+    });
+  });
+
+  describe('POST', () => {
+    const mockPostEndpoints = {
+      '/api/my-endpoint': {
+        post: {
+          request: z.object({ name: z.string() }),
+          response: z.object({ data: z.string() }),
+        },
+      },
+      '/api/my-endpoint/{my-param}': {
+        post: {
+          request: z.object({ name: z.string() }),
+          response: z.object({ data: z.string() }),
+        },
+      },
+      '/api/my-bad-endpoint/{ye}}': {
+        post: {
+          request: z.object({ name: z.string() }),
+          response: z.object({ data: z.string() }),
+        },
+      },
+    } as const satisfies RequestDefinitions;
+
+    let requestClient: RequestClient<typeof mockPostEndpoints>;
+
+    let consoleLogSpy: MockedFunction<VoidFunction>;
+    let consoleDebugSpy: MockedFunction<VoidFunction>;
+    let consoleWarnSpy: MockedFunction<VoidFunction>;
+
+    beforeEach(() => {
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockPostEndpoints,
+        validation: true,
+        debug: true,
+      });
+    });
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('No endpoint: errors if endpoint dont exit', async () => {
+      const postSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'post').mockImplementation(() => null);
+
+      //@ts-expect-error
+      const [err, res] = await requestClient.post('/api/non-existing', null);
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
+      expect(postSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on request wrong schema', async () => {
+      const postSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'post').mockImplementation(async () =>
+        asyncOk({
+          json: () => null,
+          text: () => '{ "data": "POST returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.post('/api/my-endpoint', null, {
+        // @ts-expect-error
+        age: 22,
+      });
+
+      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(postSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on response wrong schema', async () => {
+      const postSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'post').mockImplementation(async () =>
+        asyncOk({
+          json: () => null,
+          text: () => '',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.post('/api/my-endpoint', null, {
+        name: 'Brother',
+      });
+
+      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(postSpy).toHaveBeenCalledOnce();
+      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on response throw', async () => {
+      const postSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'post').mockImplementation(async () =>
+        asyncOk({
+          json: () => {
+            throw new Error('json-error');
+          },
+          text: () => {
+            throw new Error('json-error');
+          },
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.post('/api/my-endpoint', null, {
+        name: 'Brother',
+      });
+
+      expect(err).toStrictEqual(new Error('error getting response in post'));
+      expect(postSpy).toHaveBeenCalledOnce();
+      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toBeNull();
+    });
+
+    test("No params: returns response from provider's post method when successful", async () => {
+      const postSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'post').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'POST returned from mock provider no params',
+          }),
+          text: () => '{ "data": "POST returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.post('/api/my-endpoint', null, {
+        name: 'Brother',
+      });
+
+      expect(err).toBeNull();
+      expect(postSpy).toHaveBeenCalledOnce();
+      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toStrictEqual({
+        data: 'POST returned from mock provider no params',
+      });
+    });
+
+    test("No params: returns response from provider's post method when successful non-validated", async () => {
+      const postSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'post').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'POST returned from mock provider no params',
+          }),
+          text: () => '{ "data": "POST returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.post('/api/my-endpoint', null, { name: 'Brother' }, { validate: false });
+
+      expect(err).toBeNull();
+      expect(postSpy).toHaveBeenCalledOnce();
+      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+        validate: false,
+      });
+      expect(res).toStrictEqual({
+        data: 'POST returned from mock provider no params',
+      });
+    });
+
+    test("No params: returns response from provider's post method when successful non-validated on client", async () => {
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockPostEndpoints,
+        validation: false,
+        debug: false,
+      });
+
+      const postSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'post').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'POST returned from mock provider no params',
+          }),
+          text: () => '{ "data": "POST returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.post('/api/my-endpoint', null, {
+        name: 'Brother',
+      });
+
+      expect(err).toBeNull();
+      expect(postSpy).toHaveBeenCalledOnce();
+      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toStrictEqual({
+        data: 'POST returned from mock provider no params',
+      });
+    });
+
+    test("With params: returns response from provider's post method when successful", async () => {
+      const postSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'post').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'POST returned from mock provider with params',
+          }),
+          text: () => '{ "data": "POST returned from mock provider with params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.post(
+        '/api/my-endpoint/{my-param}',
+        { 'my-param': 'hey' },
+        { name: 'Brother' },
+      );
+
+      expect(err).toBeNull();
+      expect(postSpy).toHaveBeenCalledOnce();
+      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint/hey', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toStrictEqual({
+        data: 'POST returned from mock provider with params',
+      });
+    });
+
+    test('Returns error and null data when request returns error tuple', async () => {
+      const underlyingError = {
+        cause: 'something bad with post',
+        status: 400,
+      };
+
+      const postSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'post')
+        .mockImplementation(async () => asyncErr(underlyingError));
+
+      const [err, res] = await requestClient.post('/api/my-endpoint', null, {
+        name: 'Brother',
+      });
+
+      expect(res).toBeNull();
+      expect(postSpy).toHaveBeenCalledOnce();
+      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message.toLowerCase()).toContain('error doing request');
+      expect((err as Error).cause).toStrictEqual(underlyingError);
+    });
+
+    test('Returns error and null data when constructUrl errors due to bad url', async () => {
+      const postSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'post');
+
+      const [err, res] = await requestClient.post(
+        '/api/my-bad-endpoint/{ye}}',
+        { ye: 'something' },
+        { name: 'Brother' },
+      );
+
+      expect(res).toBeNull();
+      expect(postSpy).not.toHaveBeenCalled();
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message.toLowerCase()).toContain('error constructing url');
+    });
+  });
+
+  describe('PUT', () => {
+    const mockPutEndpoints = {
+      '/api/my-endpoint': {
+        put: {
+          request: z.object({ name: z.string() }),
+          response: z.object({ data: z.string() }),
+        },
+      },
+      '/api/my-endpoint/{my-param}': {
+        put: {
+          request: z.object({ name: z.string() }),
+          response: z.object({ data: z.string() }),
+        },
+      },
+      '/api/my-bad-endpoint/{ye}}': {
+        put: {
+          request: z.object({ name: z.string() }),
+          response: z.object({ data: z.string() }),
+        },
+      },
+    } as const satisfies RequestDefinitions;
+
+    let requestClient: RequestClient<typeof mockPutEndpoints>;
+
+    let consoleLogSpy: MockedFunction<VoidFunction>;
+    let consoleDebugSpy: MockedFunction<VoidFunction>;
+    let consoleWarnSpy: MockedFunction<VoidFunction>;
+
+    beforeEach(() => {
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockPutEndpoints,
+        validation: true,
+        debug: true,
+      });
+    });
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('No endpoint: errors if endpoint dont exit', async () => {
+      const putSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'put').mockImplementation(() => null);
+
+      //@ts-expect-error
+      const [err, res] = await requestClient.put('/api/non-existing', null);
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
+      expect(putSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('No endpoint: errors if endpoint dont exit', async () => {
+      const putSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'put').mockImplementation(() => null);
+
+      //@ts-expect-error
+      const [err, res] = await requestClient.put('/api/non-existing', null);
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
+      expect(putSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on request wrong schema', async () => {
+      const putSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'put').mockImplementation(async () =>
+        asyncOk({
+          json: () => null,
+          text: () => 'null',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.put('/api/my-endpoint', null, {
+        // @ts-expect-error
+        age: 22,
+      });
+
+      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(putSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on response wrong schema', async () => {
+      const putSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'put').mockImplementation(async () =>
+        asyncOk({
+          json: () => null,
+          text: () => 'null',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.put('/api/my-endpoint', null, {
+        name: 'Brother',
+      });
+
+      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(putSpy).toHaveBeenCalledOnce();
+      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on response throw', async () => {
+      const putSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'put').mockImplementation(async () =>
+        asyncOk({
+          json: () => {
+            throw new Error('json-error');
+          },
+          text: () => {
+            throw new Error('json-error');
+          },
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.put('/api/my-endpoint', null, {
+        name: 'Brother',
+      });
+
+      expect(err).toStrictEqual(new Error('error getting response in put'));
+      expect(putSpy).toHaveBeenCalledOnce();
+      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toBeNull();
+    });
+
+    test("No params: returns response from provider's put method when successful", async () => {
+      const putSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'put').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({ data: 'PUT returned from mock provider no params' }),
+          text: () => '{ "data": "PUT returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.put('/api/my-endpoint', null, {
+        name: 'Pooh',
+      });
+
+      expect(err).toBeNull();
+      expect(putSpy).toHaveBeenCalledOnce();
+      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Pooh' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toStrictEqual({
+        data: 'PUT returned from mock provider no params',
+      });
+    });
+
+    test("No params: returns response from provider's put method when successful non-validated", async () => {
+      const putSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'put').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'POST returned from mock provider no params',
+          }),
+          text: () => '{ "data": "POST returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.put('/api/my-endpoint', null, { name: 'Brother' }, { validate: false });
+
+      expect(err).toBeNull();
+      expect(putSpy).toHaveBeenCalledOnce();
+      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+        validate: false,
+      });
+      expect(res).toStrictEqual({
+        data: 'POST returned from mock provider no params',
+      });
+    });
+
+    test("No params: returns response from provider's put method when successful non-validated on client", async () => {
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockPutEndpoints,
+        validation: false,
+        debug: false,
+      });
+
+      const putSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'put').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'POST returned from mock provider no params',
+          }),
+          text: () => '{ "data": "POST returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.put('/api/my-endpoint', null, {
+        name: 'Brother',
+      });
+
+      expect(err).toBeNull();
+      expect(putSpy).toHaveBeenCalledOnce();
+      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toStrictEqual({
+        data: 'POST returned from mock provider no params',
+      });
+    });
+
+    test("With params: returns response from provider's put method when successful", async () => {
+      const putSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'put').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'PUT returned from mock provider with params',
+          }),
+          text: () => '{ "data": "PUT returned from mock provider with params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.put(
+        '/api/my-endpoint/{my-param}',
+        { 'my-param': 'hey' },
+        { name: 'Pooh' },
+      );
+
+      expect(err).toBeNull();
+      expect(putSpy).toHaveBeenCalledOnce();
+      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint/hey', JSON.stringify({ name: 'Pooh' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toStrictEqual({
+        data: 'PUT returned from mock provider with params',
+      });
+    });
+
+    test('Returns error and null data when request returns error tuple', async () => {
+      const underlyingError = {
+        cause: 'something bad with put',
+        status: 400,
+      };
+
+      const putSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'put')
+        .mockImplementation(async () => asyncErr(underlyingError));
+
+      const [err, res] = await requestClient.put('/api/my-endpoint', null, {
+        name: 'Pooh',
+      });
+
+      expect(res).toBeNull();
+      expect(putSpy).toHaveBeenCalledOnce();
+      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Pooh' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message.toLowerCase()).toContain('error doing request');
+      expect((err as Error).cause).toStrictEqual(underlyingError);
+    });
+
+    test('Returns error and null data when constructUrl errors due to bad url', async () => {
+      const putSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'put');
+
+      const [err, res] = await requestClient.put('/api/my-bad-endpoint/{ye}}', { ye: 'something' }, { name: 'Pooh' });
+
+      expect(res).toBeNull();
+      expect(putSpy).not.toHaveBeenCalled();
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message.toLowerCase()).toContain('error constructing url');
+    });
+  });
+
+  describe('PATCH', () => {
+    const mockPatchEndpoints = {
+      '/api/my-endpoint': {
+        patch: {
+          request: z.object({ name: z.string() }),
+          response: z.object({ data: z.string() }),
+        },
+      },
+      '/api/my-endpoint/{my-param}': {
+        patch: {
+          request: z.object({ name: z.string() }),
+          response: z.object({ data: z.string() }),
+        },
+      },
+      '/api/my-bad-endpoint/{ye}}': {
+        patch: {
+          request: z.object({ name: z.string() }),
+          response: z.object({ data: z.string() }),
+        },
+      },
+    } as const satisfies RequestDefinitions;
+
+    let requestClient: RequestClient<typeof mockPatchEndpoints>;
+    let consoleLogSpy: MockedFunction<VoidFunction>;
+    let consoleDebugSpy: MockedFunction<VoidFunction>;
+    let consoleWarnSpy: MockedFunction<VoidFunction>;
+
+    beforeEach(() => {
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockPatchEndpoints,
+        validation: true,
+        debug: true,
+      });
+    });
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('No endpoint: errors if endpoint dont exit', async () => {
+      const patchSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch').mockImplementation(() => null);
+
+      //@ts-expect-error
+      const [err, res] = await requestClient.patch('/api/non-existing', null);
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
+      expect(patchSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('No endpoint: errors if endpoint dont exit', async () => {
+      const patchSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch').mockImplementation(() => null);
+
+      //@ts-expect-error
+      const [err, res] = await requestClient.patch('/api/non-existing', null);
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
+      expect(patchSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on request wrong schema', async () => {
+      const patchSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch').mockImplementation(async () =>
+        asyncOk({
+          json: () => null,
+          text: () => 'null',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.patch('/api/my-endpoint', null, {
+        // @ts-expect-error
+        age: 22,
+      });
+
+      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(patchSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on response wrong schema', async () => {
+      const patchSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch').mockImplementation(async () =>
+        asyncOk({
+          json: () => null,
+          text: () => 'null',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.patch('/api/my-endpoint', null, {
+        name: 'Brother',
+      });
+
+      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(patchSpy).toHaveBeenCalledOnce();
+      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on response throw', async () => {
+      const patchSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch').mockImplementation(async () =>
+        asyncOk({
+          json: () => {
+            throw new Error('json-error');
+          },
+          text: () => {
+            throw new Error('json-error');
+          },
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.patch('/api/my-endpoint', null, {
+        name: 'Brother',
+      });
+
+      expect(err).toStrictEqual(new Error('error getting response in patch'));
+      expect(patchSpy).toHaveBeenCalledOnce();
+      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toBeNull();
+    });
+
+    test("No params: returns response from provider's patch method when successful", async () => {
+      const patchSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'PATCH returned from mock provider no params',
+          }),
+          text: () => '{ "data": "PATCH returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.patch('/api/my-endpoint', null, {
+        name: 'Little Foot',
+      });
+
+      expect(err).toBeNull();
+      expect(patchSpy).toHaveBeenCalledOnce();
+      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Little Foot' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toStrictEqual({
+        data: 'PATCH returned from mock provider no params',
+      });
+    });
+
+    test("No params: returns response from provider's patch method when successful without validation", async () => {
+      const patchSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'PATCH returned from mock provider no params',
+          }),
+          text: () => '{ "data": "PATCH returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.patch(
+        '/api/my-endpoint',
+        null,
+        { name: 'Little Foot' },
+        { validate: false },
+      );
+
+      expect(err).toBeNull();
+      expect(patchSpy).toHaveBeenCalledOnce();
+      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Little Foot' }), {
+        headers: DEFAULT_HEADERS_SEND,
+        validate: false,
+      });
+      expect(res).toStrictEqual({
+        data: 'PATCH returned from mock provider no params',
+      });
+    });
+
+    test("No params: returns response from provider's patch method when successful without validation on client", async () => {
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockPatchEndpoints,
+        validation: false,
+        debug: false,
+      });
+
+      const patchSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'PATCH returned from mock provider no params',
+          }),
+          text: () => '{ "data": "PATCH returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.patch('/api/my-endpoint', null, {
+        name: 'Little Foot',
+      });
+
+      expect(err).toBeNull();
+      expect(patchSpy).toHaveBeenCalledOnce();
+      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Little Foot' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toStrictEqual({
+        data: 'PATCH returned from mock provider no params',
+      });
+    });
+
+    test("With params: returns response from provider's patch method when successful", async () => {
+      const patchSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'PATCH returned from mock provider with params',
+          }),
+          text: () => '{ "data": "PATCH returned from mock provider with params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.patch(
+        '/api/my-endpoint/{my-param}',
+        { 'my-param': 'hey' },
+        { name: 'Little Foot' },
+      );
+
+      expect(err).toBeNull();
+      expect(patchSpy).toHaveBeenCalledOnce();
+      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint/hey', JSON.stringify({ name: 'Little Foot' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(res).toStrictEqual({
+        data: 'PATCH returned from mock provider with params',
+      });
+    });
+
+    test('Returns error and null data when request returns error tuple', async () => {
+      const underlyingError = {
+        cause: 'something bad with patch',
+        status: 400,
+      };
+
+      const patchSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch')
+        .mockImplementation(async () => asyncErr(underlyingError));
+
+      const [err, res] = await requestClient.patch('/api/my-endpoint', null, {
+        name: 'Little Foot',
+      });
+
+      expect(res).toBeNull();
+      expect(patchSpy).toHaveBeenCalledOnce();
+      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Little Foot' }), {
+        headers: DEFAULT_HEADERS_SEND,
+      });
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message.toLowerCase()).toContain('error doing request');
+      expect((err as Error).cause).toStrictEqual(underlyingError);
+    });
+
+    test('Returns error and null data when constructUrl errors due to bad url', async () => {
+      const patchSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'patch');
+
+      const [err, res] = await requestClient.patch(
+        '/api/my-bad-endpoint/{ye}}',
+        { ye: 'something' },
+        { name: 'Little Foot' },
+      );
+
+      expect(res).toBeNull();
+      expect(patchSpy).not.toHaveBeenCalled();
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message.toLowerCase()).toContain('error constructing url');
+    });
+  });
+
+  describe('DELETE', () => {
+    const mockDeleteEndpoints = {
+      '/api/my-endpoint': {
+        delete: { response: z.object({ data: z.string() }) },
+      },
+      '/api/my-endpoint/{my-param}': {
+        delete: { response: z.object({ data: z.string() }) },
+      },
+      '/api/my-bad-endpoint/{ye}}': {
+        delete: { response: z.object({ data: z.string() }) },
+      },
+    } as const satisfies RequestDefinitions;
+
+    let requestClient: RequestClient<typeof mockDeleteEndpoints>;
+    let consoleLogSpy: MockedFunction<VoidFunction>;
+    let consoleDebugSpy: MockedFunction<VoidFunction>;
+    let consoleWarnSpy: MockedFunction<VoidFunction>;
+
+    beforeEach(() => {
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockDeleteEndpoints,
+        validation: true,
+        debug: true,
+      });
+    });
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('No endpoint: errors if endpoint dont exit', async () => {
+      const deleteSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'delete').mockImplementation(() => null);
+
+      //@ts-expect-error
+      const [err, res] = await requestClient.delete('/api/non-existing', null);
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
+      expect(deleteSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('No endpoint: errors if endpoint dont exit', async () => {
+      const deleteSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'delete').mockImplementation(() => null);
+
+      //@ts-expect-error
+      const [err, res] = await requestClient.delete('/api/non-existing', null);
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
+      expect(deleteSpy).toHaveBeenCalledTimes(0);
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on response throw', async () => {
+      const deleteSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'delete').mockImplementation(async () =>
+        asyncOk({
+          json: () => {
+            throw new Error('json-error');
+          },
+          text: () => {
+            throw new Error('json-error');
+          },
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.delete('/api/my-endpoint', null);
+
+      expect(err).toStrictEqual(new Error('error getting response in delete'));
+      expect(deleteSpy).toHaveBeenCalledOnce();
+      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(res).toBeNull();
+    });
+
+    test('No params: parse error on response wrong schema', async () => {
+      const deleteSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'delete').mockImplementation(async () =>
+        asyncOk({
+          json: () => null,
+          text: () => 'null',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.delete('/api/my-endpoint', null);
+
+      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(deleteSpy).toHaveBeenCalledOnce();
+      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(res).toBeNull();
+    });
+
+    test("No params: returns response from provider's delete method when successful", async () => {
+      const deleteSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'delete').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'DELETE returned from mock provider no params',
+          }),
+          text: () => '{ "data": "DELETE returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.delete('/api/my-endpoint', null);
+
+      expect(err).toBeNull();
+      expect(deleteSpy).toHaveBeenCalledOnce();
+      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(res).toStrictEqual({
+        data: 'DELETE returned from mock provider no params',
+      });
+    });
+
+    test("No params: returns response from provider's delete method when successful without validation", async () => {
+      const deleteSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'delete').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'DELETE returned from mock provider no params',
+          }),
+          text: () => '{ "data": "DELETE returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.delete('/api/my-endpoint', null, {
+        validate: false,
+      });
+
+      expect(err).toBeNull();
+      expect(deleteSpy).toHaveBeenCalledOnce();
+      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {
+        validate: false,
+      });
+      expect(res).toStrictEqual({
+        data: 'DELETE returned from mock provider no params',
+      });
+    });
+
+    test("No params: returns response from provider's delete method when successful without validation on client", async () => {
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockDeleteEndpoints,
+        validation: false,
+        debug: false,
+      });
+      const deleteSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'delete').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'DELETE returned from mock provider no params',
+          }),
+          text: () => '{ "data": "DELETE returned from mock provider no params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.delete('/api/my-endpoint', null);
+
+      expect(err).toBeNull();
+      expect(deleteSpy).toHaveBeenCalledOnce();
+      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(res).toStrictEqual({
+        data: 'DELETE returned from mock provider no params',
+      });
+    });
+
+    test("With params: returns response from provider's delete method when successful", async () => {
+      const deleteSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'delete').mockImplementation(async () =>
+        asyncOk({
+          json: () => ({
+            data: 'DELETE returned from mock provider with params',
+          }),
+          text: () => '{ "data": "DELETE returned from mock provider with params" }',
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const [err, res] = await requestClient.delete('/api/my-endpoint/{my-param}', {
+        'my-param': 'hey',
+      });
+
+      expect(err).toBeNull();
+      expect(deleteSpy).toHaveBeenCalledOnce();
+      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint/hey', {});
+      expect(res).toStrictEqual({
+        data: 'DELETE returned from mock provider with params',
+      });
+    });
+
+    test('Returns error and null data when request returns error tuple', async () => {
+      const underlyingError = {
+        cause: 'something bad with delete',
+        status: 400,
+      };
+
+      const deleteSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'delete')
+        .mockImplementation(async () => asyncErr(underlyingError));
+
+      const [err, res] = await requestClient.delete('/api/my-endpoint', null);
+
+      expect(res).toBeNull();
+      expect(deleteSpy).toHaveBeenCalledOnce();
+      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message.toLowerCase()).toContain('error doing request');
+      expect((err as Error).cause).toStrictEqual(underlyingError);
+    });
+
+    test('Returns error and null data when constructUrl errors due to bad url', async () => {
+      const deleteSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'delete');
+
+      const [err, res] = await requestClient.delete('/api/my-bad-endpoint/{ye}}', {
+        ye: 'something',
+      });
+
+      expect(res).toBeNull();
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message.toLowerCase()).toContain('error constructing url');
+    });
+  });
+
+  describe('SSE', () => {
+    const mockSseEndpoints = {
+      '/api/my-sse': {
+        sse: {
+          response: z.object({
+            hello: z.literal('world'),
+          }),
+        },
+      },
+      '/api/{integration}': {
+        sse: {
+          $path: z.object({
+            integration: z.enum(['sse-test']),
+          }),
+          response: z.object({
+            hello: z.literal('world'),
+          }),
+        },
+      },
+    } as const satisfies RequestDefinitions;
+
+    let requestClient: RequestClient<typeof mockSseEndpoints>;
+
+    let consoleLogSpy: MockedFunction<VoidFunction>;
+    let consoleDebugSpy: MockedFunction<VoidFunction>;
+    let consoleWarnSpy: MockedFunction<VoidFunction>;
+
+    beforeEach(() => {
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: true,
+      });
+
+      vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('Constructs SSE connection and returns close function', async () => {
+      const handler = vi.fn();
+
+      const [err, close] = await requestClient.sse('/api/my-sse', null, handler);
+
+      expect(err).toBeNull();
+      expect(MOCK_SSE_PROVIDER).toHaveBeenCalledOnce();
+
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      expect(instance.url).toBe('https://api.example.com/base/api/my-sse');
+      expect(instance.withCredentials).toBe(true);
+
+      close?.();
+      expect(instance.close).toHaveBeenCalled();
+    });
+
+    test('Errors on non-existant URL', async () => {
+      const handler = vi.fn();
+
+      // @ts-expect-error
+      const [err, close] = await requestClient.sse('/api/my-non-existing-sse', null, handler);
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /api/my-non-existing-sse'));
+      expect(MOCK_SSE_PROVIDER).toHaveBeenCalledTimes(0);
+      expect(close).toBeNull();
+    });
+
+    test('Errors on malformed URL constructing', async () => {
+      const handler = vi.fn();
+
+      // @ts-expect-error
+      const [err, close] = await requestClient.sse('/api/{integration}', { $path: { integration: 'slack' } }, handler);
+
+      expect(err).toStrictEqual(new Error('error constructing url in sse'));
+      expect(MOCK_SSE_PROVIDER).toHaveBeenCalledTimes(0);
+      expect(close).toBeNull();
+    });
+
+    test('onmessage parses JSON and calls handler with data', async () => {
+      const handler = vi.fn();
+
+      await requestClient.sse('/api/my-sse', null, handler);
+
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      const fakeMessage = {
+        data: JSON.stringify({ hello: 'world' }),
+      } as MessageEvent;
+
+      instance.onmessage?.(fakeMessage);
+
+      await vi.waitUntil(() => handler.mock.calls.length > 0);
+
+      expect(handler).toHaveBeenCalledWith([null, { hello: 'world' }]);
+    });
+
+    test('onmessage parses JSON and calls handler with data without validation', async () => {
+      const handler = vi.fn();
+
+      await requestClient.sse('/api/my-sse', null, handler, {
+        validate: false,
+      });
+
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      const fakeMessage = {
+        data: JSON.stringify({ hello: 'world' }),
+      } as MessageEvent;
+
+      instance.onmessage?.(fakeMessage);
+
+      await vi.waitUntil(() => handler.mock.calls.length > 0);
+
+      expect(handler).toHaveBeenCalledWith([null, { hello: 'world' }]);
+    });
+
+    test('onmessage parses JSON and calls handler with data without validation on client', async () => {
+      requestClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: false,
+        debug: false,
+      });
+
+      const handler = vi.fn();
+
+      await requestClient.sse('/api/my-sse', null, handler);
+
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      const fakeMessage = {
+        data: JSON.stringify({ hello: 'world' }),
+      } as MessageEvent;
+
+      instance.onmessage?.(fakeMessage);
+
+      await vi.waitUntil(() => handler.mock.calls.length > 0);
+
+      expect(handler).toHaveBeenCalledWith([null, { hello: 'world' }]);
+    });
+
+    test('onmessage calls handler with error when JSON is invalid', async () => {
+      const handler = vi.fn();
+
+      await requestClient.sse('/api/my-sse', null, handler);
+
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      const fakeMessage = { data: 'not-json' } as MessageEvent;
+      instance.onmessage?.(fakeMessage);
+
+      await vi.waitUntil(() => handler.mock.calls.length > 0);
+
+      const [err, data] = handler.mock.calls[0][0];
+
+      expect(err).toBeInstanceOf(Error);
+      expect(data).toBeNull();
+    });
+
+    test('onmessage calls handler with error when JSON is invalid', async () => {
+      const handler = vi.fn();
+
+      await requestClient.sse('/api/my-sse', null, handler);
+
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      const fakeMessage = {
+        data: JSON.stringify({ yo: 'dawg' }),
+      } as MessageEvent;
+      instance.onmessage?.(fakeMessage);
+
+      await vi.waitUntil(() => handler.mock.calls.length > 0);
+
+      const [err, data] = handler.mock.calls[0][0];
+
+      expect(err).toBeInstanceOf(Error);
+      expect(data).toBeNull();
+    });
+
+    test('onerror calls handler with generic error', async () => {
+      const handler = vi.fn();
+
+      await requestClient.sse('/api/my-sse', null, handler);
+
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      const fakeError = new Event('error');
+      instance.onerror?.(fakeError);
+
+      await vi.waitUntil(() => handler.mock.calls.length > 0);
+
+      const [err, data] = handler.mock.calls[0][0];
+      expect(err).toBeInstanceOf(Error);
+      expect(data).toBeNull();
+    });
+
+    test('onerror calls handler with error-event error', async () => {
+      const handler = vi.fn();
+
+      await requestClient.sse('/api/my-sse', null, handler);
+
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      const fakeError = new ErrorEvent('error');
+      instance.onerror?.(fakeError);
+
+      await vi.waitUntil(() => handler.mock.calls.length > 0);
+
+      const [err, data] = handler.mock.calls[0][0];
+      expect(err).toBeInstanceOf(Error);
+      expect(data).toBeNull();
+    });
+
+    test('close() is a no-op when SSE stream is already closed', async () => {
+      const LOCAL_CLOSED_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        url: string | URL,
+        init?: SSEClientSourceInit,
+      ) {
+        Object.defineProperties(this, {
+          url: {
+            value: typeof url === 'string' ? url : url.toString(),
+            writable: false,
+          },
+          withCredentials: {
+            value: init?.withCredentials ?? true,
+            writable: false,
+          },
+          // Start as OPEN (more realistic), we will close it manually in the test
+          readyState: { value: 1, writable: true },
+          CLOSED: { value: 2, writable: false },
+          CONNECTING: { value: 0, writable: false },
+          OPEN: { value: 1, writable: false },
+        });
+
+        this.onopen = null;
+        this.onmessage = null;
+        this.onerror = null;
+
+        this.close = vi.fn(() => {
+          // biome-ignore lint/suspicious/noExplicitAny: Overriding on purpose to access internal state
+          (this as any).readyState = this.CLOSED;
+        });
+        this.addEventListener = vi.fn();
+        this.removeEventListener = vi.fn();
+        this.dispatchEvent = vi.fn().mockReturnValue(true);
+      }) as unknown as MockedSSEClientProvider;
+
+      const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const handler = vi.fn();
+
+      const localClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: LOCAL_CLOSED_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: true,
+      });
+
+      // Start the SSE, but don't await immediately
+      const ssePromise = localClient.sse('/api/my-sse', null, handler);
+
+      const instance = LOCAL_CLOSED_SSE_PROVIDER.mock.instances[0];
+
+      // Simulate successful open so the promise resolves
+      instance.onopen?.(new Event('open'));
+
+      const [err, close] = await ssePromise;
+
+      expect(err).toBeNull();
+      expect(LOCAL_CLOSED_SSE_PROVIDER).toHaveBeenCalledOnce();
+
+      // Now simulate that the stream has already been closed by the server
+
+      // @ts-expect-error: simulating a state change
+      instance.readyState = instance.CLOSED;
+      expect(instance.readyState).toBe(instance.CLOSED); // sanity check
+
+      // Call the close function returned from client.sse(...)
+      close?.();
+
+      // Since readyState === CLOSED, the underlying connection.close must NOT be called
+      expect(instance.close).not.toHaveBeenCalled();
+
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('resolves with error when SSE fails to open (onerror before onopen)', async () => {
+      const handler = vi.fn();
+
+      // fresh client with the normal/mock provider (must NOT auto-open)
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
+
+      // Start the SSE call, but don't await yet
+      const ssePromise = client.sse('/api/my-sse', null, handler);
+
+      // Grab the underlying SSE instance created by the provider
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      // Simulate an error happening BEFORE any `onopen`
+      const errorEvent = new Event('error');
+      instance.onerror?.(errorEvent);
+
+      // Now await the promise – it should resolve via the `!resolved` branch
+      const [err, close] = await ssePromise;
+
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error opening SSE connection');
+      expect(close).toBeNull();
+
+      // For this "failed to open" case, the handler should NOT be called
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('clears timeout when SSE opens before deadline', async () => {
+      vi.useFakeTimers();
+
+      const handler = vi.fn();
+
+      const client = new RequestClient<typeof mockSseEndpoints>({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
+
+      const promise = client.sse('/api/my-sse', null, handler, {
+        timeout: 1000,
+      });
+
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      // Time passes, but not enough to hit the timeout
+      vi.advanceTimersByTime(500);
+
+      // Connection opens successfully
+      instance.onopen?.(new Event('open'));
+
+      const [err, close] = await promise;
+
+      expect(err).toBeNull();
+      expect(typeof close).toBe('function');
+
+      // Advance timers beyond the timeout just to be sure nothing else happens
+      vi.advanceTimersByTime(1000);
+
+      // No timeout error should be surfaced; handler shouldn't have been called by timeout either
+      expect(handler).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+
+    test('times out opening SSE connection when no open/error occurs', async () => {
+      const LOCAL_CLOSED_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        url: string | URL,
+        init?: SSEClientSourceInit,
+      ) {
+        Object.defineProperties(this, {
+          url: {
+            value: typeof url === 'string' ? url : url.toString(),
+            writable: false,
+          },
+          withCredentials: {
+            value: init?.withCredentials ?? true,
+            writable: false,
+          },
+          // Start as OPENING (more realistic), we will close it manually in the test
+          readyState: { value: 0, writable: true },
+          CLOSED: { value: 2, writable: false },
+          CONNECTING: { value: 0, writable: false },
+          OPEN: { value: 1, writable: false },
+        });
+
+        this.onopen = null;
+        this.onmessage = null;
+        this.onerror = null;
+
+        this.close = vi.fn(() => {
+          // biome-ignore lint/suspicious/noExplicitAny: Overriding on purpose to access internal state
+          (this as any).readyState = this.CLOSED;
+        });
+        this.addEventListener = vi.fn();
+        this.removeEventListener = vi.fn();
+        this.dispatchEvent = vi.fn().mockReturnValue(true);
+      }) as unknown as MockedSSEClientProvider;
+
+      vi.useFakeTimers();
+
+      const handler = vi.fn();
+
+      const client = new RequestClient<typeof mockSseEndpoints>({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: LOCAL_CLOSED_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
+
+      // Start SSE, but don't drive onopen/onerror
+      const promise = client.sse('/api/my-sse', null, handler, {
+        timeout: 1000,
+      });
+
+      // Let the timeout fire
+      await vi.advanceTimersByTimeAsync(1005);
+
+      const [err, close] = await promise;
+
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error opening SSE connection');
+      // check the underlying cause is a TimeoutError
+      expect(err?.cause).toBeInstanceOf(TimeoutError);
+      expect((err?.cause as TimeoutError).message).toContain(
+        'error timed out opening connection to SSE endpoint: api/my-sse',
+      );
+
+      expect(close).toBeNull();
+      expect(handler).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+  });
+});
