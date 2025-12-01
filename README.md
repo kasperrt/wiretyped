@@ -51,6 +51,7 @@ Typed HTTP client utilities for defining endpoints with zod, issuing requests, a
 ```sh
 pnpm add wiretype
 # or: npm install wiretype
+# or: npx jsr add @kasperrt/wiretyped
 ```
 
 ## Quick start

@@ -1,0 +1,9 @@
+{
+  "name": "@kasperrt/wiretyped",
+  "version": "0.0.1",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./core": "./dist/core.mjs",
+    "./error": "./dist/error.mjs"
+  }
+}
