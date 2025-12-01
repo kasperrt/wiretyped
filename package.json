@@ -14,6 +14,7 @@
     "access": "public"
   },
   "packageManager": "pnpm@10.20.0",
+  "repository": "https://github.com/kasperrt/wiretyped",
   "scripts": {
     "fix:format": "pnpm exec biome format --write",
     "fix:lint": "pnpm exec biome lint --write",
