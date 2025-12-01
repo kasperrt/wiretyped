@@ -6,7 +6,7 @@
     "declaration": true,
     "declarationMap": true,
     "outDir": "./dist/types",
-    "rootDir": "."
+    "rootDir": "./src"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["**/*.test.ts", "**/*.spec.ts", "coverage", "dist", "node_modules", "vitest.config.ts"]
