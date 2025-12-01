@@ -4,18 +4,22 @@ import type { FetchClientOptions } from '../fetch/client';
 import type { FetchResponse } from '../fetch/types';
 import type { SafeWrap, SafeWrapAsync } from '../utils/wrap';
 
+/** Make a subset of keys required while keeping the rest intact. */
 export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
 
+/** Enforce at least one property to be present on a type. */
 export type RequireAtLeastOne<T> = {
   [K in keyof T]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<keyof T, K>>>;
 }[keyof T];
 
+/** Common request options including cache and validation controls. */
 export interface HttpRequestOptions extends FetchOptions {
   cacheRequest?: boolean;
   cacheTimeToLive?: number;
   validate?: boolean;
 }
 
+/** Contract for HTTP client implementations used by RequestClient. */
 export interface HttpClientProviderDefinition {
   get: (url: string, options: Omit<HttpRequestOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
   put: (
@@ -36,6 +40,7 @@ export interface HttpClientProviderDefinition {
   delete: (url: string, options: Omit<HttpRequestOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
 }
 
+/** Factory signature for constructing HTTP providers. */
 export interface HttpClientProvider {
   new (baseUrl: string, opts: FetchClientOptions): HttpClientProviderDefinition;
 }
@@ -50,6 +55,7 @@ export interface SSEClientSourceInit {
   withCredentials?: boolean;
 }
 
+/** Minimal EventSource-like contract expected by the SSE client. */
 export interface SSEClientProviderDefinition {
   readonly url: string;
   readonly withCredentials: boolean;
@@ -76,6 +82,7 @@ export interface SSEClientProviderDefinition {
   dispatchEvent(event: Event): boolean;
 }
 
+/** Factory signature for constructing SSE providers. */
 export interface SSEClientProvider {
   new (url: string | URL, eventSourceInitDict?: SSEClientSourceInit): SSEClientProviderDefinition;
 }
@@ -118,6 +125,7 @@ type ParsePathParams<Path extends string | number> = Path extends `${infer _Star
   : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
     {};
 
+/** Extract endpoints that support a given HTTP method. */
 export type EndpointsWithMethod<Method extends HttpMethod, Schema extends RequestDefinitions> = {
   [K in keyof Schema]: Schema[K] extends Record<Method, unknown> ? K : never;
 }[keyof Schema];
@@ -193,6 +201,7 @@ export type Params<
 /**
  * Explicitly typed SSEEndpoints
  */
+/** Endpoint keys that expose an SSE handler. */
 export type SSEEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'sse', Schema>;
 
 /**
@@ -305,54 +314,42 @@ export type UrlArgs<Endpoint extends UrlEndpoint<Schema> & string, Schema extend
   params: Params<Endpoint, 'url', Schema>,
 ];
 
-/**
- * Typed return-type for get function
- */
+/** Typed return-type for get function */
 export type GetReturn<T extends GetEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
   Schema,
   T,
   'get'
 >;
 
-/**
- * Typed return-type for post function
- */
+/** Typed return-type for post function */
 export type PostReturn<T extends PostEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
   Schema,
   T,
   'post'
 >;
 
-/**
- * Typed return-type for put function
- */
+/** Typed return-type for put function */
 export type PutReturn<T extends PutEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
   Schema,
   T,
   'put'
 >;
 
-/**
- * Typed return-type for patch function
- */
+/** Typed return-type for patch function */
 export type PatchReturn<T extends PatchEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
   Schema,
   T,
   'patch'
 >;
 
-/**
- * Typed return-type for delete function
- */
+/** Typed return-type for delete function */
 export type DeleteReturn<T extends DeleteEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
   Schema,
   T,
   'delete'
 >;
 
-/**
- * Typed return-type for delete function
- */
+/** Typed return-type for URL builder */
 export type UrlReturn<T extends UrlEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
   Schema,
   T,

@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "wiretyped",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Typed HTTP client built on zod with error-first ergonomics, caching, retries, SSE, and runtime validation for APIs.",
   "keywords": ["http-client", "api-client", "typed", "typescript", "zod", "fetch", "rest", "sse", "retry", "cache"],
   "author": "Kasper Rynning-Tønnesen <kasperrt@users.noreply.github.com> (https://github.com/kasperrt)",

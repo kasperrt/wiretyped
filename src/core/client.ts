@@ -40,6 +40,7 @@ import type {
   UrlReturn,
 } from './types';
 
+/** Configuration for constructing a typed {@link RequestClient}. */
 export interface RequestClientProps<Schema extends RequestDefinitions> {
   /** HTTP client implementation used for regular requests. Defaults to {@link FetchClient}. */
   httpProvider?: HttpClientProvider;
@@ -49,13 +50,9 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
   baseUrl: string;
   /** Absolute hostname used to build urls (e.g. `https://api.example.com`) */
   hostname: string;
-  /** Optional cache configuration for GET requests.
-   * {@link CacheClientOptions}
-   * */
+  /** Optional cache configuration for GET requests. {@link CacheClientOptions} */
   cacheOpts?: CacheClientOptions;
-  /** Optional fetch configuration
-   * {@link FetchClientOptions}
-   * */
+  /** Optional fetch configuration. {@link FetchClientOptions} */
   fetchOpts?: FetchClientOptions;
   /**
    * Whether to log debug information to the console.

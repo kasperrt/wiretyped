@@ -1,5 +1,7 @@
+/** Header options accepted by the fetch wrapper. */
 export type HeaderOptions = NonNullable<RequestInit['headers']> | Record<string, string | undefined>;
 
+/** Subset of HTTP status codes used for retry logic. */
 export type StatusCode =
   | 100
   | 101
@@ -100,10 +102,13 @@ export interface FetchOptions extends Omit<RequestInit, 'headers'> {
    * @default 60000
    */
   timeout?: number | false;
+  /** Retry behavior (object for fine-grained control or number for attempt count). */
   retry?: RetryOptions | number;
+  /** Abort signal to cancel the request. */
   signal?: AbortSignal;
 }
 
+/** Fetch response with a narrowed status code union. */
 export interface FetchResponse extends Response {
   status: StatusCode;
 }

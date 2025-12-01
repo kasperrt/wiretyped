@@ -6,6 +6,7 @@ import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap';
 import type { FetchOptions, FetchResponse, StatusCode } from './types';
 import { mergeHeaderOptions } from './utils';
 
+/** Options to configure the {@link FetchClient} wrapper. */
 export interface FetchClientOptions extends Pick<FetchOptions, 'timeout' | 'headers' | 'retry'> {
   /**
    * Fetch credentials mode.
