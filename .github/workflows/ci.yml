@@ -65,12 +65,13 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.20.0
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      # Ensure npm 11.5.1 or later is installed
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Verify tag matches package version
@@ -85,7 +86,11 @@ jobs:
         run: pnpm run build
       - name: Smoke test built output
         run: pnpm run smoke
-      - name: Publish to npm
-        run: npm publish --provenance --access public
+      - name: Update npm
+        run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm run build --if-present
+      - run: npm test
+      - run: npm publish
       - name: Publish to JSR (with provenance)
         run: npx jsr publish
