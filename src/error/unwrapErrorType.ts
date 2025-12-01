@@ -1,3 +1,6 @@
+/**
+ * Extract a specific error type from an unknown error value, following nested causes.
+ */
 export function unwrapErrorType<T extends Error>(
   // biome-ignore lint/suspicious/noExplicitAny: errorClass needs to handle any type of class handling, hence the any class-type
   errorClass: new (...args: any[]) => T,
