@@ -10,6 +10,9 @@
   "module": "./dist/index.mjs",
   "types": "./dist/types/index.d.ts",
   "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
   "packageManager": "pnpm@10.20.0",
   "scripts": {
     "fix:format": "pnpm exec biome format --write",
