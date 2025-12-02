@@ -2516,5 +2516,85 @@ describe('RequestClient', () => {
       // should never be called
       expect(handler).not.toHaveBeenCalled();
     });
+
+    test('sse opener ignores subsequent resolution attempts (timeout then onopen)', async () => {
+      vi.useFakeTimers();
+
+      const LOCAL_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        url: string | URL,
+        init?: SSEClientSourceInit,
+      ) {
+        Object.defineProperties(this, {
+          url: {
+            value: typeof url === 'string' ? url : url.toString(),
+            writable: false,
+          },
+          withCredentials: {
+            value: init?.withCredentials ?? true,
+            writable: false,
+          },
+          readyState: { value: 0, writable: true }, // CONNECTING
+          CLOSED: { value: 2, writable: false },
+          CONNECTING: { value: 0, writable: false },
+          OPEN: { value: 1, writable: false },
+        });
+
+        this.onopen = null;
+        this.onmessage = null;
+        this.onerror = null;
+
+        this.close = vi.fn();
+        this.addEventListener = vi.fn();
+        this.removeEventListener = vi.fn();
+        this.dispatchEvent = vi.fn().mockReturnValue(true);
+      }) as unknown as MockedSSEClientProvider;
+
+      const handler = vi.fn();
+
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: LOCAL_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
+
+      // Start the SSE, but don't await yet – we need to manipulate timers and instance
+      const ssePromise = client.sse('/api/my-sse', null, handler, { timeout: 1000 });
+
+      // Wait until the SSE provider has actually been constructed
+      await vi.waitFor(() => {
+        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
+      });
+
+      const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
+      expect(instance).toBeDefined();
+
+      // 1) Let the timeout fire first -> first call to `done`
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // At this point, opener should have resolved with a timeout error
+      // but we haven't awaited ssePromise yet.
+
+      // 2) Now simulate a late "open" event -> second call to `done` with resolved === true
+      //    This is what hits the `if (resolved) { return; }` branch.
+      instance.onopen?.(new Event('open'));
+
+      const [err, close] = await ssePromise;
+
+      // We still see the timeout error result – the late onopen didn't change anything.
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error opening SSE connection');
+      expect(isTimeoutError(err)).toBe(true);
+      expect(close).toBeNull();
+
+      // No messages should have been delivered, since we never successfully opened.
+      expect(handler).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
   });
 });

@@ -599,40 +599,45 @@ export class RequestClient<Schema extends RequestDefinitions> {
   ): SafeWrapAsync<Error, SSEReturn> {
     const [endpoint, params, handler, options] = args;
     const opts = { withCredentials: this.#credentials !== 'omit', ...options };
+
     this.#log(`SSE OPTIONS: ${JSON.stringify(opts, null, 4)}`);
+
     const schemas = this.#endpoints[endpoint]?.sse;
     if (!schemas) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
     const [errUrl, url] = await constructUrl(endpoint, params, schemas, opts.validate ?? this.#validation);
-
     if (errUrl) {
       this.#log(`SSE ERRURL: ${errUrl}`);
       return [new Error('error constructing url in sse', { cause: errUrl }), null];
     }
 
-    this.#log(`SSE URL: ${url}`);
-
     const opener = new Promise<SafeWrap<Error, SSEReturn>>((resolve) => {
       let resolved = false;
-      const [errConnection, connection] = safeWrap(() => new this.#sseClient(`${this.#baseUrl}/${url}`, opts));
-      if (errConnection) {
+      let timeoutId: Timeout;
+
+      const done = (res: SafeWrap<Error, VoidFunction>) => {
+        // I need this conditional to be tested <---
+        if (resolved) {
+          return;
+        }
+
+        clearTimeout(timeoutId);
         resolved = true;
-        resolve([new Error(`error creating new connection for SSE on ${url}`, { cause: errConnection }), null]);
-        return;
+        resolve(res);
+      };
+
+      if (opts.timeout) {
+        timeoutId = setTimeout(() => {
+          done([new TimeoutError(`error timed out opening connection to SSE endpoint: ${url}`), null]);
+        }, opts.timeout);
       }
 
-      let timeout: Timeout;
-      if (opts.timeout) {
-        timeout = setTimeout(() => {
-          /* v8 ignore next -- @preserve */ // This is kinda technically un-reachable, but hey, doesn't hurt being safe right?
-          if (resolved) {
-            return;
-          }
-          resolved = true;
-          resolve([new TimeoutError(`error timed out opening connection to SSE endpoint: ${url}`), null]);
-        }, opts.timeout);
+      const [errConnection, connection] = safeWrap(() => new this.#sseClient(`${this.#baseUrl}/${url}`, opts));
+      if (errConnection) {
+        done([new Error(`error creating new connection for SSE on ${url}`, { cause: errConnection }), null]);
+        return;
       }
 
       const close = (): void => {
@@ -647,18 +652,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
       };
 
       connection.onopen = () => {
-        if (!resolved) {
-          clearTimeout(timeout);
-          resolved = true;
-          resolve([null, close]);
-          return;
-        }
+        done([null, close]);
       };
 
       connection.onerror = (event: Event) => {
         if (!resolved) {
-          resolved = true;
-          resolve([new Error(`error opening SSE connection`, { cause: event }), null]);
+          done([new Error(`error opening SSE connection`, { cause: event }), null]);
           return;
         }
 
@@ -702,6 +701,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       };
     });
 
+    this.#log(`SSE URL: ${url}`);
     const [errOpen, close] = await opener;
     if (errOpen) {
       return [new Error('error opening SSE connection', { cause: errOpen }), null];
