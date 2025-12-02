@@ -94,7 +94,7 @@ jobs:
       - name: Run smoke for ${{ matrix.runtime }}
         run: |
           case "${{ matrix.runtime }}" in
-            node) pnpm run smoke ;;
+            node) pnpm run smoke:node ;;
             bun) bun run scripts/smoke-bun.ts ;;
             deno) deno run --allow-read scripts/smoke-deno.ts ;;
             worker) pnpm run smoke:worker ;;

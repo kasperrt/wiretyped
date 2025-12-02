@@ -22,7 +22,7 @@
     "fix": "pnpm exec biome check --write",
     "build": "vite build && pnpm run build:types",
     "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
-    "smoke": "node scripts/smoke-test.mjs",
+    "smoke:node": "node scripts/smoke-node.mjs",
     "smoke:build": "pnpm run build && pnpm run smoke",
     "smoke:bun": "bun run scripts/smoke-bun.ts",
     "smoke:deno": "deno run --allow-read scripts/smoke-deno.ts",
@@ -35,7 +35,7 @@
     "test": "vitest run --no-isolate --no-file-parallelism",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "pnpm check && pnpm run test && pnpm run build && pnpm smoke",
+    "prepublishOnly": "pnpm check && pnpm run test && pnpm run build",
     "prepare": "pnpm exec simple-git-hooks"
   },
   "dependencies": {
