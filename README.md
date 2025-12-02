@@ -1,6 +1,6 @@
 <div align="center">
 
-# Wiretype HTTP Client
+# WireTyped HTTP Client
 
 <img src="./public/wiretyped.png" alt="Wiretyped logo" width="400" />
 
@@ -30,6 +30,8 @@ Typed HTTP client utilities for defining endpoints with zod, issuing requests, a
   - [Installation](#installation)
   - [Quick start](#quick-start)
   - [Imports](#imports)
+  - [Client options](#client-options)
+  - [Request options](#request-options)
   - [Methods](#methods)
     - [GET](#get)
     - [POST](#post)
@@ -43,16 +45,18 @@ Typed HTTP client utilities for defining endpoints with zod, issuing requests, a
   - [Retries](#retries)
   - [Error handling](#error-handling)
   - [Exposed entrypoints](#exposed-entrypoints)
+  - [Providers](#providers)
   - [Building](#building)
   - [Publishing](#publishing)
   - [Scripts](#scripts)
   - [Tests](#tests)
+  - [FAQ](#faq)
 
 ## Installation
 
 ```sh
-pnpm add wiretype
-# or: npm install wiretype
+pnpm add wiretyped
+# or: npm install wiretyped
 # or: npx jsr add @kasperrt/wiretyped
 ```
 
@@ -100,6 +104,63 @@ import { RequestClient, type RequestDefinitions, z } from 'wiretype';
 - Root: `import { RequestClient, z, ...errors } from 'wiretype'`
 - Subpath: `import { RequestClient, z } from 'wiretype/core'`
 - Errors-only: `import { HTTPError, unwrapErrorType, ... } from 'wiretype/error'`
+
+## Client options
+
+- `baseUrl` (required): Base path prepended to all endpoints (e.g., `https://api.example.com/`).
+- `hostname` (required): Absolute hostname used when building URLs (e.g., `https://api.example.com`); keeps `url()` outputs absolute.
+- `endpoints` (required): Your typed endpoint definitions (`RequestDefinitions`).
+- `validation` (default `true`): Validate request/response bodies using your zod schemas; can be overridden per call.
+- `debug` (default `false`): Log internal client debug info.
+- `cacheOpts`: Configure GET caching (ttl, enable per-call via `{ cacheRequest: true }`).
+
+  ```ts
+  {
+    cacheRequest?: boolean;      // Enable in-memory cache
+    cacheTimeToLive?: number;    // Cache TTL in ms (default 500)
+  }
+  ```
+
+- `fetchOpts`: Default fetch options for all calls (headers, credentials, timeout, retry).
+
+  ```ts
+  {
+    headers?: Record<string, string>;  // Merged with defaults; adds { Accept: 'application/json' } by default
+    credentials?: RequestCredentials;  // Passed to fetch
+    mode?: RequestMode;                // Passed to fetch
+    timeout?: number | false;          // Request timeout in ms (default 60_000). false disables
+    retry?: number | {                 // Per-call retry (default limit 2, timeout 1000ms, retry on 408/429/500-504)
+      limit?: number;                  // How many times to retry
+      timeout?: number;                // Ms between retries
+      statusCodes?: number[];          // Status codes to retry
+      ignoreStatusCodes?: number[];    // Status codes to never retry
+    };
+  }
+  ```
+
+## Request options
+
+Per-call `options` mirror `HttpRequestOptions`; caching flags are only for GET.
+
+```ts
+{
+  headers?: Record<string, string>;  // Merged with defaults; adds { Accept: 'application/json' } by default
+  credentials?: RequestCredentials;  // Passed to fetch
+  mode?: RequestMode;                // Passed to fetch
+  timeout?: number | false;          // Request timeout in ms (default 60_000). false disables
+  retry?: number | {                 // Per-call retry (default limit 2, timeout 1000ms, retry on [408, 429, 500, 501, 502, 503] and always on timeout or other errors)
+    limit?: number;                  // How many times to retry
+    timeout?: number;                // Ms between retries
+    statusCodes?: number[];          // Status codes to retry
+    ignoreStatusCodes?: number[];    // Status codes to never retry
+  };
+  validate?: boolean;                // Override global validation
+
+  // Only available for GET requests
+  cacheRequest?: boolean;            // GET only: enable in-memory cache
+  cacheTimeToLive?: number;          // GET only: cache TTL in ms (default 500)
+}
+```
 
 ## Methods
 
@@ -295,11 +356,17 @@ import { HTTPError, getHttpError, isHttpError, isTimeoutError, unwrapErrorType }
 const [err, user] = await client.get('/users/{id}', { $path: { id: '123' } });
 if (err) {
   const httpError = getHttpError(err);
-  if (httpError(unwrapped)) {
+  if (httpError) {
     console.error('error request failed with status', httpError.status);
-  } else if (isTimeoutError(unwrapped)) {
+    return _something_here_http_error_;
+  } 
+  
+  if (isTimeoutError(err)) {
     console.error('error request timed out');
+    return _something_here_timeout_error_;
   }
+
+  return _something_here_general_error_;
 }
 ```
 
@@ -308,6 +375,60 @@ if (err) {
 - Root import (client, types, z, errors): `wiretype`
 - Core client and types (includes `z` re-export): `wiretype/core`
 - Error helpers: `wiretype/error`
+
+## Providers
+
+Defaults are `FetchClient` for HTTP and the global `EventSource` for SSE. Override only if you need custom transports.
+
+### HTTP provider shape
+
+```ts
+interface HttpClientProvider {
+  new (baseUrl: string, opts: FetchClientOptions): HttpClientProviderDefinition;
+}
+
+interface HttpClientProviderDefinition {
+  get(url: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
+  put(url: string, body: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
+  patch(url: string, body: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
+  post(url: string, body: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
+  delete(url: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
+}
+```
+
+### SSE provider shape
+
+```ts
+interface SSEClientProvider {
+  new (url: string | URL, init?: { withCredentials?: boolean }): SSEClientProviderInstance;
+}
+
+interface SSEClientProviderInstance {
+  readonly url: string;
+  readonly withCredentials: boolean;
+  readonly readyState: number;
+  readonly CLOSED: 2;
+  readonly CONNECTING: 0;
+  readonly OPEN: 1;
+  onopen: ((ev: Event) => void) | null;
+  onmessage: ((ev: MessageEvent) => void) | null;
+  onerror: ((ev: Event) => void) | null;
+  close(): void;
+  addEventListener<K extends 'open' | 'message' | 'error'>(
+    type: K,
+    listener: (ev: K extends 'message' ? MessageEvent : Event) => void,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  removeEventListener<K extends 'open' | 'message' | 'error'>(
+    type: K,
+    listener: (ev: K extends 'message' ? MessageEvent : Event) => void,
+    options?: boolean | EventListenerOptions,
+  ): void;
+  dispatchEvent(event: Event): boolean;
+}
+```
+
+Pass these via `httpProvider` or `sseProvider` in the `RequestClient` constructor when swapping transports.
 
 ## Building
 
@@ -321,19 +442,13 @@ Outputs land in `dist/` as both ESM (`*.mjs`) and CJS (`*.cjs`) bundles, with de
 
 ## Publishing
 
-The package is wired for publishing to npm:
+Publishing is automated via GitHub Actions on tags (`v*`). Keep versions in sync:
 
-```sh
-pnpm test          # optional but recommended
-pnpm build
-pnpm publish --access public
-```
+- npm: `package.json` `version`
+- JSR: `jsr.json` `version`
+- Trigger: push a tag `vX.Y.Z` matching `package.json` `version`
 
-Suggested workflow:
-
-1. Bump the version: `npm version patch|minor|major`
-2. Build artifacts: `pnpm build`
-3. Publish: `pnpm publish --access public`
+CI will build, smoke-test, and publish to npm and JSR if the version isn’t already published.
 
 ## Scripts
 
@@ -348,3 +463,23 @@ Suggested workflow:
 - Keep tests focused and readable: arrange inputs, act, then assert. Prefer the error-first tuple ergonomics to mirror real usage.
 - Stub external effects (fetch, timers, SSE) with lightweight fakes rather than hitting the network.
 - Favor small, focused cases over large integration-style suites.
+
+## FAQ
+
+**Why is the error first in the tuple?**  
+So you can’t avoid handling it. Putting the error first forces you to look at it. If you still ignore it… that’s on you.
+
+---
+
+**How can I access the response with status code and all that?**  
+You can’t, because you don’t need it.  
+If you care about the status code, it’s almost always because of an error.  
+On success, you care about the data, not the status code.  
+If you feel you really need it, you’ve probably structured something wrong.
+
+---
+
+**Why always return both error and data?**  
+So you don’t end up with “floaty” types.  
+You either have an `error` defined *or* you have `data` defined.  
+(If your data is legitimately `null`, then you only have to care about `error`.)
