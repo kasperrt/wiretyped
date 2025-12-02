@@ -1,6 +1,6 @@
 // CJS types smoke: ensure declarations resolve for require() path
 import type { RequestClient, RequestDefinitions } from 'wiretyped/core';
-const core = require('wiretyped/core') as typeof import('wiretyped/core');
+const _core = require('wiretyped/core') as typeof import('wiretyped/core');
 const { z } = require('zod') as typeof import('zod');
 
 const endpoints = {
