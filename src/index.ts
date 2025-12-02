@@ -1,9 +1,8 @@
 /**
- * Root entrypoint for wiretyped: re-exports the core client, types, z, and error utilities.
+ * Root entrypoint for wiretyped: re-exports the core client, types, and error utilities.
  * Use this import if you want everything from a single module surface.
  * @module
  */
-export * as z from 'zod';
 export { RequestClient, type RequestClientProps, type RequestDefinitions } from './core';
 export {
   AbortError,

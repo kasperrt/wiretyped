@@ -300,7 +300,7 @@ const endpoints = {
 
 Subscribe to server-sent events; signature is `(endpoint, params, handler, options)`. Returns a stop function for the stream.
 ```ts
-const stop = await client.sse(
+const [err, close] = await client.sse(
   '/events',
   null,
   ([err, data]) => {
@@ -309,7 +309,13 @@ const stop = await client.sse(
   },
   { withCredentials: true },
 );
-stop?.();
+
+if(err) {
+  return new Error('some error-handling', { cause: err });
+}
+
+// Closer
+close();
 ```
 
 ## Caching
@@ -329,7 +335,7 @@ Configure retries via `retry` on request options (or globally in the client cons
 - Custom object:
 
 ```ts
-client.get('/users', params, {
+const [err, data] = await client.get('/users', params, {
   retry: {
     limit: 5,                // total attempts (including the first)
     statusCodes: [429, 500], // retry only these statuses
@@ -342,7 +348,7 @@ client.get('/users', params, {
 Example with a timeout focus:
 
 ```ts
-client.post('/users', {}, body, {
+const [err, _] = await client.post('/users', null, body, {
   timeout: 10_000,
   retry: { limit: 2, statusCodes: [408], timeout: 1000 },
 });
