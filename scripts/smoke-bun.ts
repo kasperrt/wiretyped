@@ -13,11 +13,7 @@ const rootErrors = [
   'isTimeoutError',
 ];
 
-const requiredErrors = [
-  ...rootErrors,
-  'unwrapErrorType',
-  'isErrorType',
-];
+const requiredErrors = [...rootErrors, 'unwrapErrorType', 'isErrorType'];
 
 const checkRoot = (mod: Record<string, unknown>, label: string) => {
   if (typeof mod.RequestClient !== 'function') throw new Error(`${label} RequestClient missing`);

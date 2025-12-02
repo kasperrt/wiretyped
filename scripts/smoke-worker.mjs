@@ -1,6 +1,7 @@
 // Worker smoke: ensure ESM bundle loads inside a worker context
-import { Worker } from 'node:worker_threads';
+
 import { fileURLToPath } from 'node:url';
+import { Worker } from 'node:worker_threads';
 
 const distIndex = new URL('../dist/index.mjs', import.meta.url);
 const indexPath = fileURLToPath(distIndex);
