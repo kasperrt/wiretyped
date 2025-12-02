@@ -81,16 +81,19 @@ export class CacheClient {
    */
   #addPendingRequest = <T = unknown>(key: string, request: () => SafeWrapAsync<Error, T>, ttl: number) => {
     this.#pending[key] = (async (): SafeWrapAsync<Error, T> => {
-      const [err, data] = await request();
-      delete this.#pending[key];
+      try {
+        const [err, data] = await request();
+        if (err) {
+          return [err, null] as const;
+        }
 
-      if (err) {
-        return [err, null] as const;
+        this.#add(key, data, ttl);
+        return [null, data] as const;
+      } catch (err) {
+        return [err as Error, null] as const;
+      } finally {
+        delete this.#pending[key];
       }
-
-      this.#add(key, data, ttl);
-
-      return [null, data] as const;
     })();
   };
 

@@ -180,6 +180,39 @@ describe('CacheClient', () => {
     expect(successFetch2).not.toHaveBeenCalled();
   });
 
+  it('returns tuple errors when resolver throws synchronously and allows retry', async () => {
+    const client = new CacheClient({ ttl: 5_000, cleanupInterval: 30_000 });
+    const error = new Error('boom');
+    const throwing = vi.fn(() => {
+      throw error;
+    });
+
+    const [errThrow, resThrow] = await client.get('key', () =>
+      new Promise((resolve) => resolve(throwing())).then(
+        (d) => [null, d] as const,
+        (e) => [e as Error, null] as const,
+      ),
+    );
+
+    expect(errThrow).toEqual(error);
+    expect(resThrow).toBeNull();
+    expect(throwing).toHaveBeenCalledTimes(1);
+
+    const success = vi.fn().mockResolvedValue('ok');
+    const [errOk, resOk] = await client.get('key', () =>
+      success().then(
+        // @ts-expect-error
+        (d) => [null, d] as const,
+        // @ts-expect-error
+        (e) => [e as Error, null] as const,
+      ),
+    );
+
+    expect(errOk).toBeNull();
+    expect(resOk).toBe('ok');
+    expect(success).toHaveBeenCalledTimes(1);
+  });
+
   it('cleanup interval does not break cache behavior over time', async () => {
     const client = new CacheClient({ ttl: 1_000, cleanupInterval: 500 });
 
