@@ -2404,6 +2404,49 @@ describe('RequestClient', () => {
       vi.useRealTimers();
     });
 
+    test('sse() returns error when new is run', async () => {
+      const LOCAL_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        _: string | URL,
+        __?: SSEClientSourceInit,
+      ) {
+        throw new Error('throwing on instantiation');
+      }) as unknown as MockedSSEClientProvider;
+
+      const handler = vi.fn();
+
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: LOCAL_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
+
+      // Start the SSE, do NOT await yet – we want to trigger onerror manually
+      const ssePromise = client.sse('/api/my-sse', null, handler);
+
+      // Wait for provider construction so connection.onerror has been wired
+      await vi.waitFor(() => {
+        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
+      });
+
+      const [err, close] = await ssePromise;
+
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error opening SSE connection');
+      expect((err?.cause as Error).message).toBe('error creating new connection for SSE on api/my-sse');
+
+      // Because the error happened during "open", we never get a close function
+      expect(close).toBeNull();
+
+      // Because we resolved via the "opening" error branch, the message handler
+      // should never be called
+      expect(handler).not.toHaveBeenCalled();
+    });
+
     test('sse() returns error when connection.onerror fires before SSE opens', async () => {
       const LOCAL_SSE_PROVIDER = vi.fn(function (
         this: SSEClientProviderDefinition,

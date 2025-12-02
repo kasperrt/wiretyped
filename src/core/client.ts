@@ -181,16 +181,16 @@ export class RequestClient<Schema extends RequestDefinitions> {
         this.#cacheClient.get(
           url,
           async () => {
-            // If key doesn't exist in cache, this callback will run to fetch the data with get() again,
-            // with cacheRequest: false
             const [err, result] = await this.get(endpoint, params, {
               ...opts,
               cacheRequest: false,
               body: undefined,
             });
+
             if (err) {
               throw new Error('error getting request uncached after cache attempt', { cause: err });
             }
+
             return result;
           },
           opts.cacheTimeToLive,
@@ -615,12 +615,16 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#log(`SSE URL: ${url}`);
 
     const opener = new Promise<SafeWrap<Error, SSEReturn>>((resolve) => {
-      const connection = new this.#sseClient(`${this.#baseUrl}/${url}`, opts);
       let resolved = false;
+      const [errConnection, connection] = safeWrap(() => new this.#sseClient(`${this.#baseUrl}/${url}`, opts));
+      if (errConnection) {
+        resolved = true;
+        resolve([new Error(`error creating new connection for SSE on ${url}`, { cause: errConnection }), null]);
+        return;
+      }
 
       let timeout: Timeout;
       if (opts.timeout) {
-        // I need a test for this <--
         timeout = setTimeout(() => {
           /* v8 ignore next -- @preserve */ // This is kinda technically un-reachable, but hey, doesn't hurt being safe right?
           if (resolved) {
@@ -652,7 +656,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
       };
 
       connection.onerror = (event: Event) => {
-        // I need a test for this <--
         if (!resolved) {
           resolved = true;
           resolve([new Error(`error opening SSE connection`, { cause: event }), null]);
