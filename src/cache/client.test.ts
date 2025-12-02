@@ -21,6 +21,7 @@ describe('CacheClient', () => {
 
     const fetchFn = vi.fn().mockResolvedValue('data');
 
+    // @ts-expect-error
     const [err1, result1] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
     expect(err1).toBeNull();
     expect(result1).toBe('data');
@@ -28,6 +29,7 @@ describe('CacheClient', () => {
 
     // Second call should return cached value and not call fetchFn again
     const fetchFn2 = vi.fn().mockResolvedValue('other');
+    // @ts-expect-error
     const [err2, result2] = await client.get('key', () => fetchFn2().then((d) => [null, d] as const));
     expect(err2).toBeNull();
     expect(result2).toBe('data');
@@ -46,12 +48,16 @@ describe('CacheClient', () => {
 
     const p1 = client.get('key', () =>
       fetchFn()
+        // @ts-expect-error
         .then((d) => [null, d] as const)
+        // @ts-expect-error
         .catch((e) => [e as Error, null] as const),
     );
     const p2 = client.get('key', () =>
       fetchFn()
+        // @ts-expect-error
         .then((d) => [null, d] as const)
+        // @ts-expect-error
         .catch((e) => [e as Error, null] as const),
     );
 
@@ -67,6 +73,7 @@ describe('CacheClient', () => {
 
     // After it resolves, next call should use the cached value, not call fetch again
     const fetchFn2 = vi.fn().mockResolvedValue('other');
+    // @ts-expect-error
     const [, p3] = await client.get('key', () => fetchFn2().then((d) => [null, d] as const));
 
     expect(fetchFn2).not.toHaveBeenCalled();
@@ -82,7 +89,7 @@ describe('CacheClient', () => {
     const client = new CacheClient({ ttl: 1_000, cleanupInterval: 30_000 });
 
     const fetchFn = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
-
+    // @ts-expect-error
     const [err1, result1] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
     expect(err1).toBeNull();
     expect(result1).toBe('first');
@@ -90,7 +97,7 @@ describe('CacheClient', () => {
 
     // Second call at t = 35_000 (past ttl)
     nowSpy.mockReturnValue(35_000);
-
+    // @ts-expect-error
     const [err2, result2] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
     expect(err2).toBeNull();
     expect(result2).toBe('second');
@@ -105,6 +112,7 @@ describe('CacheClient', () => {
     const fetchFn = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
 
     // Use a much shorter ttl for this call
+    // @ts-expect-error
     const [err1, result1] = await client.get('key', () => fetchFn().then((d) => [null, d] as const), 100);
     expect(err1).toBeNull();
     expect(result1).toBe('first');
@@ -112,6 +120,7 @@ describe('CacheClient', () => {
 
     // Not yet expired
     advance(50);
+    // @ts-expect-error
     const [err2, result2] = await client.get('key', () => fetchFn().then((d) => [null, d] as const), 100);
     expect(err2).toBeNull();
     expect(result2).toBe('first');
@@ -120,6 +129,7 @@ describe('CacheClient', () => {
     // Now expire it
     advance(100);
 
+    // @ts-expect-error
     const [err3, result3] = await client.get('key', () => fetchFn().then((d) => [null, d] as const), 100);
     expect(err3).toBeNull();
     expect(result3).toBe('second');
@@ -134,7 +144,9 @@ describe('CacheClient', () => {
 
     const [errFail] = await client.get('key', () =>
       failingFetch()
+        // @ts-expect-error
         .then((d) => [null, d] as const)
+        // @ts-expect-error
         .catch((e) => [e as Error, null] as const),
     );
     expect(errFail).toEqual(error);
@@ -144,7 +156,9 @@ describe('CacheClient', () => {
     const successFetch = vi.fn().mockResolvedValue('ok');
     const [errOk, result] = await client.get('key', () =>
       successFetch()
+        // @ts-expect-error
         .then((d) => [null, d] as const)
+        // @ts-expect-error
         .catch((e) => [e as Error, null] as const),
     );
 
@@ -156,7 +170,9 @@ describe('CacheClient', () => {
     const successFetch2 = vi.fn().mockResolvedValue('other');
     const [errCached, cached] = await client.get('key', () =>
       successFetch2()
+        // @ts-expect-error
         .then((d) => [null, d] as const)
+        // @ts-expect-error
         .catch((e) => [e as Error, null] as const),
     );
     expect(errCached).toBeNull();
@@ -168,7 +184,7 @@ describe('CacheClient', () => {
     const client = new CacheClient({ ttl: 1_000, cleanupInterval: 500 });
 
     const fetchFn = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
-
+    // @ts-expect-error
     const [err1, result1] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
     expect(err1).toBeNull();
     expect(result1).toBe('first');
@@ -176,7 +192,7 @@ describe('CacheClient', () => {
 
     // Let some cleanup cycles run and also expire the entry
     advance(5_000);
-
+    // @ts-expect-error
     const [err2, result2] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
     expect(err2).toBeNull();
     expect(result2).toBe('second');
