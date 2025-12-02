@@ -2,6 +2,9 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { isErrorType } from './isErrorType';
 import { unwrapErrorType } from './unwrapErrorType';
 
+/**
+ * Error representing a validation error when validating with @standard-schema
+ */
 export class ValidationError extends Error {
   name = 'ValidationError';
   issues: StandardSchemaV1.Issue[];

@@ -48,12 +48,16 @@ export interface HttpClientProvider {
   new (baseUrl: string, opts: FetchClientOptions): HttpClientProviderDefinition;
 }
 
+/**
+ * Listener mapping for SSEClient
+ */
 interface SSEClientSourceEventMap {
   error: Event;
   message: MessageEvent;
   open: Event;
 }
 
+/** Init options for SSEClient */
 export interface SSEClientSourceInit {
   withCredentials?: boolean;
 }
@@ -159,6 +163,7 @@ type SearchType<
   : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
     {};
 
+/** Typed path params via `$path` if present */
 type PathParametersType<
   Schema,
   Endpoint extends keyof Schema,
