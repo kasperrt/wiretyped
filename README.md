@@ -2,7 +2,7 @@
 
 # Wiretype HTTP Client
 
-<img src="./public/wiretyped.png" alt="Wiretyped logo" width="200" />
+<img src="./public/wiretyped.png" alt="Wiretyped logo" width="400" />
 
 Typed HTTP client utilities for defining endpoints with zod, issuing requests, and handling errors in an error-first style.
 
@@ -19,6 +19,8 @@ Typed HTTP client utilities for defining endpoints with zod, issuing requests, a
   
 [![CI](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml/badge.svg)](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/kasperrt/wiretyped/branch/main/graph/badge.svg)](https://codecov.io/gh/kasperrt/wiretyped)
+[![npm](https://img.shields.io/npm/v/wiretyped.svg)](https://www.npmjs.com/package/wiretyped)
+[![JSR](https://jsr.io/badges/@kasperrt/wiretyped)](https://jsr.io/@kasperrt/wiretyped)
 
 
 ## Contents

@@ -21,6 +21,9 @@ function headerOptionsToObject(h?: HeaderOptions): Record<string, string> {
   return result;
 }
 
+/**
+ * Merge global and local headers into a single `Headers` instance, normalizing keys.
+ */
 export function mergeHeaderOptions(globalHeaders?: HeaderOptions, localHeaders?: HeaderOptions): Headers {
   const mergedObj = {
     ...headerOptionsToObject(globalHeaders),

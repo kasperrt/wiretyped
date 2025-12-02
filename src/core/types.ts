@@ -92,9 +92,7 @@ export interface SSEClientProvider {
  */
 type EmptyishObject<T> = [keyof T] extends [never] ? null : T;
 
-/**
- * HttpMethod defines all possible HttpMethods
- */
+/** Allowed HTTP methods supported by the client. */
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'download' | 'url' | 'sse';
 
 /**
@@ -116,10 +114,7 @@ export type RequestDefinitions = {
   }>;
 };
 
-/**
- * ParsePathParams makes an URL string "typesafe", extracting any
- * parameters wrapped in {} to variables
- */
+/** Parse `{param}` segments from a path template into a typed object. */
 type ParsePathParams<Path extends string | number> = Path extends `${infer _Start}{${infer Param}}${infer Rest}`
   ? { [K in Param]: string | number } & ParsePathParams<Rest>
   : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
@@ -140,10 +135,7 @@ export type ResponseType<
   Method extends keyof Schema[Endpoint],
 > = Schema[Endpoint][Method] extends { response: z.ZodType } ? z.infer<Schema[Endpoint][Method]['response']> : never;
 
-/**
- * RequestType defines what can be sent in the
- * request-body
- */
+/** Typed request body for an endpoint/method (falls back to record for non-schematized). */
 export type RequestType<
   Schema,
   Endpoint extends keyof Schema,
@@ -152,10 +144,7 @@ export type RequestType<
   ? z.infer<Schema[Endpoint][Method]['request']>
   : Record<string, string>;
 
-/**
- * SearchType is meant to type query-params that are optionally defined by
- * $search, so that we can have some type-security on these
- */
+/** Typed query params via `$search` if present. */
 type SearchType<
   Schema,
   Endpoint extends keyof Schema,
@@ -174,19 +163,14 @@ type PathParametersType<
   : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
     {};
 
-/**
- * Type to get $path values out from the URL params, into a $path object
- */
+/** Extract `$path` keys from schema for substitution. */
 type PathKeys<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
 > = Schema[Endpoint][Method] extends { $path: z.ZodType } ? keyof z.infer<Schema[Endpoint][Method]['$path']> : never;
 
-/**
- * Params types up the optional pathParameters that can be used in the request-url,
- * combining the URL pathParameters (for example /{userId}/), as well as the query-parameters
- */
+/** Combined params object (path + query) expected by client methods. */
 export type Params<
   Endpoint extends keyof RequestDefinitions & string,
   Method extends HttpMethod & keyof RequestDefinitions[Endpoint],
@@ -198,45 +182,21 @@ export type Params<
     PathParametersType<Schema, Endpoint, Method>
 >;
 
-/**
- * Explicitly typed SSEEndpoints
- */
 /** Endpoint keys that expose an SSE handler. */
 export type SSEEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'sse', Schema>;
-
-/**
- * Explicitly typed GetEndpoints
- */
+/** Explicitly typed GET endpoints. */
 export type GetEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'get', Schema>;
-
-/**
- * Explicitly typed PostEndpoints
- */
+/** Explicitly typed POST endpoints. */
 export type PostEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'post', Schema>;
-
-/**
- * Explicitly typed PutEndpoints
- */
+/** Explicitly typed PUT endpoints. */
 export type PutEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'put', Schema>;
-
-/**
- * Explicitly typed PatchEndpoints
- */
+/** Explicitly typed PATCH endpoints. */
 export type PatchEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'patch', Schema>;
-
-/**
- * Explicitly typed DeleteEndpoints
- */
+/** Explicitly typed DELETE endpoints. */
 export type DeleteEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'delete', Schema>;
-
-/**
- * Explicitly typed DownloadEndpoints
- */
+/** Explicitly typed DOWNLOAD endpoints. */
 export type DownloadEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'download', Schema>;
-
-/**
- * Explicitly typed DownloadEndpoints
- */
+/** Explicitly typed URL builder endpoints. */
 export type UrlEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'url', Schema>;
 
 /**
