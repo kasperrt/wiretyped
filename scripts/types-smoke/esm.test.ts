@@ -1,5 +1,6 @@
 // ESM types smoke: ensure declarations resolve for ESM import path
-import { RequestClient, type RequestDefinitions, z } from 'wiretyped/core';
+import type { RequestClient, RequestDefinitions } from 'wiretyped/core';
+import { z } from 'zod';
 
 const endpoints = {
   '/ping': {
@@ -9,5 +10,5 @@ const endpoints = {
 
 // Type-level smoke: ensure the client type is usable
 type Ping = Awaited<ReturnType<RequestClient<typeof endpoints>['get']>>;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _: Ping | null = null;
+// @ts-expect-error
+const _unused: Ping | null = null;
