@@ -1,6 +1,7 @@
 import { ErrorEvent } from 'eventsource';
 import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
 import { z } from 'zod';
+import { isTimeoutError } from '../error';
 import { isErrorType } from '../error/isErrorType';
 import { ValidationError } from '../error/validationError';
 import { RequestClient } from './client';
@@ -2394,7 +2395,7 @@ describe('RequestClient', () => {
       expect(err).toBeInstanceOf(Error);
       expect(err?.message).toBe('error opening SSE connection');
       // If TimeoutError is exported somewhere, you can check the cause:
-      // expect((err as any).cause).toBeInstanceOf(TimeoutError);
+      expect(isTimeoutError(err)).toBe(true);
       expect(close).toBeNull();
 
       // No messages should have been delivered to the handler
@@ -2464,10 +2465,6 @@ describe('RequestClient', () => {
 
       expect(err).toBeInstanceOf(Error);
       expect(err?.message).toBe('error opening SSE connection');
-      // The inner error (from opener) should be the cause:
-      // const inner = (err as any).cause as Error;
-      // expect(inner).toBeInstanceOf(Error);
-      // expect(inner.message).toBe('error opening SSE connection');
 
       // Because the error happened during "open", we never get a close function
       expect(close).toBeNull();
