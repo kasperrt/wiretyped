@@ -27,6 +27,7 @@
     "smoke:bun": "bun run scripts/smoke-bun.ts",
     "smoke:deno": "deno run --allow-read scripts/smoke-deno.ts",
     "smoke:worker": "node scripts/smoke-worker.mjs",
+    "smoke:types": "pnpm exec tsc -p scripts/types-smoke/tsconfig.json",
     "check:lint": "pnpm exec biome lint --error-on-warnings",
     "check:format": "pnpm exec biome format --error-on-warnings",
     "check:ts": "tsc --noEmit",
