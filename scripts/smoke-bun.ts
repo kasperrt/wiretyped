@@ -3,7 +3,7 @@ const distIndex = new URL('../dist/index.mjs', import.meta.url);
 const distCore = new URL('../dist/core.mjs', import.meta.url);
 const distError = new URL('../dist/error.mjs', import.meta.url);
 
-const requiredErrors = [
+const rootErrors = [
   'AbortError',
   'TimeoutError',
   'HTTPError',
@@ -11,6 +11,10 @@ const requiredErrors = [
   'isAbortError',
   'isHttpError',
   'isTimeoutError',
+];
+
+const requiredErrors = [
+  ...rootErrors,
   'unwrapErrorType',
   'isErrorType',
 ];
@@ -18,7 +22,7 @@ const requiredErrors = [
 const checkRoot = (mod: Record<string, unknown>, label: string) => {
   if (typeof mod.RequestClient !== 'function') throw new Error(`${label} RequestClient missing`);
   if (!mod.z) throw new Error(`${label} z missing`);
-  for (const key of requiredErrors) {
+  for (const key of rootErrors) {
     if (!(key in mod)) throw new Error(`${label} ${key} missing`);
   }
 };
