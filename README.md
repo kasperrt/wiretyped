@@ -49,9 +49,9 @@ Typed HTTP client utilities for defining endpoints with [@standard-schema](https
     - [HTTP provider shape](#http-provider-shape)
     - [SSE provider shape](#sse-provider-shape)
   - [Building](#building)
+  - [Tests](#tests)
   - [Publishing](#publishing)
   - [Scripts](#scripts)
-  - [Tests](#tests)
   - [FAQ](#faq)
 
 ## Installation
@@ -450,6 +450,13 @@ pnpm build
 
 Outputs land in `dist/` as both ESM (`*.mjs`) and CJS (`*.cjs`) bundles, with declarations under `dist/types`.
 
+## Tests
+
+- Use Vitest with co-located files: prefer `*.test.ts` beside the code under test (e.g., `fetch/client.ts` and `fetch/client.test.ts` in the same folder).
+- Keep tests focused and readable: arrange inputs, act, then assert. Prefer the error-first tuple ergonomics to mirror real usage.
+- Stub external effects (fetch, timers, SSE) with lightweight fakes rather than hitting the network.
+- Favor small, focused cases over large integration-style suites.
+
 ## Publishing
 
 Publishing is automated via GitHub Actions on tags (`v*`). Keep versions in sync:
@@ -467,12 +474,6 @@ CI will build, smoke-test, and publish to npm and JSR if the version isn’t alr
 - `pnpm check` – type-check without emitting output.
 - `pnpm format:fix` / `pnpm lint:fix` / `pnpm fix` – Biome formatting and linting helpers.
 
-## Tests
-
-- Use Vitest with co-located files: prefer `*.test.ts` beside the code under test (e.g., `fetch/client.ts` and `fetch/client.test.ts` in the same folder).
-- Keep tests focused and readable: arrange inputs, act, then assert. Prefer the error-first tuple ergonomics to mirror real usage.
-- Stub external effects (fetch, timers, SSE) with lightweight fakes rather than hitting the network.
-- Favor small, focused cases over large integration-style suites.
 
 ## FAQ
 
