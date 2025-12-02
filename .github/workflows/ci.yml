@@ -57,7 +57,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [node, bun, deno, worker]
+        runtime: [node, bun, deno, worker, types]
     permissions:
       contents: read
     steps:
@@ -79,9 +79,6 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Type smoke (ESM + CJS)
-        run: pnpm run smoke:types
-
       - name: Setup Bun
         if: matrix.runtime == 'bun'
         uses: oven-sh/setup-bun@v1
@@ -99,5 +96,6 @@ jobs:
             bun) bun run scripts/smoke-bun.ts ;;
             deno) deno run --allow-read scripts/smoke-deno.ts ;;
             worker) pnpm run smoke:worker ;;
+            types) pnpm run smoke:types ;;
             *) echo "Unknown runtime"; exit 1 ;;
           esac
