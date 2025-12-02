@@ -1,8 +1,6 @@
 // CJS types smoke: ensure declarations resolve for require() path
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 // @ts-expect-error
 const core = require('wiretyped/core') as typeof import('wiretyped/core');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { z } = require('zod') as typeof import('zod');
 
 const endpoints = {
