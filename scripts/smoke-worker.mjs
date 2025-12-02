@@ -9,8 +9,8 @@ const indexPath = fileURLToPath(distIndex);
 const workerSource = `
   import { parentPort } from 'node:worker_threads';
   import * as mod from 'file://${indexPath}';
-  if (typeof mod.RequestClient !== 'function' || !mod.z) {
-    parentPort.postMessage({ ok: false, error: 'RequestClient or z missing' });
+  if (typeof mod.RequestClient !== 'function') {
+    parentPort.postMessage({ ok: false, error: 'RequestClient missing' });
   } else {
     parentPort.postMessage({ ok: true });
   }

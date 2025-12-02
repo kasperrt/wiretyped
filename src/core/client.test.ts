@@ -2253,230 +2253,228 @@ describe('RequestClient', () => {
       expect(data).toBeNull();
     });
 
-    // test('close() is a no-op when SSE stream is already closed', async () => {
-    //   const LOCAL_CLOSED_SSE_PROVIDER = vi.fn(function (
-    //     this: SSEClientProviderDefinition,
-    //     url: string | URL,
-    //     init?: SSEClientSourceInit,
-    //   ) {
-    //     Object.defineProperties(this, {
-    //       url: {
-    //         value: typeof url === 'string' ? url : url.toString(),
-    //         writable: false,
-    //       },
-    //       withCredentials: {
-    //         value: init?.withCredentials ?? true,
-    //         writable: false,
-    //       },
-    //       // Start as OPEN (more realistic), we will close it manually in the test
-    //       readyState: { value: 1, writable: true },
-    //       CLOSED: { value: 2, writable: false },
-    //       CONNECTING: { value: 0, writable: false },
-    //       OPEN: { value: 1, writable: false },
-    //     });
+    test('close() is a no-op when SSE stream is already closed', async () => {
+      const LOCAL_CLOSED_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        url: string | URL,
+        init?: SSEClientSourceInit,
+      ) {
+        Object.defineProperties(this, {
+          url: {
+            value: typeof url === 'string' ? url : url.toString(),
+            writable: false,
+          },
+          withCredentials: {
+            value: init?.withCredentials ?? true,
+            writable: false,
+          },
+          readyState: { value: 1, writable: true },
+          CLOSED: { value: 2, writable: false },
+          CONNECTING: { value: 0, writable: false },
+          OPEN: { value: 1, writable: false },
+        });
 
-    //     this.onopen = null;
-    //     this.onmessage = null;
-    //     this.onerror = null;
+        this.onopen = null;
+        this.onmessage = null;
+        this.onerror = null;
 
-    //     this.close = vi.fn(() => {
-    //       // biome-ignore lint/suspicious/noExplicitAny: Overriding on purpose to access internal state
-    //       (this as any).readyState = this.CLOSED;
-    //     });
-    //     this.addEventListener = vi.fn();
-    //     this.removeEventListener = vi.fn();
-    //     this.dispatchEvent = vi.fn().mockReturnValue(true);
-    //   }) as unknown as MockedSSEClientProvider;
+        this.close = vi.fn(() => {
+          // biome-ignore lint/suspicious/noExplicitAny: it's a test
+          (this as any).readyState = this.CLOSED;
+        });
+        this.addEventListener = vi.fn();
+        this.removeEventListener = vi.fn();
+        this.dispatchEvent = vi.fn().mockReturnValue(true);
+      }) as unknown as MockedSSEClientProvider;
 
-    //   const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-    //   const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    //   const handler = vi.fn();
+      const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const handler = vi.fn();
 
-    //   const localClient = new RequestClient({
-    //     httpProvider: MOCK_HTTP_PROVIDER,
-    //     sseProvider: LOCAL_CLOSED_SSE_PROVIDER,
-    //     baseUrl: 'https://api.example.com/base',
-    //     hostname: 'https://api.example.com',
-    //     endpoints: mockSseEndpoints,
-    //     validation: true,
-    //     debug: true,
-    //   });
+      const localClient = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: LOCAL_CLOSED_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: true,
+      });
 
-    //   // Start the SSE, but don't await immediately
-    //   const ssePromise = localClient.sse('/api/my-sse', null, handler);
+      // Start the SSE, but DON'T await yet – we want to control when it resolves
+      const ssePromise = localClient.sse('/api/my-sse', null, handler);
 
-    //   const instance = LOCAL_CLOSED_SSE_PROVIDER.mock.instances[0];
+      // Wait until constructUrl has finished and the SSE provider has actually been constructed
+      await vi.waitFor(() => {
+        expect(LOCAL_CLOSED_SSE_PROVIDER).toHaveBeenCalledOnce();
+      });
 
-    //   // Simulate successful open so the promise resolves
-    //   instance.onopen?.(new Event('open'));
+      const instance = LOCAL_CLOSED_SSE_PROVIDER.mock.instances[0];
+      // Simulate successful open so the inner "opener" promise resolves
+      instance.onopen?.(new Event('open'));
 
-    //   const [err, close] = await ssePromise;
+      const [err, close] = await ssePromise;
 
-    //   expect(err).toBeNull();
-    //   expect(LOCAL_CLOSED_SSE_PROVIDER).toHaveBeenCalledOnce();
+      expect(err).toBeNull();
+      expect(LOCAL_CLOSED_SSE_PROVIDER).toHaveBeenCalledOnce();
 
-    //   // Now simulate that the stream has already been closed by the server
+      // Simulate that the stream has already been closed by the server
+      // @ts-expect-error: simulating a state change
+      instance.readyState = instance.CLOSED;
+      expect(instance.readyState).toBe(instance.CLOSED); // sanity check
 
-    //   // @ts-expect-error: simulating a state change
-    //   instance.readyState = instance.CLOSED;
-    //   expect(instance.readyState).toBe(instance.CLOSED); // sanity check
+      // Call the close function returned from client.sse(...)
+      close?.();
 
-    //   // Call the close function returned from client.sse(...)
-    //   close?.();
+      // Since readyState === CLOSED, the underlying connection.close must NOT be called
+      expect(instance.close).not.toHaveBeenCalled();
 
-    //   // Since readyState === CLOSED, the underlying connection.close must NOT be called
-    //   expect(instance.close).not.toHaveBeenCalled();
+      consoleDebugSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
 
-    //   consoleDebugSpy.mockRestore();
-    //   consoleWarnSpy.mockRestore();
-    // });
+    test('sse() returns timeout error when opening SSE connection exceeds timeout', async () => {
+      vi.useFakeTimers();
 
-    // test('resolves with error when SSE fails to open (onerror before onopen)', async () => {
-    //   const handler = vi.fn();
+      const LOCAL_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        url: string | URL,
+        init?: SSEClientSourceInit,
+      ) {
+        Object.defineProperties(this, {
+          url: {
+            value: typeof url === 'string' ? url : url.toString(),
+            writable: false,
+          },
+          withCredentials: {
+            value: init?.withCredentials ?? true,
+            writable: false,
+          },
+          readyState: { value: 0, writable: true }, // CONNECTING
+          CLOSED: { value: 2, writable: false },
+          CONNECTING: { value: 0, writable: false },
+          OPEN: { value: 1, writable: false },
+        });
 
-    //   // fresh client with the normal/mock provider (must NOT auto-open)
-    //   const client = new RequestClient({
-    //     httpProvider: MOCK_HTTP_PROVIDER,
-    //     sseProvider: MOCK_SSE_PROVIDER,
-    //     baseUrl: 'https://api.example.com/base',
-    //     hostname: 'https://api.example.com',
-    //     endpoints: mockSseEndpoints,
-    //     validation: true,
-    //     debug: false,
-    //   });
+        this.onopen = null;
+        this.onmessage = null;
+        this.onerror = null;
 
-    //   const ssePromise = await client.sse('/api/my-sse', null, handler);
+        this.close = vi.fn();
+        this.addEventListener = vi.fn();
+        this.removeEventListener = vi.fn();
+        this.dispatchEvent = vi.fn().mockReturnValue(true);
+      }) as unknown as MockedSSEClientProvider;
 
-    //   // Grab the underlying SSE instance created by the provider
-    //   const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+      const handler = vi.fn();
 
-    //   // Simulate an error happening BEFORE any `onopen`
-    //   const errorEvent = new Event('error');
-    //   instance.onerror?.(errorEvent);
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: LOCAL_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
 
-    //   // Now await the promise – it should resolve via the `!resolved` branch
-    //   const [err, close] = ssePromise;
+      // Start the SSE, but don't resolve it yet; we want the timeout to fire
+      const ssePromise = client.sse('/api/my-sse', null, handler, { timeout: 1000 });
 
-    //   expect(err).toBeInstanceOf(Error);
-    //   expect(err?.message).toBe('error opening SSE connection');
-    //   expect(close).toBeNull();
+      // Ensure the SSE provider has actually been instantiated (constructUrl finished)
+      await vi.waitFor(() => {
+        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
+      });
 
-    //   // For this "failed to open" case, the handler should NOT be called
-    //   expect(handler).not.toHaveBeenCalled();
-    // });
+      // No onopen / onerror — simulate time passing so the timeout callback runs
+      await vi.advanceTimersByTimeAsync(1000);
 
-    // test('clears timeout when SSE opens before deadline', async () => {
-    //   vi.useFakeTimers();
+      const [err, close] = await ssePromise;
 
-    //   const handler = vi.fn();
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error opening SSE connection');
+      // If TimeoutError is exported somewhere, you can check the cause:
+      // expect((err as any).cause).toBeInstanceOf(TimeoutError);
+      expect(close).toBeNull();
 
-    //   const client = new RequestClient<typeof mockSseEndpoints>({
-    //     httpProvider: MOCK_HTTP_PROVIDER,
-    //     sseProvider: MOCK_SSE_PROVIDER,
-    //     baseUrl: 'https://api.example.com/base',
-    //     hostname: 'https://api.example.com',
-    //     endpoints: mockSseEndpoints,
-    //     validation: true,
-    //     debug: false,
-    //   });
+      // No messages should have been delivered to the handler
+      expect(handler).not.toHaveBeenCalled();
 
-    //   const promise = client.sse('/api/my-sse', null, handler, {
-    //     timeout: 1000,
-    //   });
+      vi.useRealTimers();
+    });
 
-    //   const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+    test('sse() returns error when connection.onerror fires before SSE opens', async () => {
+      const LOCAL_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        url: string | URL,
+        init?: SSEClientSourceInit,
+      ) {
+        Object.defineProperties(this, {
+          url: {
+            value: typeof url === 'string' ? url : url.toString(),
+            writable: false,
+          },
+          withCredentials: {
+            value: init?.withCredentials ?? true,
+            writable: false,
+          },
+          readyState: { value: 0, writable: true }, // CONNECTING
+          CLOSED: { value: 2, writable: false },
+          CONNECTING: { value: 0, writable: false },
+          OPEN: { value: 1, writable: false },
+        });
 
-    //   // Time passes, but not enough to hit the timeout
-    //   vi.advanceTimersByTime(500);
+        this.onopen = null;
+        this.onmessage = null;
+        this.onerror = null;
 
-    //   // Connection opens successfully
-    //   instance.onopen?.(new Event('open'));
+        this.close = vi.fn();
+        this.addEventListener = vi.fn();
+        this.removeEventListener = vi.fn();
+        this.dispatchEvent = vi.fn().mockReturnValue(true);
+      }) as unknown as MockedSSEClientProvider;
 
-    //   const [err, close] = await promise;
+      const handler = vi.fn();
 
-    //   expect(err).toBeNull();
-    //   expect(typeof close).toBe('function');
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: LOCAL_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
 
-    //   // Advance timers beyond the timeout just to be sure nothing else happens
-    //   vi.advanceTimersByTime(1000);
+      // Start the SSE, do NOT await yet – we want to trigger onerror manually
+      const ssePromise = client.sse('/api/my-sse', null, handler);
 
-    //   // No timeout error should be surfaced; handler shouldn't have been called by timeout either
-    //   expect(handler).not.toHaveBeenCalled();
+      // Wait for provider construction so connection.onerror has been wired
+      await vi.waitFor(() => {
+        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
+      });
 
-    //   vi.useRealTimers();
-    // });
+      const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
 
-    // test('times out opening SSE connection when no open/error occurs', async () => {
-    //   const LOCAL_CLOSED_SSE_PROVIDER = vi.fn(function (
-    //     this: SSEClientProviderDefinition,
-    //     url: string | URL,
-    //     init?: SSEClientSourceInit,
-    //   ) {
-    //     Object.defineProperties(this, {
-    //       url: {
-    //         value: typeof url === 'string' ? url : url.toString(),
-    //         writable: false,
-    //       },
-    //       withCredentials: {
-    //         value: init?.withCredentials ?? true,
-    //         writable: false,
-    //       },
-    //       // Start as OPENING (more realistic), we will close it manually in the test
-    //       readyState: { value: 0, writable: true },
-    //       CLOSED: { value: 2, writable: false },
-    //       CONNECTING: { value: 0, writable: false },
-    //       OPEN: { value: 1, writable: false },
-    //     });
+      // Trigger the connection.onerror handler before onopen has ever fired
+      const errorEvent = new Event('error');
+      instance.onerror?.(errorEvent);
 
-    //     this.onopen = null;
-    //     this.onmessage = null;
-    //     this.onerror = null;
+      const [err, close] = await ssePromise;
 
-    //     this.close = vi.fn(() => {
-    //       // biome-ignore lint/suspicious/noExplicitAny: Overriding on purpose to access internal state
-    //       (this as any).readyState = this.CLOSED;
-    //     });
-    //     this.addEventListener = vi.fn();
-    //     this.removeEventListener = vi.fn();
-    //     this.dispatchEvent = vi.fn().mockReturnValue(true);
-    //   }) as unknown as MockedSSEClientProvider;
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error opening SSE connection');
+      // The inner error (from opener) should be the cause:
+      // const inner = (err as any).cause as Error;
+      // expect(inner).toBeInstanceOf(Error);
+      // expect(inner.message).toBe('error opening SSE connection');
 
-    //   vi.useFakeTimers();
+      // Because the error happened during "open", we never get a close function
+      expect(close).toBeNull();
 
-    //   const handler = vi.fn();
-
-    //   const client = new RequestClient<typeof mockSseEndpoints>({
-    //     httpProvider: MOCK_HTTP_PROVIDER,
-    //     sseProvider: LOCAL_CLOSED_SSE_PROVIDER,
-    //     baseUrl: 'https://api.example.com/base',
-    //     hostname: 'https://api.example.com',
-    //     endpoints: mockSseEndpoints,
-    //     validation: true,
-    //     debug: false,
-    //   });
-
-    //   // Start SSE, but don't drive onopen/onerror
-    //   const promise = client.sse('/api/my-sse', null, handler, {
-    //     timeout: 1000,
-    //   });
-
-    //   // Let the timeout fire
-    //   await vi.advanceTimersByTimeAsync(1005);
-
-    //   const [err, close] = await promise;
-
-    //   expect(err).toBeInstanceOf(Error);
-    //   expect(err?.message).toBe('error opening SSE connection');
-    //   // check the underlying cause is a TimeoutError
-    //   expect(err?.cause).toBeInstanceOf(TimeoutError);
-    //   expect((err?.cause as TimeoutError).message).toContain(
-    //     'error timed out opening connection to SSE endpoint: api/my-sse',
-    //   );
-
-    //   expect(close).toBeNull();
-    //   expect(handler).not.toHaveBeenCalled();
-
-    //   vi.useRealTimers();
-    // });
+      // Because we resolved via the "opening" error branch, the message handler
+      // should never be called
+      expect(handler).not.toHaveBeenCalled();
+    });
   });
 });

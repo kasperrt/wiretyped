@@ -626,6 +626,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       let timeout: Timeout;
       if (opts.timeout) {
+        // I need a test for this <--
         timeout = setTimeout(() => {
           /* v8 ignore next -- @preserve */ // This is kinda technically un-reachable, but hey, doesn't hurt being safe right?
           if (resolved) {
@@ -657,6 +658,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       };
 
       connection.onerror = (event: Event) => {
+        // I need a test for this <--
         if (!resolved) {
           resolved = true;
           resolve([new Error(`error opening SSE connection`, { cause: event }), null]);
