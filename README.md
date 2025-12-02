@@ -1,6 +1,6 @@
 <div align="center">
 
-# Wiretyped HTTP Client
+# WireTyped HTTP Client
 
 <img src="./public/wiretyped.png" alt="Wiretyped logo" width="400" />
 
@@ -51,8 +51,8 @@ Typed HTTP client utilities for defining endpoints with zod, issuing requests, a
 ## Installation
 
 ```sh
-pnpm add wiretype
-# or: npm install wiretype
+pnpm add wiretyped
+# or: npm install wiretyped
 # or: npx jsr add @kasperrt/wiretyped
 ```
 
