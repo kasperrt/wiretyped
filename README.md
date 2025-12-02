@@ -1,6 +1,6 @@
 <div align="center">
 
-# Wiretype HTTP Client
+# WireTyped HTTP Client
 
 <img src="./public/wiretyped.png" alt="Wiretyped logo" width="400" />
 
@@ -50,12 +50,13 @@ Typed HTTP client utilities for defining endpoints with zod, issuing requests, a
   - [Publishing](#publishing)
   - [Scripts](#scripts)
   - [Tests](#tests)
+  - [FAQ](#faq)
 
 ## Installation
 
 ```sh
-pnpm add wiretype
-# or: npm install wiretype
+pnpm add wiretyped
+# or: npm install wiretyped
 # or: npx jsr add @kasperrt/wiretyped
 ```
 
@@ -462,3 +463,23 @@ CI will build, smoke-test, and publish to npm and JSR if the version isn’t alr
 - Keep tests focused and readable: arrange inputs, act, then assert. Prefer the error-first tuple ergonomics to mirror real usage.
 - Stub external effects (fetch, timers, SSE) with lightweight fakes rather than hitting the network.
 - Favor small, focused cases over large integration-style suites.
+
+## FAQ
+
+**Why is the error first in the tuple?**  
+So you can’t avoid handling it. Putting the error first forces you to look at it. If you still ignore it… that’s on you.
+
+---
+
+**How can I access the response with status code and all that?**  
+You can’t, because you don’t need it.  
+If you care about the status code, it’s almost always because of an error.  
+On success, you care about the data, not the status code.  
+If you feel you really need it, you’ve probably structured something wrong.
+
+---
+
+**Why always return both error and data?**  
+So you don’t end up with “floaty” types.  
+You either have an `error` defined *or* you have `data` defined.  
+(If your data is legitimately `null`, then you only have to care about `error`.)
