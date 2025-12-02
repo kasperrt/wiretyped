@@ -30,15 +30,12 @@ import type {
   PutEndpoint,
   PutReturn,
   RequestDefinitions,
-  RequestType,
-  ResponseType,
   SSEArgs,
   SSEClientProvider,
   SSEEndpoint,
   SSEReturn,
   UrlArgs,
   UrlEndpoint,
-  UrlReturn,
 } from './types';
 
 /** Configuration for constructing a typed {@link RequestClient}. */
@@ -232,7 +229,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error parsing response in get', { cause: errParse }), null];
     }
 
-    return [null, parsed as GetReturn<Endpoint, Schema>];
+    return [null, parsed];
   }
 
   /**
@@ -275,7 +272,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return [new Error('error parsing request in post', { cause: errParse }), null];
       }
 
-      data = parsed as RequestType<Schema, Endpoint & string, 'post'>;
+      data = parsed;
     }
 
     const [errReq, response] = await this.#httpClient.post(url, JSON.stringify(data), {
@@ -301,7 +298,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error parsing response in post', { cause: errParse }), null];
     }
 
-    return [null, parsed as PostReturn<Endpoint, Schema>];
+    return [null, parsed];
   }
 
   /**
@@ -344,7 +341,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return [new Error('error parsing request in put', { cause: errParse }), null];
       }
 
-      data = parsed as RequestType<Schema, Endpoint & string, 'put'>;
+      data = parsed;
     }
 
     const [errReq, response] = await this.#httpClient.put(url, JSON.stringify(data), {
@@ -369,7 +366,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error parsing response in put', { cause: errParse }), null];
     }
 
-    return [null, parsed as PutReturn<Endpoint, Schema>];
+    return [null, parsed];
   }
 
   /**
@@ -400,9 +397,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
     if (errUrl) {
       this.#log(`PATCH ERRURL: ${errUrl}`);
-    }
-
-    if (errUrl) {
       return [new Error('error constructing url in patch', { cause: errUrl }), null];
     }
 
@@ -412,7 +406,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return [new Error('error parsing request in patch', { cause: errParse }), null];
       }
 
-      data = parsed as RequestType<Schema, Endpoint & string, 'patch'>;
+      data = parsed;
     }
 
     const [errReq, response] = await this.#httpClient.patch(url, JSON.stringify(data), {
@@ -438,7 +432,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error parsing response in patch', { cause: errParse }), null];
     }
 
-    return [null, parsed as PatchReturn<Endpoint, Schema>];
+    return [null, parsed];
   }
 
   /**
@@ -492,7 +486,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error parsing response in delete', { cause: errParse }), null];
     }
 
-    return [null, parsed as DeleteReturn<Endpoint, Schema>];
+    return [null, parsed];
   }
 
   /**
@@ -552,7 +546,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
    */
   async url<Endpoint extends UrlEndpoint<Schema>>(
     ...args: UrlArgs<Endpoint & string, Schema>
-  ): SafeWrapAsync<Error, UrlReturn<Endpoint, Schema>> {
+  ): SafeWrapAsync<Error, string> {
     const [endpoint, params] = args;
     const schemas = this.#endpoints[endpoint]?.url;
     if (!schemas) {
@@ -582,7 +576,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       absoluteUrl = `${this.#hostname}${absoluteUrl}`;
     }
 
-    return [null, absoluteUrl as UrlReturn<Endpoint, Schema>];
+    return [null, absoluteUrl];
   }
 
   /**
@@ -701,7 +695,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
           return;
         }
 
-        handler([null, parsed as ResponseType<Schema, Endpoint & string, 'sse'>]);
+        handler([null, parsed]);
       };
     });
 

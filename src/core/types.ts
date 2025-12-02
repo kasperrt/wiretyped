@@ -4,7 +4,8 @@ import type { FetchClientOptions } from '../fetch/client';
 import type { FetchResponse } from '../fetch/types';
 import type { SafeWrap, SafeWrapAsync } from '../utils/wrap';
 
-type SchemaType = StandardSchemaV1<unknown, unknown>;
+// biome-ignore lint/suspicious/noExplicitAny: This is used for inferrence, and requires any so inference works as it should
+type SchemaType = StandardSchemaV1<any, any>;
 type SchemaString = StandardSchemaV1<string, string>;
 
 /** Make a subset of keys required while keeping the rest intact. */
