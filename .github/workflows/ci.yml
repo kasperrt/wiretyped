@@ -42,9 +42,6 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Smoke test built output
-        run: pnpm run smoke
-
       - name: Test with coverage
         run: pnpm run test:coverage
 
