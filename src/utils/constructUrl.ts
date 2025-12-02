@@ -28,14 +28,14 @@ export async function constructUrl<
 
   // 1. Handle Query Params ($search)
   if ('$search' in params && schema?.$search) {
-    let data = params.$search as Record<string, unknown>;
+    let data = params.$search;
 
     if (validation) {
       const [errParse, parsed] = await validate(params.$search, schema.$search);
       if (errParse) {
         return [new Error(`error extracting search params`, { cause: errParse }), null];
       }
-      data = parsed as Record<string, unknown>;
+      data = parsed;
     }
 
     if (data) {
@@ -50,13 +50,13 @@ export async function constructUrl<
 
   // 2. Handle $path Object Params
   if ('$path' in params && schema?.$path) {
-    let data = params.$path as Record<string, unknown>;
+    let data = params.$path;
     if (validation) {
       const [errParse, parsed] = await validate(params.$path, schema.$path);
       if (errParse) {
         return [new Error(`error $path validation failed`, { cause: errParse }), null];
       }
-      data = parsed as Record<string, unknown>;
+      data = parsed;
     }
 
     for (const [key, value] of Object.entries(data ?? {})) {
