@@ -57,17 +57,17 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/types/src/index.d.ts",
+      "types": "./dist/types/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
     "./core": {
-      "types": "./dist/types/src/core/index.d.ts",
+      "types": "./dist/types/core/index.d.ts",
       "import": "./dist/core.mjs",
       "require": "./dist/core.cjs"
     },
     "./error": {
-      "types": "./dist/types/src/error/index.d.ts",
+      "types": "./dist/types/error/index.d.ts",
       "import": "./dist/error.mjs",
       "require": "./dist/error.cjs"
     },
