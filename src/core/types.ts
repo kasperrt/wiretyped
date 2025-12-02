@@ -7,6 +7,7 @@ import type { SafeWrap, SafeWrapAsync } from '../utils/wrap';
 // biome-ignore lint/suspicious/noExplicitAny: This is used for inferrence, and requires any so inference works as it should
 type SchemaType = StandardSchemaV1<any, any>;
 type SchemaString = StandardSchemaV1<string, string>;
+type EmptyObject = Record<never, never>;
 
 /** Make a subset of keys required while keeping the rest intact. */
 export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
@@ -125,8 +126,7 @@ export type RequestDefinitions = {
 /** Parse `{param}` segments from a path template into a typed object. */
 type ParsePathParams<Path extends string | number> = Path extends `${infer _Start}{${infer Param}}${infer Rest}`
   ? { [K in Param]: string | number } & ParsePathParams<Rest>
-  : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
-    {};
+  : EmptyObject;
 
 /** Extract endpoints that support a given HTTP method. */
 export type EndpointsWithMethod<Method extends HttpMethod, Schema extends RequestDefinitions> = {
@@ -165,8 +165,7 @@ type SearchType<
   Method extends keyof Schema[Endpoint],
 > = Schema[Endpoint][Method] extends { $search: SchemaType }
   ? { $search: StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['$search']> }
-  : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
-    {};
+  : EmptyObject;
 
 /** Typed path params via `$path` if present */
 type PathParametersType<
@@ -176,10 +175,8 @@ type PathParametersType<
 > = Schema[Endpoint][Method] extends { $path: infer S }
   ? S extends SchemaType
     ? { $path: StandardSchemaV1.InferOutput<S> }
-    : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
-      {}
-  : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
-    {};
+    : Record<never, never>
+  : Record<never, never>;
 
 /** Extract `$path` keys from schema for substitution. */
 type PathKeys<
