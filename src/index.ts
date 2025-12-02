@@ -1,5 +1,5 @@
 /**
- * Root entrypoint for wiretyped: re-exports the core client, types, and error utilities.
+ * Root entrypoint for WireTyped: re-exports the core client, types, and error utilities.
  * Use this import if you want everything from a single module surface.
  * @module
  */
