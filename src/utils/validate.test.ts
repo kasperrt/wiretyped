@@ -64,6 +64,21 @@ describe('validate', () => {
     expect(err?.message.startsWith('error validating data empty resulting validation')).toBe(true);
   });
 
+  it('returns error when validation returns truthy result', async () => {
+    const schema: StandardSchemaV1<unknown, string> = {
+      '~standard': {
+        // @ts-expect-error - deliberately violating the contract to hit defensive branch
+        validate: () => true,
+      },
+    };
+
+    const [err, value] = await validate('test', schema);
+
+    expect(value).toBeNull();
+    expect(err).toBeInstanceOf(ValidationError);
+    expect(err?.message.startsWith('error validation result of wrong type')).toBe(true);
+  });
+
   it('returns string when valid when async validation returns result', async () => {
     const schema: StandardSchemaV1<unknown, string> = {
       // @ts-expect-error - minimal runtime shape for the test

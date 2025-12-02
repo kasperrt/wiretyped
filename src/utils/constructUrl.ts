@@ -43,7 +43,7 @@ export async function constructUrl<
         if (value === undefined || value === null) {
           continue;
         }
-        searchParams.set(key, String(value));
+        searchParams.set(key, encodeURIComponent(String(value)));
       }
     }
   }

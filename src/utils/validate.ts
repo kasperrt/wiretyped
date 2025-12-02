@@ -35,16 +35,20 @@ export async function validate<T extends StandardSchemaV1>(
   }
 
   if (result instanceof Promise) {
-    const [errAsync, res] = await safeWrapAsync(() => Promise.resolve(result));
+    const [errAsync, resultAsync] = await safeWrapAsync(() => Promise.resolve(result));
     if (errAsync) {
       return [new ValidationError('error validating async data', [], { cause: errAsync }), null];
     }
 
-    result = res;
+    result = resultAsync;
   }
 
   if (!result) {
     return [new ValidationError('error validating data empty resulting validation', []), null];
+  }
+
+  if (typeof result !== 'object') {
+    return [new ValidationError('error validation result of wrong type', []), null];
   }
 
   if ('issues' in result && result.issues) {
