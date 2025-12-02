@@ -22,7 +22,7 @@ Thanks for your interest in improving WireTyped! This guide covers the basics fo
 ## Coding guidelines
 
 - Type-first: keep strong typing with Standard Schema; avoid `any`.
-- Error handling: prefer safe tuple wrappers (`safeWrap`/`safeWrapAsync`) for consistency.
+- Error handling: prefer safe tuple wrappers (`safeWrap`/`safeWrapAsync`) for consistency, not `try`/`catch` blocks.
 - Formatting/linting: use `pnpm run fix` to apply Biome rules.
 - Comments: keep them concise and only where they add clarity.
 - If you have to `else`, think again.
