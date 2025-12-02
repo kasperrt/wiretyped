@@ -60,7 +60,7 @@ export async function constructUrl<
     }
 
     for (const [key, value] of Object.entries(data ?? {})) {
-      result = result.replace(new RegExp(`{${key}}`, 'g'), String(value));
+      result = result.replace(new RegExp(`{${key}}`, 'g'), encodeURIComponent(String(value)));
     }
   }
 
@@ -71,7 +71,7 @@ export async function constructUrl<
       continue;
     }
     if (typeof value === 'string' || typeof value === 'number') {
-      result = result.replace(new RegExp(`{${key}}`, 'g'), String(value));
+      result = result.replace(new RegExp(`{${key}}`, 'g'), encodeURIComponent(String(value)));
     }
   }
 
