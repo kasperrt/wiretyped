@@ -1,6 +1,8 @@
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { ErrorEvent, EventSource } from 'eventsource';
 import { CacheClient, type CacheClientOptions } from '../cache/client';
 import { TimeoutError } from '../error';
+import { ValidationError } from '../error/validationError';
 import { FetchClient } from '../fetch';
 import type { FetchClientOptions } from '../fetch/client';
 import { mergeHeaderOptions } from '../fetch/utils';
@@ -226,13 +228,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [null, result];
     }
 
-    const p = schemas.response.safeParse(result);
-    if (p.error) {
-      return [new Error('error parsing response in get', { cause: p.error }), null];
+    const [errParse, parsed] = await this.#validate(result, schemas.response);
+    if (errParse) {
+      return [new Error('error parsing response in get', { cause: errParse }), null];
     }
 
-    const parsed = p.data as GetReturn<Endpoint, Schema>;
-    return [null, parsed];
+    return [null, parsed as GetReturn<Endpoint, Schema>];
   }
 
   /**
@@ -270,13 +271,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     if (schemas.request && (opts.validate === true || (this.#validation === true && opts.validate !== false))) {
-      const schema = schemas.request;
-      const p = schema.safeParse(data);
-      if (p.error) {
-        return [new Error('error parsing request in post', { cause: p.error }), null];
+      const [errParse, parsed] = await this.#validate(data, schemas.request);
+      if (errParse) {
+        return [new Error('error parsing request in post', { cause: errParse }), null];
       }
 
-      data = p.data as RequestType<Schema, Endpoint & string, 'post'>;
+      data = parsed as RequestType<Schema, Endpoint & string, 'post'>;
     }
 
     const [errReq, response] = await this.#httpClient.post(url, JSON.stringify(data), {
@@ -297,13 +297,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [null, result];
     }
 
-    const p = schemas.response.safeParse(result);
-    if (p.error) {
-      return [new Error('error parsing response in post', { cause: p.error }), null];
+    const [errParse, parsed] = await this.#validate(result, schemas.response);
+    if (errParse) {
+      return [new Error('error parsing response in post', { cause: errParse }), null];
     }
 
-    const parsed = p.data as PostReturn<Endpoint, Schema>;
-    return [null, parsed];
+    return [null, parsed as PostReturn<Endpoint, Schema>];
   }
 
   /**
@@ -341,13 +340,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     if (schemas.request && (opts.validate === true || (this.#validation === true && opts.validate !== false))) {
-      const schema = schemas.request;
-      const p = schema.safeParse(data);
-      if (p.error) {
-        return [new Error('error parsing request in put', { cause: p.error }), null];
+      const [errParse, parsed] = await this.#validate(data, schemas.request);
+      if (errParse) {
+        return [new Error('error parsing request in put', { cause: errParse }), null];
       }
 
-      data = p.data as RequestType<Schema, Endpoint & string, 'put'>;
+      data = parsed as RequestType<Schema, Endpoint & string, 'put'>;
     }
 
     const [errReq, response] = await this.#httpClient.put(url, JSON.stringify(data), {
@@ -367,13 +365,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [null, result];
     }
 
-    const p = schemas.response.safeParse(result);
-    if (p.error) {
-      return [new Error('error parsing response in put', { cause: p.error }), null];
+    const [errParse, parsed] = await this.#validate(result, schemas.response);
+    if (errParse) {
+      return [new Error('error parsing response in put', { cause: errParse }), null];
     }
 
-    const parsed = p.data as PutReturn<Endpoint, Schema>;
-    return [null, parsed];
+    return [null, parsed as PutReturn<Endpoint, Schema>];
   }
 
   /**
@@ -411,14 +408,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     if (schemas.request && (opts.validate === true || (this.#validation === true && opts.validate !== false))) {
-      const schema = schemas.request;
-      const p = schema.safeParse(data);
-      if (p.error) {
-        return [new Error('error parsing request in patch', { cause: p.error }), null];
+      const [errParse, parsed] = await this.#validate(data, schemas.request);
+      if (errParse) {
+        return [new Error('error parsing request in patch', { cause: errParse }), null];
       }
 
-      const parsed = p.data as RequestType<Schema, Endpoint & string, 'patch'>;
-      data = parsed;
+      data = parsed as RequestType<Schema, Endpoint & string, 'patch'>;
     }
 
     const [errReq, response] = await this.#httpClient.patch(url, JSON.stringify(data), {
@@ -439,13 +434,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [null, result];
     }
 
-    const p = schemas.response.safeParse(result);
-    if (p.error) {
-      return [new Error('error parsing response in patch', { cause: p.error }), null];
+    const [errParse, parsed] = await this.#validate(result, schemas.response);
+    if (errParse) {
+      return [new Error('error parsing response in patch', { cause: errParse }), null];
     }
 
-    const parsed = p.data as PatchReturn<Endpoint, Schema>;
-    return [null, parsed];
+    return [null, parsed as PatchReturn<Endpoint, Schema>];
   }
 
   /**
@@ -494,13 +488,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [null, result];
     }
 
-    const p = schemas.response.safeParse(result);
-    if (p.error) {
-      return [new Error('error parsing response in delete', { cause: p.error }), null];
+    const [errParse, parsed] = await this.#validate(result, schemas.response);
+    if (errParse) {
+      return [new Error('error parsing response in delete', { cause: errParse }), null];
     }
 
-    const parsed = p.data as DeleteReturn<Endpoint, Schema>;
-    return [null, parsed];
+    return [null, parsed as DeleteReturn<Endpoint, Schema>];
   }
 
   /**
@@ -684,7 +677,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         handler([new Error(`error generic error on ${url} for sse`), null]);
       };
 
-      connection.onmessage = (e: MessageEvent) => {
+      connection.onmessage = async (e: MessageEvent) => {
         const [err, result] = safeWrap(() => JSON.parse(e.data));
         if (err) {
           handler([new Error('error parsing JSON in sse onmessage', { cause: err }), null]);
@@ -696,20 +689,18 @@ export class RequestClient<Schema extends RequestDefinitions> {
           return;
         }
 
-        const p = schemas.response.safeParse(result);
-        if (p.error) {
+        const [errParse, parsed] = await this.#validate(result, schemas.response);
+        if (errParse) {
           handler([
             new Error('error parsing response in sse onmessage', {
-              cause: p.error,
+              cause: errParse,
             }),
             null,
           ]);
           return;
         }
 
-        const parsed = p.data as ResponseType<Schema, Endpoint & string, 'sse'>;
-
-        handler([null, parsed]);
+        handler([null, parsed as ResponseType<Schema, Endpoint & string, 'sse'>]);
       };
     });
 
@@ -719,6 +710,27 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     return [null, close];
+  }
+
+  async #validate<T extends StandardSchemaV1>(
+    input: StandardSchemaV1.InferInput<T>,
+    schema: T,
+  ): SafeWrapAsync<StandardSchemaV1.InferOutput<T>> {
+    let result = schema['~standard'].validate(input);
+    if (result instanceof Promise) {
+      const [err, res] = await safeWrapAsync(() => Promise.resolve(result));
+      if (err) {
+        return [new ValidationError('error validating async data', [], { cause: err }), null];
+      }
+
+      result = res;
+    }
+
+    if (result.issues) {
+      return [new ValidationError('error validating data', [...result.issues]), null];
+    }
+
+    return [null, result.value];
   }
 
   // biome-ignore lint/suspicious/noExplicitAny: Logger

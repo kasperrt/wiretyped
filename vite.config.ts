@@ -9,7 +9,6 @@ export default defineConfig({
         core: resolve(__dirname, 'src/core/index.ts'),
         error: resolve(__dirname, 'src/error/index.ts'),
       },
-      formats: ['es', 'cjs'],
     },
     sourcemap: true,
     outDir: 'dist',

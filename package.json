@@ -1,11 +1,12 @@
 {
   "type": "module",
   "name": "wiretyped",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Typed HTTP client built on zod with error-first ergonomics, caching, retries, SSE, and runtime validation for APIs.",
   "keywords": ["http-client", "api-client", "typed", "typescript", "zod", "fetch", "rest", "sse", "retry", "cache"],
   "author": "Kasper Rynning-Tønnesen <kasperrt@users.noreply.github.com> (https://github.com/kasperrt)",
   "license": "ISC",
+  "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/types/index.d.ts",
@@ -39,7 +40,8 @@
   },
   "dependencies": {
     "eventsource": "^4.0.0",
-    "zod": "^4.1.13"
+    "zod": "^4.1.13",
+    "@standard-schema/spec": "^1.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",

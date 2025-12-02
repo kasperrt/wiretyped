@@ -1,8 +1,9 @@
 import { ErrorEvent } from 'eventsource';
 import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
-import { ZodError, z } from 'zod';
+import { z } from 'zod';
 import { TimeoutError } from '../error';
 import { isErrorType } from '../error/isErrorType';
+import { ValidationError } from '../error/validationError';
 import { RequestClient } from './client';
 import type {
   HttpClientProvider,
@@ -606,7 +607,7 @@ describe('RequestClient', () => {
         );
 
         const [err, res] = await requestClient.get('/api/my-endpoint', null);
-        expect(isErrorType(ZodError, err)).toEqual(true);
+        expect(isErrorType(ValidationError, err)).toEqual(true);
         expect(getSpy).toHaveBeenCalledOnce();
         expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
         expect(res).toStrictEqual(null);
@@ -990,7 +991,7 @@ describe('RequestClient', () => {
         age: 22,
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(postSpy).toHaveBeenCalledTimes(0);
       expect(res).toBeNull();
     });
@@ -1009,7 +1010,7 @@ describe('RequestClient', () => {
         name: 'Brother',
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(postSpy).toHaveBeenCalledOnce();
       expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
         headers: DEFAULT_HEADERS_SEND,
@@ -1285,7 +1286,7 @@ describe('RequestClient', () => {
         age: 22,
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(putSpy).toHaveBeenCalledTimes(0);
       expect(res).toBeNull();
     });
@@ -1304,7 +1305,7 @@ describe('RequestClient', () => {
         name: 'Brother',
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(putSpy).toHaveBeenCalledOnce();
       expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
         headers: DEFAULT_HEADERS_SEND,
@@ -1573,7 +1574,7 @@ describe('RequestClient', () => {
         age: 22,
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(patchSpy).toHaveBeenCalledTimes(0);
       expect(res).toBeNull();
     });
@@ -1592,7 +1593,7 @@ describe('RequestClient', () => {
         name: 'Brother',
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(patchSpy).toHaveBeenCalledOnce();
       expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
         headers: DEFAULT_HEADERS_SEND,
@@ -1882,7 +1883,7 @@ describe('RequestClient', () => {
 
       const [err, res] = await requestClient.delete('/api/my-endpoint', null);
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(deleteSpy).toHaveBeenCalledOnce();
       expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
       expect(res).toBeNull();
