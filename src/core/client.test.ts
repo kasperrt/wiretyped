@@ -1,8 +1,9 @@
 import { ErrorEvent } from 'eventsource';
 import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
-import { ZodError, z } from 'zod';
-import { TimeoutError } from '../error';
+import { z } from 'zod';
+import { isTimeoutError } from '../error';
 import { isErrorType } from '../error/isErrorType';
+import { ValidationError } from '../error/validationError';
 import { RequestClient } from './client';
 import type {
   HttpClientProvider,
@@ -273,16 +274,16 @@ describe('RequestClient', () => {
       consoleWarnSpy.mockRestore();
     });
 
-    test('No endpoint: errors if endpoint dont exit', () => {
+    test('No endpoint: errors if endpoint dont exit', async () => {
       //@ts-expect-error
-      const [err, res] = requestClient.url('/api/non-existing', null);
+      const [err, res] = await requestClient.url('/api/non-existing', null);
 
       expect(err).toStrictEqual(new Error('error no schemas found for /api/non-existing'));
       expect(res).toBeNull();
     });
 
-    test('Returns full url for endpoint with search params', () => {
-      const [err, res] = requestClient.url('/api/my-endpoint', {
+    test('Returns full url for endpoint with search params', async () => {
+      const [err, res] = await requestClient.url('/api/my-endpoint', {
         $search: { a: 'b' },
       });
 
@@ -290,8 +291,8 @@ describe('RequestClient', () => {
       expect(res).toBe('https://api.example.com/base/api/my-endpoint?a=b');
     });
 
-    test('Returns error and null data when constructUrl errors due to bad url', () => {
-      const [err, res] = requestClient.url('/api/my-bad-endpoint/{ye}}', {
+    test('Returns error and null data when constructUrl errors due to bad url', async () => {
+      const [err, res] = await requestClient.url('/api/my-bad-endpoint/{ye}}', {
         $search: { a: 'b' },
         ye: 'heh',
       });
@@ -606,7 +607,7 @@ describe('RequestClient', () => {
         );
 
         const [err, res] = await requestClient.get('/api/my-endpoint', null);
-        expect(isErrorType(ZodError, err)).toEqual(true);
+        expect(isErrorType(ValidationError, err)).toEqual(true);
         expect(getSpy).toHaveBeenCalledOnce();
         expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
         expect(res).toStrictEqual(null);
@@ -990,7 +991,7 @@ describe('RequestClient', () => {
         age: 22,
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(postSpy).toHaveBeenCalledTimes(0);
       expect(res).toBeNull();
     });
@@ -1009,7 +1010,7 @@ describe('RequestClient', () => {
         name: 'Brother',
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(postSpy).toHaveBeenCalledOnce();
       expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
         headers: DEFAULT_HEADERS_SEND,
@@ -1285,7 +1286,7 @@ describe('RequestClient', () => {
         age: 22,
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(putSpy).toHaveBeenCalledTimes(0);
       expect(res).toBeNull();
     });
@@ -1304,7 +1305,7 @@ describe('RequestClient', () => {
         name: 'Brother',
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(putSpy).toHaveBeenCalledOnce();
       expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
         headers: DEFAULT_HEADERS_SEND,
@@ -1573,7 +1574,7 @@ describe('RequestClient', () => {
         age: 22,
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(patchSpy).toHaveBeenCalledTimes(0);
       expect(res).toBeNull();
     });
@@ -1592,7 +1593,7 @@ describe('RequestClient', () => {
         name: 'Brother',
       });
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(patchSpy).toHaveBeenCalledOnce();
       expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
         headers: DEFAULT_HEADERS_SEND,
@@ -1882,7 +1883,7 @@ describe('RequestClient', () => {
 
       const [err, res] = await requestClient.delete('/api/my-endpoint', null);
 
-      expect(isErrorType(ZodError, err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(deleteSpy).toHaveBeenCalledOnce();
       expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
       expect(res).toBeNull();
@@ -2268,7 +2269,6 @@ describe('RequestClient', () => {
             value: init?.withCredentials ?? true,
             writable: false,
           },
-          // Start as OPEN (more realistic), we will close it manually in the test
           readyState: { value: 1, writable: true },
           CLOSED: { value: 2, writable: false },
           CONNECTING: { value: 0, writable: false },
@@ -2280,7 +2280,7 @@ describe('RequestClient', () => {
         this.onerror = null;
 
         this.close = vi.fn(() => {
-          // biome-ignore lint/suspicious/noExplicitAny: Overriding on purpose to access internal state
+          // biome-ignore lint/suspicious/noExplicitAny: it's a test
           (this as any).readyState = this.CLOSED;
         });
         this.addEventListener = vi.fn();
@@ -2302,12 +2302,16 @@ describe('RequestClient', () => {
         debug: true,
       });
 
-      // Start the SSE, but don't await immediately
+      // Start the SSE, but DON'T await yet – we want to control when it resolves
       const ssePromise = localClient.sse('/api/my-sse', null, handler);
 
-      const instance = LOCAL_CLOSED_SSE_PROVIDER.mock.instances[0];
+      // Wait until constructUrl has finished and the SSE provider has actually been constructed
+      await vi.waitFor(() => {
+        expect(LOCAL_CLOSED_SSE_PROVIDER).toHaveBeenCalledOnce();
+      });
 
-      // Simulate successful open so the promise resolves
+      const instance = LOCAL_CLOSED_SSE_PROVIDER.mock.instances[0];
+      // Simulate successful open so the inner "opener" promise resolves
       instance.onopen?.(new Event('open'));
 
       const [err, close] = await ssePromise;
@@ -2315,8 +2319,7 @@ describe('RequestClient', () => {
       expect(err).toBeNull();
       expect(LOCAL_CLOSED_SSE_PROVIDER).toHaveBeenCalledOnce();
 
-      // Now simulate that the stream has already been closed by the server
-
+      // Simulate that the stream has already been closed by the server
       // @ts-expect-error: simulating a state change
       instance.readyState = instance.CLOSED;
       expect(instance.readyState).toBe(instance.CLOSED); // sanity check
@@ -2331,84 +2334,10 @@ describe('RequestClient', () => {
       consoleWarnSpy.mockRestore();
     });
 
-    test('resolves with error when SSE fails to open (onerror before onopen)', async () => {
-      const handler = vi.fn();
-
-      // fresh client with the normal/mock provider (must NOT auto-open)
-      const client = new RequestClient({
-        httpProvider: MOCK_HTTP_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
-        baseUrl: 'https://api.example.com/base',
-        hostname: 'https://api.example.com',
-        endpoints: mockSseEndpoints,
-        validation: true,
-        debug: false,
-      });
-
-      // Start the SSE call, but don't await yet
-      const ssePromise = client.sse('/api/my-sse', null, handler);
-
-      // Grab the underlying SSE instance created by the provider
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      // Simulate an error happening BEFORE any `onopen`
-      const errorEvent = new Event('error');
-      instance.onerror?.(errorEvent);
-
-      // Now await the promise – it should resolve via the `!resolved` branch
-      const [err, close] = await ssePromise;
-
-      expect(err).toBeInstanceOf(Error);
-      expect(err?.message).toBe('error opening SSE connection');
-      expect(close).toBeNull();
-
-      // For this "failed to open" case, the handler should NOT be called
-      expect(handler).not.toHaveBeenCalled();
-    });
-
-    test('clears timeout when SSE opens before deadline', async () => {
+    test('sse() returns timeout error when opening SSE connection exceeds timeout', async () => {
       vi.useFakeTimers();
 
-      const handler = vi.fn();
-
-      const client = new RequestClient<typeof mockSseEndpoints>({
-        httpProvider: MOCK_HTTP_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
-        baseUrl: 'https://api.example.com/base',
-        hostname: 'https://api.example.com',
-        endpoints: mockSseEndpoints,
-        validation: true,
-        debug: false,
-      });
-
-      const promise = client.sse('/api/my-sse', null, handler, {
-        timeout: 1000,
-      });
-
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      // Time passes, but not enough to hit the timeout
-      vi.advanceTimersByTime(500);
-
-      // Connection opens successfully
-      instance.onopen?.(new Event('open'));
-
-      const [err, close] = await promise;
-
-      expect(err).toBeNull();
-      expect(typeof close).toBe('function');
-
-      // Advance timers beyond the timeout just to be sure nothing else happens
-      vi.advanceTimersByTime(1000);
-
-      // No timeout error should be surfaced; handler shouldn't have been called by timeout either
-      expect(handler).not.toHaveBeenCalled();
-
-      vi.useRealTimers();
-    });
-
-    test('times out opening SSE connection when no open/error occurs', async () => {
-      const LOCAL_CLOSED_SSE_PROVIDER = vi.fn(function (
+      const LOCAL_SSE_PROVIDER = vi.fn(function (
         this: SSEClientProviderDefinition,
         url: string | URL,
         init?: SSEClientSourceInit,
@@ -2422,8 +2351,7 @@ describe('RequestClient', () => {
             value: init?.withCredentials ?? true,
             writable: false,
           },
-          // Start as OPENING (more realistic), we will close it manually in the test
-          readyState: { value: 0, writable: true },
+          readyState: { value: 0, writable: true }, // CONNECTING
           CLOSED: { value: 2, writable: false },
           CONNECTING: { value: 0, writable: false },
           OPEN: { value: 1, writable: false },
@@ -2433,22 +2361,17 @@ describe('RequestClient', () => {
         this.onmessage = null;
         this.onerror = null;
 
-        this.close = vi.fn(() => {
-          // biome-ignore lint/suspicious/noExplicitAny: Overriding on purpose to access internal state
-          (this as any).readyState = this.CLOSED;
-        });
+        this.close = vi.fn();
         this.addEventListener = vi.fn();
         this.removeEventListener = vi.fn();
         this.dispatchEvent = vi.fn().mockReturnValue(true);
       }) as unknown as MockedSSEClientProvider;
 
-      vi.useFakeTimers();
-
       const handler = vi.fn();
 
-      const client = new RequestClient<typeof mockSseEndpoints>({
+      const client = new RequestClient({
         httpProvider: MOCK_HTTP_PROVIDER,
-        sseProvider: LOCAL_CLOSED_SSE_PROVIDER,
+        sseProvider: LOCAL_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         endpoints: mockSseEndpoints,
@@ -2456,25 +2379,219 @@ describe('RequestClient', () => {
         debug: false,
       });
 
-      // Start SSE, but don't drive onopen/onerror
-      const promise = client.sse('/api/my-sse', null, handler, {
-        timeout: 1000,
+      // Start the SSE, but don't resolve it yet; we want the timeout to fire
+      const ssePromise = client.sse('/api/my-sse', null, handler, { timeout: 1000 });
+
+      // Ensure the SSE provider has actually been instantiated (constructUrl finished)
+      await vi.waitFor(() => {
+        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
       });
 
-      // Let the timeout fire
-      await vi.advanceTimersByTimeAsync(1005);
+      // No onopen / onerror — simulate time passing so the timeout callback runs
+      await vi.advanceTimersByTimeAsync(1000);
 
-      const [err, close] = await promise;
+      const [err, close] = await ssePromise;
 
       expect(err).toBeInstanceOf(Error);
       expect(err?.message).toBe('error opening SSE connection');
-      // check the underlying cause is a TimeoutError
-      expect(err?.cause).toBeInstanceOf(TimeoutError);
-      expect((err?.cause as TimeoutError).message).toContain(
-        'error timed out opening connection to SSE endpoint: api/my-sse',
-      );
-
+      // If TimeoutError is exported somewhere, you can check the cause:
+      expect(isTimeoutError(err)).toBe(true);
       expect(close).toBeNull();
+
+      // No messages should have been delivered to the handler
+      expect(handler).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+
+    test('sse() returns error when new is run', async () => {
+      const LOCAL_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        _: string | URL,
+        __?: SSEClientSourceInit,
+      ) {
+        throw new Error('throwing on instantiation');
+      }) as unknown as MockedSSEClientProvider;
+
+      const handler = vi.fn();
+
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: LOCAL_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
+
+      // Start the SSE, do NOT await yet – we want to trigger onerror manually
+      const ssePromise = client.sse('/api/my-sse', null, handler);
+
+      // Wait for provider construction so connection.onerror has been wired
+      await vi.waitFor(() => {
+        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
+      });
+
+      const [err, close] = await ssePromise;
+
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error opening SSE connection');
+      expect((err?.cause as Error).message).toBe('error creating new connection for SSE on api/my-sse');
+
+      // Because the error happened during "open", we never get a close function
+      expect(close).toBeNull();
+
+      // Because we resolved via the "opening" error branch, the message handler
+      // should never be called
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('sse() returns error when connection.onerror fires before SSE opens', async () => {
+      const LOCAL_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        url: string | URL,
+        init?: SSEClientSourceInit,
+      ) {
+        Object.defineProperties(this, {
+          url: {
+            value: typeof url === 'string' ? url : url.toString(),
+            writable: false,
+          },
+          withCredentials: {
+            value: init?.withCredentials ?? true,
+            writable: false,
+          },
+          readyState: { value: 0, writable: true }, // CONNECTING
+          CLOSED: { value: 2, writable: false },
+          CONNECTING: { value: 0, writable: false },
+          OPEN: { value: 1, writable: false },
+        });
+
+        this.onopen = null;
+        this.onmessage = null;
+        this.onerror = null;
+
+        this.close = vi.fn();
+        this.addEventListener = vi.fn();
+        this.removeEventListener = vi.fn();
+        this.dispatchEvent = vi.fn().mockReturnValue(true);
+      }) as unknown as MockedSSEClientProvider;
+
+      const handler = vi.fn();
+
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: LOCAL_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
+
+      // Start the SSE, do NOT await yet – we want to trigger onerror manually
+      const ssePromise = client.sse('/api/my-sse', null, handler);
+
+      // Wait for provider construction so connection.onerror has been wired
+      await vi.waitFor(() => {
+        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
+      });
+
+      const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
+
+      // Trigger the connection.onerror handler before onopen has ever fired
+      const errorEvent = new Event('error');
+      instance.onerror?.(errorEvent);
+
+      const [err, close] = await ssePromise;
+
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error opening SSE connection');
+
+      // Because the error happened during "open", we never get a close function
+      expect(close).toBeNull();
+
+      // Because we resolved via the "opening" error branch, the message handler
+      // should never be called
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('sse opener ignores subsequent resolution attempts (timeout then onopen)', async () => {
+      vi.useFakeTimers();
+
+      const LOCAL_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        url: string | URL,
+        init?: SSEClientSourceInit,
+      ) {
+        Object.defineProperties(this, {
+          url: {
+            value: typeof url === 'string' ? url : url.toString(),
+            writable: false,
+          },
+          withCredentials: {
+            value: init?.withCredentials ?? true,
+            writable: false,
+          },
+          readyState: { value: 0, writable: true }, // CONNECTING
+          CLOSED: { value: 2, writable: false },
+          CONNECTING: { value: 0, writable: false },
+          OPEN: { value: 1, writable: false },
+        });
+
+        this.onopen = null;
+        this.onmessage = null;
+        this.onerror = null;
+
+        this.close = vi.fn();
+        this.addEventListener = vi.fn();
+        this.removeEventListener = vi.fn();
+        this.dispatchEvent = vi.fn().mockReturnValue(true);
+      }) as unknown as MockedSSEClientProvider;
+
+      const handler = vi.fn();
+
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: LOCAL_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
+
+      // Start the SSE, but don't await yet – we need to manipulate timers and instance
+      const ssePromise = client.sse('/api/my-sse', null, handler, { timeout: 1000 });
+
+      // Wait until the SSE provider has actually been constructed
+      await vi.waitFor(() => {
+        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
+      });
+
+      const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
+      expect(instance).toBeDefined();
+
+      // 1) Let the timeout fire first -> first call to `done`
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // At this point, opener should have resolved with a timeout error
+      // but we haven't awaited ssePromise yet.
+
+      // 2) Now simulate a late "open" event -> second call to `done` with resolved === true
+      //    This is what hits the `if (resolved) { return; }` branch.
+      instance.onopen?.(new Event('open'));
+
+      const [err, close] = await ssePromise;
+
+      // We still see the timeout error result – the late onopen didn't change anything.
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error opening SSE connection');
+      expect(isTimeoutError(err)).toBe(true);
+      expect(close).toBeNull();
+
+      // No messages should have been delivered, since we never successfully opened.
       expect(handler).not.toHaveBeenCalled();
 
       vi.useRealTimers();

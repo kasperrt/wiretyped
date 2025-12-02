@@ -8,12 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@standard-schema/spec':
+        specifier: ^1.0.0
+        version: 1.0.0
       eventsource:
         specifier: ^4.0.0
         version: 4.1.0
-      zod:
-        specifier: ^4.1.13
-        version: 4.1.13
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.3.8
@@ -36,6 +36,9 @@ importers:
       vitest:
         specifier: ^4.0.14
         version: 4.0.14(@types/node@24.10.1)
+      zod:
+        specifier: ^4.1.13
+        version: 4.1.13
 
 packages:
 

@@ -1,11 +1,12 @@
 import type { EndpointsWithMethod, HttpMethod, Params, RequestDefinitions } from '../core/types';
-import type { SafeWrap } from './wrap';
+import { validate } from './validate';
+import type { SafeWrapAsync } from './wrap';
 
 /**
  * Constructs a relative URL by replacing path parameters and appending query parameters.
  * Handles strict validation of $path and $search if enabled.
  */
-export function constructUrl<
+export async function constructUrl<
   Endpoint extends EndpointsWithMethod<Method, Schema> & string,
   Method extends HttpMethod,
   Schema extends RequestDefinitions,
@@ -13,8 +14,8 @@ export function constructUrl<
   path: Endpoint,
   params: Params<Endpoint, Method, Schema>,
   schema: Schema[Endpoint][Method],
-  validate?: boolean,
-): SafeWrap<Error, string> {
+  validation?: boolean,
+): SafeWrapAsync<Error, string> {
   const searchParams = new URLSearchParams();
   let result = path.toString();
 
@@ -27,14 +28,14 @@ export function constructUrl<
 
   // 1. Handle Query Params ($search)
   if ('$search' in params && schema?.$search) {
-    let data = params.$search as Record<string, unknown>;
+    let data = params.$search;
 
-    if (validate) {
-      const parsed = schema.$search.safeParse(params.$search ?? {});
-      if (parsed.error) {
-        return [new Error(`error extracting search params`, { cause: parsed.error }), null];
+    if (validation) {
+      const [errParse, parsed] = await validate(params.$search, schema.$search);
+      if (errParse) {
+        return [new Error(`error extracting search params`, { cause: errParse }), null];
       }
-      data = parsed.data as Record<string, unknown>;
+      data = parsed;
     }
 
     if (data) {
@@ -42,24 +43,24 @@ export function constructUrl<
         if (value === undefined || value === null) {
           continue;
         }
-        searchParams.set(key, String(value));
+        searchParams.set(key, encodeURIComponent(String(value)));
       }
     }
   }
 
   // 2. Handle $path Object Params
   if ('$path' in params && schema?.$path) {
-    let data = params.$path as Record<string, unknown>;
-    if (validate) {
-      const parsed = schema.$path.safeParse(params.$path);
-      if (!parsed.success) {
-        return [new Error(`error $path validation failed: ${parsed.error.message}`), null];
+    let data = params.$path;
+    if (validation) {
+      const [errParse, parsed] = await validate(params.$path, schema.$path);
+      if (errParse) {
+        return [new Error(`error $path validation failed`, { cause: errParse }), null];
       }
-      data = parsed.data as Record<string, unknown>;
+      data = parsed;
     }
 
     for (const [key, value] of Object.entries(data ?? {})) {
-      result = result.replace(new RegExp(`{${key}}`, 'g'), String(value));
+      result = result.replace(new RegExp(`{${key}}`, 'g'), encodeURIComponent(String(value)));
     }
   }
 
@@ -70,7 +71,7 @@ export function constructUrl<
       continue;
     }
     if (typeof value === 'string' || typeof value === 'number') {
-      result = result.replace(new RegExp(`{${key}}`, 'g'), String(value));
+      result = result.replace(new RegExp(`{${key}}`, 'g'), encodeURIComponent(String(value)));
     }
   }
 

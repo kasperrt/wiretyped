@@ -30,7 +30,6 @@ const require = createRequire(import.meta.url);
 
 const checkRoot = (mod, label) => {
   assert.strictEqual(typeof mod.RequestClient, 'function', `${label} RequestClient export missing`);
-  assert.ok(mod.z, `${label} z export missing`);
   expectedRootErrorExports.forEach((key) => {
     assert.ok(mod[key], `${label} ${key} export missing`);
   });
@@ -38,7 +37,6 @@ const checkRoot = (mod, label) => {
 
 const checkCore = (mod, label) => {
   assert.strictEqual(typeof mod.RequestClient, 'function', `${label} RequestClient export missing`);
-  assert.ok(mod.z, `${label} z export missing`);
 };
 
 const checkError = (mod, label) => {

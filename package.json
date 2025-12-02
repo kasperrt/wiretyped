@@ -1,11 +1,12 @@
 {
   "type": "module",
   "name": "wiretyped",
-  "version": "0.0.8",
+  "version": "0.1.0",
   "description": "Typed HTTP client built on zod with error-first ergonomics, caching, retries, SSE, and runtime validation for APIs.",
   "keywords": ["http-client", "api-client", "typed", "typescript", "zod", "fetch", "rest", "sse", "retry", "cache"],
   "author": "Kasper Rynning-Tønnesen <kasperrt@users.noreply.github.com> (https://github.com/kasperrt)",
   "license": "ISC",
+  "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/types/index.d.ts",
@@ -21,11 +22,12 @@
     "fix": "pnpm exec biome check --write",
     "build": "vite build && pnpm run build:types",
     "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
-    "smoke": "node scripts/smoke-test.mjs",
+    "smoke:node": "node scripts/smoke-node.mjs",
     "smoke:build": "pnpm run build && pnpm run smoke",
     "smoke:bun": "bun run scripts/smoke-bun.ts",
     "smoke:deno": "deno run --allow-read scripts/smoke-deno.ts",
     "smoke:worker": "node scripts/smoke-worker.mjs",
+    "smoke:types": "pnpm exec tsc -p scripts/types-smoke/tsconfig.json",
     "check:lint": "pnpm exec biome lint --error-on-warnings",
     "check:format": "pnpm exec biome format --error-on-warnings",
     "check:ts": "tsc --noEmit",
@@ -34,12 +36,12 @@
     "test": "vitest run --no-isolate --no-file-parallelism",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "pnpm check && pnpm run test && pnpm run build && pnpm smoke",
+    "prepublishOnly": "pnpm check && pnpm run test && pnpm run build",
     "prepare": "pnpm exec simple-git-hooks"
   },
   "dependencies": {
     "eventsource": "^4.0.0",
-    "zod": "^4.1.13"
+    "@standard-schema/spec": "^1.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
@@ -48,24 +50,25 @@
     "simple-git-hooks": "^2.11.1",
     "typescript": "^5.9.3",
     "vite": "^5.4.11",
-    "vitest": "^4.0.14"
+    "vitest": "^4.0.14",
+    "zod": "^4.1.13"
   },
   "simple-git-hooks": {
     "pre-commit": "sh scripts/pre-commit.sh"
   },
   "exports": {
     ".": {
-      "types": "./dist/types/src/index.d.ts",
+      "types": "./dist/types/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
     "./core": {
-      "types": "./dist/types/src/core/index.d.ts",
+      "types": "./dist/types/core/index.d.ts",
       "import": "./dist/core.mjs",
       "require": "./dist/core.cjs"
     },
     "./error": {
-      "types": "./dist/types/src/error/index.d.ts",
+      "types": "./dist/types/error/index.d.ts",
       "import": "./dist/error.mjs",
       "require": "./dist/error.cjs"
     },

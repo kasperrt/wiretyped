@@ -10,12 +10,20 @@ function headerOptionsToObject(h?: HeaderOptions): Record<string, string> {
   }
 
   if (Array.isArray(h)) {
-    return Object.fromEntries(h);
+    h = Object.fromEntries(h);
   }
 
   const result: Record<string, string> = {};
   for (const [key, value] of Object.entries(h)) {
-    result[key.toLowerCase()] = value as string;
+    if (
+      typeof value !== 'string' &&
+      typeof value !== 'bigint' &&
+      typeof value !== 'boolean' &&
+      typeof value !== 'number'
+    ) {
+      continue;
+    }
+    result[key.toLowerCase()] = `${value}`;
   }
 
   return result;

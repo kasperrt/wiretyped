@@ -20,6 +20,20 @@ describe('mergeHeaderOptions', () => {
     expect(merged).toEqual(new Headers({ a: 'b', c: 'd' }));
   });
 
+  test('merge objects with bad values', () => {
+    // @ts-expect-error
+    const merged = mergeHeaderOptions({ a: 1 }, { c: true });
+
+    expect(merged).toEqual(new Headers({ a: '1', c: 'true' }));
+  });
+
+  test('merge objects with bad values', () => {
+    // @ts-expect-error
+    const merged = mergeHeaderOptions({ a: 1 }, { c: true, badValue: { nested: 'data' } });
+
+    expect(merged).toEqual(new Headers({ a: '1', c: 'true' }));
+  });
+
   test('last objects takes presedence', () => {
     const merged = mergeHeaderOptions({ a: 'b' }, { a: 'd' });
 
