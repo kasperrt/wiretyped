@@ -1,8 +1,11 @@
-import type { ZodString, ZodType, z } from 'zod';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 import type { FetchOptions } from '../fetch';
 import type { FetchClientOptions } from '../fetch/client';
 import type { FetchResponse } from '../fetch/types';
 import type { SafeWrap, SafeWrapAsync } from '../utils/wrap';
+
+type SchemaType = StandardSchemaV1<unknown, unknown>;
+type SchemaString = StandardSchemaV1<string, string>;
 
 /** Make a subset of keys required while keeping the rest intact. */
 export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
@@ -102,14 +105,14 @@ export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'download
 export type RequestDefinitions = {
   [path: string]: RequireAtLeastOne<{
     [M in HttpMethod]: M extends 'url'
-      ? { $search?: ZodType; $path?: ZodType; response: ZodString }
+      ? { $search?: SchemaType; $path?: SchemaType; response: SchemaString }
       : M extends 'get' | 'delete' | 'download'
-        ? { $search?: ZodType; $path?: ZodType; response: ZodType }
+        ? { $search?: SchemaType; $path?: SchemaType; response: SchemaType }
         : {
-            $search?: ZodType;
-            $path?: ZodType;
-            request?: ZodType;
-            response: ZodType;
+            $search?: SchemaType;
+            $path?: SchemaType;
+            request?: SchemaType;
+            response: SchemaType;
           };
   }>;
 };
@@ -133,15 +136,17 @@ export type ResponseType<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
-> = Schema[Endpoint][Method] extends { response: z.ZodType } ? z.infer<Schema[Endpoint][Method]['response']> : never;
+> = Schema[Endpoint][Method] extends { response: SchemaType }
+  ? StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['response']>
+  : never;
 
 /** Typed request body for an endpoint/method (falls back to record for non-schematized). */
 export type RequestType<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
-> = Schema[Endpoint][Method] extends { request: z.ZodType }
-  ? z.infer<Schema[Endpoint][Method]['request']>
+> = Schema[Endpoint][Method] extends { request: SchemaType }
+  ? StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['request']>
   : Record<string, string>;
 
 /** Typed query params via `$search` if present. */
@@ -149,8 +154,8 @@ type SearchType<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
-> = Schema[Endpoint][Method] extends { $search: z.ZodType }
-  ? { $search: z.infer<Schema[Endpoint][Method]['$search']> }
+> = Schema[Endpoint][Method] extends { $search: SchemaType }
+  ? { $search: StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['$search']> }
   : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
     {};
 
@@ -158,8 +163,8 @@ type PathParametersType<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
-> = Schema[Endpoint][Method] extends { $path: z.ZodType }
-  ? { $path: z.infer<Schema[Endpoint][Method]['$path']> }
+> = Schema[Endpoint][Method] extends { $path: SchemaType }
+  ? { $path: StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['$path']> }
   : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
     {};
 
@@ -168,7 +173,9 @@ type PathKeys<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
-> = Schema[Endpoint][Method] extends { $path: z.ZodType } ? keyof z.infer<Schema[Endpoint][Method]['$path']> : never;
+> = Schema[Endpoint][Method] extends { $path: SchemaType }
+  ? keyof StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['$path']>
+  : never;
 
 /** Combined params object (path + query) expected by client methods. */
 export type Params<

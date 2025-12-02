@@ -4,13 +4,13 @@
 
 <img src="./public/wiretyped.png" alt="Wiretyped logo" width="400" />
 
-Typed HTTP client utilities for defining endpoints with zod, issuing requests, and handling errors in an error-first style.
+Typed HTTP client utilities for defining endpoints with [@standard-schema](https://standardschema.dev), issuing requests, and handling errors in an error-first style.
 
 </div>
 
 ## Why this package?
 
-- **Typed endpoints first**: Define once with zod, get full TypeScript safety for params, bodies, and responses.
+- **Typed endpoints first**: Define once with the schema of your choice, get full TypeScript safety for params, bodies, and responses.
 - **Error-first ergonomics**: Returns `[error, data]` tuples (a Go-like pattern) to avoid hidden throws and make control flow explicit.
 - **Runtime validation**: Optional request/response validation to catch mismatches early, not in production logs.
 - **Pragmatic helpers**: Built-in caching, retries, and SSE support with minimal configuration.
@@ -24,7 +24,7 @@ Typed HTTP client utilities for defining endpoints with zod, issuing requests, a
 
 
 ## Contents
-- [Wiretype HTTP Client](#wiretype-http-client)
+- [WireTyped HTTP Client](#wiretyped-http-client)
   - [Why this package?](#why-this-package)
   - [Contents](#contents)
   - [Installation](#installation)
@@ -46,6 +46,8 @@ Typed HTTP client utilities for defining endpoints with zod, issuing requests, a
   - [Error handling](#error-handling)
   - [Exposed entrypoints](#exposed-entrypoints)
   - [Providers](#providers)
+    - [HTTP provider shape](#http-provider-shape)
+    - [SSE provider shape](#sse-provider-shape)
   - [Building](#building)
   - [Publishing](#publishing)
   - [Scripts](#scripts)
@@ -62,7 +64,7 @@ pnpm add wiretyped
 
 ## Quick start
 
-Define your endpoints with zod (re-exported for convenience) and create a `RequestClient`.
+Define your endpoints with the schema of your choice (re-exported for convenience) and create a `RequestClient`.
 
 Notes on path params:
 - Use `$path` when you want constrained values (e.g., enums for `/integrations/{provider}` and want said providers to be from a given set like `slack`, `salesforce`, etc.).
@@ -110,7 +112,7 @@ import { RequestClient, type RequestDefinitions, z } from 'wiretype';
 - `baseUrl` (required): Base path prepended to all endpoints (e.g., `https://api.example.com/`).
 - `hostname` (required): Absolute hostname used when building URLs (e.g., `https://api.example.com`); keeps `url()` outputs absolute.
 - `endpoints` (required): Your typed endpoint definitions (`RequestDefinitions`).
-- `validation` (default `true`): Validate request/response bodies using your zod schemas; can be overridden per call.
+- `validation` (default `true`): Validate request/response bodies using your schema definitions; can be overridden per call.
 - `debug` (default `false`): Log internal client debug info.
 - `cacheOpts`: Configure GET caching (ttl, enable per-call via `{ cacheRequest: true }`).
 
