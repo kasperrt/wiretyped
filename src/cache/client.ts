@@ -1,4 +1,5 @@
 import type { Interval } from '../utils/timeout';
+import type { SafeWrapAsync } from '../utils/wrap';
 
 export interface CacheClientOptions {
   /**
@@ -30,8 +31,7 @@ export class CacheClient {
   #cleanupInterval: number;
   #intervalId: Interval;
   #cache: Record<string, CacheItem> = {};
-  // biome-ignore lint/suspicious/noExplicitAny: As return-types on pending cache can basically be anything, we still need to respect that.
-  #pending: Record<string, Promise<any>> = {};
+  #pending: Record<string, SafeWrapAsync<Error, unknown>> = {};
 
   constructor(opts: CacheClientOptions = { ttl: 500, cleanupInterval: 30_000 }) {
     this.#ttl = opts.ttl;
@@ -79,23 +79,19 @@ export class CacheClient {
    * @param {string} key - cache key
    * @param {Promise} request - http request to put in the pending object
    */
-  #addPendingRequest = <T = unknown>(key: string, request: Promise<T>, ttl: number) => {
-    const pending = new Promise((resolve, reject) => {
-      request
-        .then((res) => {
-          this.#add(key, res, ttl);
-          resolve(res);
-        })
-        .catch((res) => {
-          delete this.#pending[key];
-          reject(res);
-        })
-        .finally(() => {
-          delete this.#pending[key];
-        });
-    });
+  #addPendingRequest = <T = unknown>(key: string, request: () => SafeWrapAsync<Error, T>, ttl: number) => {
+    this.#pending[key] = (async (): SafeWrapAsync<Error, T> => {
+      const [err, data] = await request();
+      delete this.#pending[key];
 
-    this.#pending[key] = pending;
+      if (err) {
+        return [err, null] as const;
+      }
+
+      this.#add(key, data, ttl);
+
+      return [null, data] as const;
+    })();
   };
 
   /**
@@ -103,18 +99,22 @@ export class CacheClient {
    * @param {string} key - cache key
    * @param {Function} res - http request and data returned.
    */
-  public get = <T = unknown>(key: string, res: () => Promise<T>, ttl = this.#ttl) => {
+  public get = <T = unknown>(
+    key: string,
+    res: () => SafeWrapAsync<Error, T>,
+    ttl = this.#ttl,
+  ): SafeWrapAsync<Error, T> => {
     const cachedData = this.#getItem<CacheItem<T>>(key);
     if (cachedData) {
-      return Promise.resolve(cachedData.data);
+      return Promise.resolve([null, cachedData.data]);
     }
 
     if (this.#pending[key] !== undefined) {
-      return this.#pending[key];
+      return this.#pending[key] as SafeWrapAsync<Error, T>;
     }
 
-    this.#addPendingRequest(key, res(), ttl);
-    return this.#pending[key] as T;
+    this.#addPendingRequest(key, res, ttl);
+    return this.#pending[key] as SafeWrapAsync<Error, T>;
   };
 
   /**

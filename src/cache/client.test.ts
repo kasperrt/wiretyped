@@ -21,13 +21,15 @@ describe('CacheClient', () => {
 
     const fetchFn = vi.fn().mockResolvedValue('data');
 
-    const result1 = await client.get('key', fetchFn);
+    const [err1, result1] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
+    expect(err1).toBeNull();
     expect(result1).toBe('data');
     expect(fetchFn).toHaveBeenCalledTimes(1);
 
     // Second call should return cached value and not call fetchFn again
     const fetchFn2 = vi.fn().mockResolvedValue('other');
-    const result2 = await client.get('key', fetchFn2);
+    const [err2, result2] = await client.get('key', () => fetchFn2().then((d) => [null, d] as const));
+    expect(err2).toBeNull();
     expect(result2).toBe('data');
     expect(fetchFn2).not.toHaveBeenCalled();
   });
@@ -42,8 +44,16 @@ describe('CacheClient', () => {
 
     const fetchFn = vi.fn().mockReturnValue(underlyingPromise);
 
-    const p1 = client.get('key', fetchFn);
-    const p2 = client.get('key', fetchFn);
+    const p1 = client.get('key', () =>
+      fetchFn()
+        .then((d) => [null, d] as const)
+        .catch((e) => [e as Error, null] as const),
+    );
+    const p2 = client.get('key', () =>
+      fetchFn()
+        .then((d) => [null, d] as const)
+        .catch((e) => [e as Error, null] as const),
+    );
 
     // Only one actual fetch should be started
     expect(fetchFn).toHaveBeenCalledTimes(1);
@@ -52,12 +62,12 @@ describe('CacheClient', () => {
 
     resolveRequest('value');
 
-    await expect(p1).resolves.toBe('value');
-    await expect(p2).resolves.toBe('value');
+    await expect(p1).resolves.toEqual([null, 'value']);
+    await expect(p2).resolves.toEqual([null, 'value']);
 
     // After it resolves, next call should use the cached value, not call fetch again
     const fetchFn2 = vi.fn().mockResolvedValue('other');
-    const p3 = await client.get('key', fetchFn2);
+    const [, p3] = await client.get('key', () => fetchFn2().then((d) => [null, d] as const));
 
     expect(fetchFn2).not.toHaveBeenCalled();
     expect(p3).toBe('value');
@@ -73,14 +83,16 @@ describe('CacheClient', () => {
 
     const fetchFn = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
 
-    const result1 = await client.get('key', fetchFn);
+    const [err1, result1] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
+    expect(err1).toBeNull();
     expect(result1).toBe('first');
     expect(fetchFn).toHaveBeenCalledTimes(1);
 
     // Second call at t = 35_000 (past ttl)
     nowSpy.mockReturnValue(35_000);
 
-    const result2 = await client.get('key', fetchFn);
+    const [err2, result2] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
+    expect(err2).toBeNull();
     expect(result2).toBe('second');
     expect(fetchFn).toHaveBeenCalledTimes(2);
 
@@ -93,20 +105,23 @@ describe('CacheClient', () => {
     const fetchFn = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
 
     // Use a much shorter ttl for this call
-    const result1 = await client.get('key', fetchFn, 100);
+    const [err1, result1] = await client.get('key', () => fetchFn().then((d) => [null, d] as const), 100);
+    expect(err1).toBeNull();
     expect(result1).toBe('first');
     expect(fetchFn).toHaveBeenCalledTimes(1);
 
     // Not yet expired
     advance(50);
-    const result2 = await client.get('key', fetchFn, 100);
+    const [err2, result2] = await client.get('key', () => fetchFn().then((d) => [null, d] as const), 100);
+    expect(err2).toBeNull();
     expect(result2).toBe('first');
     expect(fetchFn).toHaveBeenCalledTimes(1);
 
     // Now expire it
     advance(100);
 
-    const result3 = await client.get('key', fetchFn, 100);
+    const [err3, result3] = await client.get('key', () => fetchFn().then((d) => [null, d] as const), 100);
+    expect(err3).toBeNull();
     expect(result3).toBe('second');
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
@@ -117,19 +132,34 @@ describe('CacheClient', () => {
     const error = new Error('fail');
     const failingFetch = vi.fn().mockRejectedValue(error);
 
-    await expect(client.get('key', failingFetch)).rejects.toThrow('fail');
+    const [errFail] = await client.get('key', () =>
+      failingFetch()
+        .then((d) => [null, d] as const)
+        .catch((e) => [e as Error, null] as const),
+    );
+    expect(errFail).toEqual(error);
     expect(failingFetch).toHaveBeenCalledTimes(1);
 
     // After a failure, a new request with the same key should be executed and cached
     const successFetch = vi.fn().mockResolvedValue('ok');
-    const result = await client.get('key', successFetch);
+    const [errOk, result] = await client.get('key', () =>
+      successFetch()
+        .then((d) => [null, d] as const)
+        .catch((e) => [e as Error, null] as const),
+    );
 
     expect(successFetch).toHaveBeenCalledTimes(1);
+    expect(errOk).toBeNull();
     expect(result).toBe('ok');
 
     // Subsequent call should hit cache and not call successFetch again
     const successFetch2 = vi.fn().mockResolvedValue('other');
-    const cached = await client.get('key', successFetch2);
+    const [errCached, cached] = await client.get('key', () =>
+      successFetch2()
+        .then((d) => [null, d] as const)
+        .catch((e) => [e as Error, null] as const),
+    );
+    expect(errCached).toBeNull();
     expect(cached).toBe('ok');
     expect(successFetch2).not.toHaveBeenCalled();
   });
@@ -139,14 +169,16 @@ describe('CacheClient', () => {
 
     const fetchFn = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
 
-    const result1 = await client.get('key', fetchFn);
+    const [err1, result1] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
+    expect(err1).toBeNull();
     expect(result1).toBe('first');
     expect(fetchFn).toHaveBeenCalledTimes(1);
 
     // Let some cleanup cycles run and also expire the entry
     advance(5_000);
 
-    const result2 = await client.get('key', fetchFn);
+    const [err2, result2] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
+    expect(err2).toBeNull();
     expect(result2).toBe('second');
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
