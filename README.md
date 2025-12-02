@@ -1,6 +1,6 @@
 <div align="center">
 
-# Wiretype HTTP Client
+# Wiretyped HTTP Client
 
 <img src="./public/wiretyped.png" alt="Wiretyped logo" width="400" />
 
