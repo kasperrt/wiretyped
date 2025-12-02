@@ -141,8 +141,10 @@ export type ResponseType<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
-> = Schema[Endpoint][Method] extends { response: SchemaType }
-  ? StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['response']>
+> = Schema[Endpoint][Method] extends { response: infer S }
+  ? S extends SchemaType
+    ? StandardSchemaV1.InferOutput<S>
+    : never
   : never;
 
 /** Typed request body for an endpoint/method (falls back to record for non-schematized). */
@@ -150,8 +152,10 @@ export type RequestType<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
-> = Schema[Endpoint][Method] extends { request: SchemaType }
-  ? StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['request']>
+> = Schema[Endpoint][Method] extends { request: infer S }
+  ? S extends SchemaType
+    ? StandardSchemaV1.InferOutput<S>
+    : never
   : Record<string, string>;
 
 /** Typed query params via `$search` if present. */
@@ -169,8 +173,11 @@ type PathParametersType<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
-> = Schema[Endpoint][Method] extends { $path: SchemaType }
-  ? { $path: StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['$path']> }
+> = Schema[Endpoint][Method] extends { $path: infer S }
+  ? S extends SchemaType
+    ? { $path: StandardSchemaV1.InferOutput<S> }
+    : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
+      {}
   : // biome-ignore lint/complexity/noBannedTypes: We need to allow the wild-card empty "object" wrapper here to correctly handle the null vs. object params
     {};
 
@@ -179,8 +186,10 @@ type PathKeys<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
-> = Schema[Endpoint][Method] extends { $path: SchemaType }
-  ? keyof StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['$path']>
+> = Schema[Endpoint][Method] extends { $path: infer S }
+  ? S extends SchemaType
+    ? keyof StandardSchemaV1.InferOutput<S>
+    : never
   : never;
 
 /** Combined params object (path + query) expected by client methods. */
