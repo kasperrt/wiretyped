@@ -1,6 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { ValidationError } from '../error/validationError';
-import { type SafeWrapAsync, safeWrapAsync } from './wrap';
+import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap';
 
 /**
  * Validates an input value against a StandardSchemaV1 schema and wraps the result
@@ -24,17 +24,30 @@ export async function validate<T extends StandardSchemaV1>(
   input: StandardSchemaV1.InferInput<T>,
   schema: T,
 ): SafeWrapAsync<Error, StandardSchemaV1.InferOutput<T>> {
-  let result = schema['~standard'].validate(input);
+  type ValidationResult = StandardSchemaV1.Result<StandardSchemaV1.InferOutput<T>>;
+
+  let [err, result] = safeWrap<Error, ValidationResult | Promise<ValidationResult>>(() =>
+    schema['~standard'].validate(input),
+  );
+
+  if (err) {
+    return [new ValidationError('error validating on validation start', [], { cause: err }), null];
+  }
+
   if (result instanceof Promise) {
-    const [err, res] = await safeWrapAsync(() => Promise.resolve(result));
-    if (err) {
-      return [new ValidationError('error validating async data', [], { cause: err }), null];
+    const [errAsync, res] = await safeWrapAsync(() => Promise.resolve(result));
+    if (errAsync) {
+      return [new ValidationError('error validating async data', [], { cause: errAsync }), null];
     }
 
     result = res;
   }
 
-  if (result.issues) {
+  if (!result) {
+    return [new ValidationError('error validating data empty resulting validation', []), null];
+  }
+
+  if ('issues' in result && result.issues) {
     return [new ValidationError('error validating data', [...result.issues]), null];
   }
 
