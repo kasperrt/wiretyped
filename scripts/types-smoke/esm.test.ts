@@ -10,5 +10,4 @@ const endpoints = {
 
 // Type-level smoke: ensure the client type is usable
 type Ping = Awaited<ReturnType<RequestClient<typeof endpoints>['get']>>;
-// @ts-expect-error
-const _unused: Ping | null = null;
+export type _AssertPing = Ping;

@@ -46,9 +46,6 @@ jobs:
       - name: Test with coverage
         run: pnpm run test:coverage
 
-      - name: Type smoke (ESM + CJS)
-        run: pnpm run smoke:types
-
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -81,6 +78,9 @@ jobs:
 
       - name: Build
         run: pnpm run build
+
+      - name: Type smoke (ESM + CJS)
+        run: pnpm run smoke:types
 
       - name: Setup Bun
         if: matrix.runtime == 'bun'
