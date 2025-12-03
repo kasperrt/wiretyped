@@ -1,7 +1,7 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import type { FetchOptions } from '../fetch';
 import type { FetchClientOptions } from '../fetch/client';
-import type { FetchResponse } from '../fetch/types';
+import type { FetchResponse, RetryOptions } from '../fetch/types';
 import type { SafeWrap, SafeWrapAsync } from '../utils/wrap';
 
 // biome-ignore lint/suspicious/noExplicitAny: This is used for inferrence, and requires any so inference works as it should
@@ -17,8 +17,19 @@ export type RequireAtLeastOne<T> = {
   [K in keyof T]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<keyof T, K>>>;
 }[keyof T];
 
+/** Request-level options that sit above the raw fetch options. */
+export interface RequestOptions {
+  /**
+   * Request timeout in milliseconds.
+   * @default 60000
+   */
+  timeout?: number | false;
+  /** Retry behavior (object for fine-grained control or number for attempt count). */
+  retry?: RetryOptions | number;
+}
+
 /** Common request options including cache and validation controls. */
-export interface HttpRequestOptions extends FetchOptions {
+export interface HttpRequestOptions extends FetchOptions, RequestOptions {
   cacheRequest?: boolean;
   cacheTimeToLive?: number;
   validate?: boolean;
@@ -27,21 +38,9 @@ export interface HttpRequestOptions extends FetchOptions {
 /** Contract for HTTP client implementations used by RequestClient. */
 export interface HttpClientProviderDefinition {
   get: (url: string, options: Omit<HttpRequestOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
-  put: (
-    url: string,
-    body: string,
-    options: Omit<HttpRequestOptions, 'method' | 'body'>,
-  ) => SafeWrapAsync<Error, FetchResponse>;
-  patch: (
-    url: string,
-    body: string,
-    options: Omit<HttpRequestOptions, 'method' | 'body'>,
-  ) => SafeWrapAsync<Error, FetchResponse>;
-  post: (
-    url: string,
-    body: string,
-    options: Omit<HttpRequestOptions, 'method' | 'body'>,
-  ) => SafeWrapAsync<Error, FetchResponse>;
+  put: (url: string, options: Omit<HttpRequestOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
+  patch: (url: string, options: Omit<HttpRequestOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
+  post: (url: string, options: Omit<HttpRequestOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
   delete: (url: string, options: Omit<HttpRequestOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
 }
 

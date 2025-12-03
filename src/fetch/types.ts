@@ -67,7 +67,7 @@ export type StatusCode =
   | 510
   | 511;
 
-type RetryOptions = {
+export type RetryOptions = {
   /**
    * The number of times to retry failed requests.
    * @default 2
@@ -97,13 +97,6 @@ type RetryOptions = {
 
 export interface FetchOptions extends Omit<RequestInit, 'headers'> {
   headers?: HeaderOptions;
-  /**
-   * Request timeout in milliseconds.
-   * @default 60000
-   */
-  timeout?: number | false;
-  /** Retry behavior (object for fine-grained control or number for attempt count). */
-  retry?: RetryOptions | number;
   /** Abort signal to cancel the request. */
   signal?: AbortSignal;
 }

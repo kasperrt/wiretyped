@@ -1,10 +1,12 @@
 import { CacheClient, type CacheClientOptions } from '../cache/client';
-import { TimeoutError } from '../error';
+import { AbortError, getHttpError, HTTPError, isAbortError, isErrorType, isTimeoutError, TimeoutError } from '../error';
 import { FetchClient } from '../fetch';
 import type { FetchClientOptions } from '../fetch/client';
+import type { FetchResponse, RetryOptions, StatusCode } from '../fetch/types';
 import { mergeHeaderOptions } from '../fetch/utils';
 import { constructUrl } from '../utils/constructUrl';
 import { getResponseData } from '../utils/getResponseData';
+import { retry as retryHelper } from '../utils/retry';
 import type { Timeout } from '../utils/timeout';
 import { validate } from '../utils/validate';
 import { type SafeWrap, type SafeWrapAsync, safeWrap, safeWrapAsync } from '../utils/wrap';
@@ -19,6 +21,7 @@ import type {
   GetReturn,
   HttpClientProvider,
   HttpClientProviderDefinition,
+  HttpRequestOptions,
   PatchArgs,
   PatchEndpoint,
   PatchReturn,
@@ -29,6 +32,7 @@ import type {
   PutEndpoint,
   PutReturn,
   RequestDefinitions,
+  RequestOptions,
   SSEArgs,
   SSEClientProvider,
   SSEEndpoint,
@@ -49,6 +53,8 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
   hostname: string;
   /** Optional cache configuration for GET requests. {@link CacheClientOptions} */
   cacheOpts?: CacheClientOptions;
+  /** Optional request-level configuration (timeouts, retry). */
+  requestOpts?: RequestOptions;
   /** Optional fetch configuration. {@link FetchClientOptions} */
   fetchOpts?: FetchClientOptions;
   /**
@@ -86,6 +92,9 @@ export class RequestClient<Schema extends RequestDefinitions> {
   #httpClient: HttpClientProviderDefinition;
   #sseClient?: SSEClientProvider | null;
   #cacheClient: CacheClient;
+  #requestOpts: RequestOptions;
+  #defaultRetryCodes: StatusCode[] = [408, 429, 500, 501, 502, 503, 504];
+  #defaultTimeout = 60_000;
   #debug = false;
   #baseUrl: string;
   #hostname: string;
@@ -101,6 +110,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     debug = false,
     validation = true,
     fetchOpts,
+    requestOpts,
     hostname,
     endpoints,
   }: RequestClientProps<Schema>) {
@@ -115,14 +125,25 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#debug = debug;
     this.#validation = validation;
     this.#sseClient = sseProvider;
-    this.#credentials = fetchOpts?.credentials;
+    const legacyTimeout = (fetchOpts as { timeout?: number | false } | undefined)?.timeout;
+    const legacyRetry = (fetchOpts as { retry?: RetryOptions | number } | undefined)?.retry;
+    this.#requestOpts = {
+      timeout: requestOpts?.timeout ?? legacyTimeout ?? this.#defaultTimeout,
+      retry: requestOpts?.retry ?? legacyRetry ?? { limit: 2 },
+    };
+    const fetchOptsWithLegacy = (fetchOpts as FetchClientOptions & {
+      timeout?: number | false;
+      retry?: RetryOptions | number;
+    }) ?? { headers: undefined };
+    const { timeout: _legacyTimeoutProp, retry: _legacyRetryProp, ...fetchProviderOpts } = fetchOptsWithLegacy;
+    this.#credentials = fetchProviderOpts.credentials;
     this.#httpClient = new httpProvider(baseUrl, {
-      ...fetchOpts,
+      ...fetchProviderOpts,
       headers: mergeHeaderOptions(
         {
           Accept: 'application/json',
         },
-        fetchOpts?.headers,
+        fetchProviderOpts.headers,
       ),
     });
 
@@ -207,14 +228,9 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       return [null, result];
     }
-    const [errReq, response] = await this.#httpClient.get(url, opts);
+    const [errReq, result] = await this.#request<GetReturn<Schema, Endpoint>>('get', url, opts, getResponseData);
     if (errReq) {
       return [new Error('error doing request in get', { cause: errReq }), null];
-    }
-
-    const [errResponse, result] = await getResponseData<GetReturn<Schema, Endpoint>>(response);
-    if (errResponse) {
-      return [new Error('error getting response in get', { cause: errResponse }), null];
     }
 
     if (opts.validate === false || (this.#validation === false && !opts.validate)) {
@@ -272,18 +288,19 @@ export class RequestClient<Schema extends RequestDefinitions> {
       data = parsed;
     }
 
-    const [errReq, response] = await this.#httpClient.post(url, JSON.stringify(data), {
-      ...opts,
-      headers: { ...opts.headers, 'Content-Type': 'application/json' },
-    });
+    const [errReq, result] = await this.#request<PostReturn<Schema, Endpoint>>(
+      'post',
+      url,
+      {
+        ...opts,
+        body: JSON.stringify(data),
+        headers: { ...opts.headers, 'Content-Type': 'application/json' },
+      },
+      getResponseData,
+    );
 
     if (errReq) {
       return [new Error('error doing request in post', { cause: errReq }), null];
-    }
-
-    const [errResponse, result] = await getResponseData<PostReturn<Schema, Endpoint>>(response);
-    if (errResponse) {
-      return [new Error('error getting response in post', { cause: errResponse }), null];
     }
 
     if (opts.validate === false || (this.#validation === false && !opts.validate)) {
@@ -341,17 +358,18 @@ export class RequestClient<Schema extends RequestDefinitions> {
       data = parsed;
     }
 
-    const [errReq, response] = await this.#httpClient.put(url, JSON.stringify(data), {
-      ...opts,
-      headers: { ...opts.headers, 'Content-Type': 'application/json' },
-    });
+    const [errReq, result] = await this.#request<PutReturn<Schema, Endpoint>>(
+      'put',
+      url,
+      {
+        ...opts,
+        body: JSON.stringify(data),
+        headers: { ...opts.headers, 'Content-Type': 'application/json' },
+      },
+      getResponseData,
+    );
     if (errReq) {
       return [new Error('error doing request in put', { cause: errReq }), null];
-    }
-
-    const [errResponse, result] = await getResponseData<PutReturn<Schema, Endpoint>>(response);
-    if (errResponse) {
-      return [new Error('error getting response in put', { cause: errResponse }), null];
     }
 
     if (opts.validate === false || (this.#validation === false && !opts.validate)) {
@@ -406,18 +424,19 @@ export class RequestClient<Schema extends RequestDefinitions> {
       data = parsed;
     }
 
-    const [errReq, response] = await this.#httpClient.patch(url, JSON.stringify(data), {
-      ...opts,
-      headers: { ...opts.headers, 'Content-Type': 'application/json' },
-    });
+    const [errReq, result] = await this.#request<PatchReturn<Schema, Endpoint>>(
+      'patch',
+      url,
+      {
+        ...opts,
+        body: JSON.stringify(data),
+        headers: { ...opts.headers, 'Content-Type': 'application/json' },
+      },
+      getResponseData,
+    );
 
     if (errReq) {
       return [new Error('error doing request in patch', { cause: errReq }), null];
-    }
-
-    const [errResponse, result] = await getResponseData<PatchReturn<Schema, Endpoint>>(response);
-    if (errResponse) {
-      return [new Error('error getting response in patch', { cause: errResponse }), null];
     }
 
     if (opts.validate === false || (this.#validation === false && !opts.validate)) {
@@ -463,15 +482,10 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error constructing url in delete', { cause: errUrl }), null];
     }
 
-    const [errReq, response] = await this.#httpClient.delete(url, opts);
+    const [errReq, result] = await this.#request<DeleteReturn<Schema, Endpoint>>('delete', url, opts, getResponseData);
 
     if (errReq) {
       return [new Error('error doing request in delete', { cause: errReq }), null];
-    }
-
-    const [errResponse, result] = await getResponseData<DeleteReturn<Schema, Endpoint>>(response);
-    if (errResponse) {
-      return [new Error('error getting response in delete', { cause: errResponse }), null];
     }
 
     if (opts.validate === false || (this.#validation === false && !opts.validate)) {
@@ -517,18 +531,168 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error constructing url in download', { cause: errUrl }), null];
     }
 
-    const [errReq, response] = await this.#httpClient.get(url, opts);
+    const [errReq, blob] = await this.#request<Blob>('get', url, opts, (response) =>
+      safeWrapAsync(() => response.blob()),
+    );
 
     if (errReq) {
       return [new Error('error doing request in download', { cause: errReq }), null];
     }
 
-    const [errBlob, blob] = await safeWrapAsync(() => response.blob());
-    if (errBlob) {
-      return [new Error('error getting blob in download', { cause: errBlob }), null];
+    return [null, blob];
+  }
+
+  /**
+   * Internal request executor that applies retry/timeout handling and response parsing.
+   */
+  #request<ResponseType>(
+    method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+    url: string,
+    opts: HttpRequestOptions,
+    parser: (response: FetchResponse) => SafeWrapAsync<Error, ResponseType>,
+    body?: string,
+  ): SafeWrapAsync<Error, ResponseType> {
+    const retryOptions = opts.retry ?? this.#requestOpts.retry ?? { limit: 2 };
+    const simpleRetry = typeof retryOptions === 'number';
+    const retryTimeout = simpleRetry ? 1000 : (retryOptions.timeout ?? 1000);
+    const attempts = simpleRetry ? retryOptions : (retryOptions.limit ?? 2);
+    const ignoreStatusCodes: StatusCode[] = simpleRetry ? [] : (retryOptions.ignoreStatusCodes ?? []);
+    const retryCodes = simpleRetry ? this.#defaultRetryCodes : (retryOptions.statusCodes ?? this.#defaultRetryCodes);
+    const timeout = opts.timeout ?? this.#requestOpts.timeout ?? this.#defaultTimeout;
+
+    const {
+      retry: _retry,
+      timeout: _timeout,
+      cacheRequest: _cacheRequest,
+      cacheTimeToLive: _cacheTimeToLive,
+      validate: _validate,
+      ...fetchOptions
+    } = opts;
+    const timeoutSignal = this.createTimeoutSignal(timeout);
+    const signal = this.mergeSignals([opts.signal, timeoutSignal]);
+    const requestOptions = { ...fetchOptions, ...(signal && { signal }) };
+
+    return retryHelper<ResponseType>({
+      name: 'requestRetrier',
+      attempts,
+      timeout: retryTimeout,
+      log: false,
+      errFn: (err) => {
+        if (isAbortError(err)) {
+          return true;
+        }
+
+        if (isTimeoutError(err)) {
+          return false;
+        }
+
+        if (isErrorType(TypeError, err)) {
+          return false;
+        }
+
+        const httpError = getHttpError(err);
+        if (!httpError) {
+          return false;
+        }
+
+        if (ignoreStatusCodes.includes(httpError.response.status)) {
+          return true;
+        }
+
+        if (retryCodes.includes(httpError.response.status) || ignoreStatusCodes.length > 0) {
+          return false;
+        }
+
+        return true;
+      },
+      fn: async () => {
+        const [err, response] = await this.#httpClient[method](url, {
+          ...requestOptions,
+          ...(body && { body }),
+        });
+        if (err) {
+          return [err, null];
+        }
+
+        if (!response.ok) {
+          return [new HTTPError(response, `error in ${method.toUpperCase()} request`), null];
+        }
+
+        const [errResponse, result] = await parser(response);
+        if (errResponse) {
+          return [new Error(`error getting response in ${method}`, { cause: errResponse }), null];
+        }
+
+        return [null, result];
+      },
+    });
+  }
+
+  /**
+   * Creates an {@link AbortSignal} that will automatically abort after the specified timeout.
+   */
+  private createTimeoutSignal(timeoutMs?: number | false): AbortSignal | null {
+    if (!timeoutMs) {
+      return null;
     }
 
-    return [null, blob];
+    const controller = new AbortController();
+
+    const timeoutId = setTimeout(
+      () => controller.abort(new TimeoutError(`error request timed out after ${timeoutMs}ms`)),
+      timeoutMs,
+    );
+
+    controller.signal.addEventListener('abort', () => clearTimeout(timeoutId), {
+      once: true,
+    });
+
+    return controller.signal;
+  }
+
+  /**
+   * Merges multiple {@link AbortSignal} instances into a single signal.
+   */
+  private mergeSignals(signals: Array<AbortSignal | null | undefined>): AbortSignal | null {
+    const active: AbortSignal[] = signals.filter((s): s is AbortSignal => s !== null && s !== undefined);
+
+    if (active.length === 0) {
+      return null;
+    }
+
+    if (active.length === 1) {
+      return active[0];
+    }
+
+    const controller = new AbortController();
+    const listeners: VoidFunction[] = [];
+    const abortFrom = (source: AbortSignal) => {
+      if ('reason' in source) {
+        controller.abort(source.reason);
+        return;
+      }
+
+      controller.abort(new AbortError('error signal triggered with unknown reason'));
+    };
+
+    controller.signal.addEventListener('abort', () => {
+      for (const remove of listeners) {
+        remove();
+      }
+    });
+
+    for (const signal of active) {
+      if (signal.aborted) {
+        abortFrom(signal);
+        break;
+      }
+
+      const abort = () => abortFrom(signal);
+      signal.addEventListener('abort', abort, { once: true });
+      listeners.push(() => signal.removeEventListener('abort', abort));
+    }
+
+    return controller.signal;
   }
 
   /**

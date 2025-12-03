@@ -1,5 +1,6 @@
+import { isErrorType } from '../error';
 import type { FetchResponse } from '../fetch/types';
-import { type SafeWrapAsync, safeWrapAsync } from './wrap';
+import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap';
 
 /**
  * Safely extracts and parses the response body into a tuple-style result.
@@ -27,9 +28,25 @@ export async function getResponseData<ReturnValue>(response: FetchResponse): Saf
 
   const contentType = response.headers.get('Content-Type');
   if (contentType?.includes('application/json')) {
-    const [errJson, json] = await safeWrapAsync(() => response.json());
-    if (errJson) {
+    let [errJson, json] = await safeWrapAsync(() => response.json());
+    if (errJson && !isErrorType(TypeError, errJson)) {
       return [new Error('error parsing json in getResponseData', { cause: errJson }), null];
+    }
+    if (isErrorType(TypeError, errJson)) {
+      const [errText, text] = await safeWrapAsync(() => response.text());
+      if (errText) {
+        return [
+          new Error('error attempting string parse after json failed in getResponseData', { cause: errText }),
+          null,
+        ];
+      }
+
+      const [errParse, parsed] = safeWrap<Error, ReturnValue>(() => JSON.parse(text));
+      if (errParse) {
+        return [new Error('error json-parse string after json failed in getResponseData', { cause: errParse }), null];
+      }
+
+      json = parsed;
     }
     return [null, json];
   }
