@@ -177,24 +177,22 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     if (opts.cacheRequest) {
-      const [errCacheClient, result] = await safeWrapAsync<Error, GetReturn<Endpoint, Schema>>(async () =>
-        this.#cacheClient.get(
-          url,
-          async () => {
-            const [err, result] = await this.get(endpoint, params, {
-              ...opts,
-              cacheRequest: false,
-              body: undefined,
-            });
+      const [errCacheClient, result] = await this.#cacheClient.get(
+        url,
+        async () => {
+          const [err, uncached] = await this.get(endpoint, params, {
+            ...opts,
+            cacheRequest: false,
+            body: undefined,
+          });
 
-            if (err) {
-              throw new Error('error getting request uncached after cache attempt', { cause: err });
-            }
+          if (err) {
+            return [new Error('error getting request uncached after cache attempt', { cause: err }), null] as const;
+          }
 
-            return result;
-          },
-          opts.cacheTimeToLive,
-        ),
+          return [null, uncached] as const;
+        },
+        opts.cacheTimeToLive,
       );
 
       if (errCacheClient) {
