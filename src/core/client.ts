@@ -155,8 +155,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
   async get<Endpoint extends GetEndpoint<Schema>>(
-    ...args: GetArgs<Endpoint & string, Schema>
-  ): SafeWrapAsync<Error, GetReturn<Endpoint, Schema>> {
+    ...args: GetArgs<Schema, Endpoint & string>
+  ): SafeWrapAsync<Error, GetReturn<Schema, Endpoint>> {
     const [endpoint, params, opts = {}] = args;
     const schemas = this.#endpoints[endpoint]?.get;
     if (!schemas) {
@@ -212,7 +212,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error doing request in get', { cause: errReq }), null];
     }
 
-    const [errResponse, result] = await getResponseData<GetReturn<Endpoint, Schema>>(response);
+    const [errResponse, result] = await getResponseData<GetReturn<Schema, Endpoint>>(response);
     if (errResponse) {
       return [new Error('error getting response in get', { cause: errResponse }), null];
     }
@@ -241,8 +241,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
   async post<Endpoint extends PostEndpoint<Schema>>(
-    ...args: PostArgs<Endpoint & string, Schema>
-  ): SafeWrapAsync<Error, PostReturn<Endpoint, Schema>> {
+    ...args: PostArgs<Schema, Endpoint & string>
+  ): SafeWrapAsync<Error, PostReturn<Schema, Endpoint>> {
     const [endpoint, params, rawData, opts = {}] = args;
     let data = rawData;
     const schemas = this.#endpoints[endpoint]?.post;
@@ -281,7 +281,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error doing request in post', { cause: errReq }), null];
     }
 
-    const [errResponse, result] = await getResponseData<PostReturn<Endpoint, Schema>>(response);
+    const [errResponse, result] = await getResponseData<PostReturn<Schema, Endpoint>>(response);
     if (errResponse) {
       return [new Error('error getting response in post', { cause: errResponse }), null];
     }
@@ -310,8 +310,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
   async put<Endpoint extends PutEndpoint<Schema>>(
-    ...args: PutArgs<Endpoint & string, Schema>
-  ): SafeWrapAsync<Error, PutReturn<Endpoint, Schema>> {
+    ...args: PutArgs<Schema, Endpoint & string>
+  ): SafeWrapAsync<Error, PutReturn<Schema, Endpoint>> {
     const [endpoint, params, rawData, opts = {}] = args;
     let data = rawData;
     const schemas = this.#endpoints[endpoint]?.put;
@@ -349,7 +349,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error doing request in put', { cause: errReq }), null];
     }
 
-    const [errResponse, result] = await getResponseData<PutReturn<Endpoint, Schema>>(response);
+    const [errResponse, result] = await getResponseData<PutReturn<Schema, Endpoint>>(response);
     if (errResponse) {
       return [new Error('error getting response in put', { cause: errResponse }), null];
     }
@@ -378,8 +378,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
   async patch<Endpoint extends PatchEndpoint<Schema>>(
-    ...args: PatchArgs<Endpoint & string, Schema>
-  ): SafeWrapAsync<Error, PatchReturn<Endpoint, Schema>> {
+    ...args: PatchArgs<Schema, Endpoint & string>
+  ): SafeWrapAsync<Error, PatchReturn<Schema, Endpoint>> {
     const [endpoint, params, rawData, opts = {}] = args;
     let data = rawData;
     const schemas = this.#endpoints[endpoint]?.patch;
@@ -415,7 +415,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error doing request in patch', { cause: errReq }), null];
     }
 
-    const [errResponse, result] = await getResponseData<PatchReturn<Endpoint, Schema>>(response);
+    const [errResponse, result] = await getResponseData<PatchReturn<Schema, Endpoint>>(response);
     if (errResponse) {
       return [new Error('error getting response in patch', { cause: errResponse }), null];
     }
@@ -443,8 +443,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
   async delete<Endpoint extends DeleteEndpoint<Schema>>(
-    ...args: DeleteArgs<Endpoint & string, Schema>
-  ): SafeWrapAsync<Error, DeleteReturn<Endpoint, Schema>> {
+    ...args: DeleteArgs<Schema, Endpoint & string>
+  ): SafeWrapAsync<Error, DeleteReturn<Schema, Endpoint>> {
     const [endpoint, params, opts = {}] = args;
     const schemas = this.#endpoints[endpoint]?.delete;
     if (!schemas) {
@@ -469,7 +469,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error doing request in delete', { cause: errReq }), null];
     }
 
-    const [errResponse, result] = await getResponseData<DeleteReturn<Endpoint, Schema>>(response);
+    const [errResponse, result] = await getResponseData<DeleteReturn<Schema, Endpoint>>(response);
     if (errResponse) {
       return [new Error('error getting response in delete', { cause: errResponse }), null];
     }
@@ -497,7 +497,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, blob]`.
    */
   async download<Endpoint extends DownloadEndpoint<Schema>>(
-    ...args: DownloadArgs<Endpoint & string, Schema>
+    ...args: DownloadArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, Blob> {
     const [endpoint, params, opts = {}] = args;
     const schemas = this.#endpoints[endpoint]?.download;
@@ -542,7 +542,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A tuple `[error, url]` where `url` is the resolved absolute URL.
    */
   async url<Endpoint extends UrlEndpoint<Schema>>(
-    ...args: UrlArgs<Endpoint & string, Schema>
+    ...args: UrlArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, string> {
     const [endpoint, params] = args;
     const schemas = this.#endpoints[endpoint]?.url;
@@ -592,7 +592,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
    *          that closes the SSE stream.
    */
   async sse<Endpoint extends SSEEndpoint<Schema>>(
-    ...args: SSEArgs<Endpoint & string, Schema>
+    ...args: SSEArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, SSEReturn> {
     const [endpoint, params, handler, options] = args;
     const opts = { withCredentials: this.#credentials !== 'omit', ...options };
