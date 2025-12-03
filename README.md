@@ -388,7 +388,7 @@ if (err) {
 
 ## Providers
 
-Defaults are `FetchClient` for HTTP and the global `EventSource` for SSE. Override only if you need custom transports.
+Defaults are `FetchClient` for HTTP and the global `EventSource` for SSE. Override only if you need custom transports. If your runtime does not provide `EventSource` (e.g., Node without a polyfill), install one such as [`eventsource`](https://github.com/EventSource/eventsource) and pass it as `sseProvider` when constructing the client.
 
 ### HTTP provider shape
 
