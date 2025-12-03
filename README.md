@@ -1,6 +1,6 @@
 <div align="center">
 
-# WireTyped HTTP Client
+# WireTyped
 
 <img src="./public/wiretyped.png" alt="Wiretyped logo" width="400" />
 
@@ -8,7 +8,7 @@ Typed HTTP client utilities for defining endpoints with [@standard-schema](https
 
 </div>
 
-## Why this package?
+## Why
 
 - **Typed endpoints first**: Define once with the schema of your choice, get full TypeScript safety for params, bodies, and responses.
 - **Error-first ergonomics**: Returns `[error, data]` tuples (a Go-like pattern) to avoid hidden throws and make control flow explicit.
@@ -24,8 +24,8 @@ Typed HTTP client utilities for defining endpoints with [@standard-schema](https
 
 
 ## Contents
-- [WireTyped HTTP Client](#wiretyped-http-client)
-  - [Why this package?](#why-this-package)
+- [WireTyped](#wiretyped)
+  - [Why](#why)
   - [Contents](#contents)
   - [Installation](#installation)
   - [Quick start](#quick-start)
@@ -388,7 +388,7 @@ if (err) {
 
 ## Providers
 
-Defaults are `FetchClient` for HTTP and the global `EventSource` for SSE. Override only if you need custom transports.
+Defaults are `FetchClient` for HTTP and the global `EventSource` for SSE. Override only if you need custom transports. If your runtime does not provide `EventSource` (e.g., Node without a polyfill), install one such as [`eventsource`](https://github.com/EventSource/eventsource) and pass it as `sseProvider` when constructing the client.
 
 ### HTTP provider shape
 

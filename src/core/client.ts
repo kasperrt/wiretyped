@@ -1,4 +1,3 @@
-import { ErrorEvent, EventSource } from 'eventsource';
 import { CacheClient, type CacheClientOptions } from '../cache/client';
 import { TimeoutError } from '../error';
 import { FetchClient } from '../fetch';
@@ -85,7 +84,7 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
  */
 export class RequestClient<Schema extends RequestDefinitions> {
   #httpClient: HttpClientProviderDefinition;
-  #sseClient: SSEClientProvider;
+  #sseClient?: SSEClientProvider | null;
   #cacheClient: CacheClient;
   #debug = false;
   #baseUrl: string;
@@ -96,7 +95,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
   constructor({
     httpProvider = FetchClient,
-    sseProvider = EventSource,
+    sseProvider = typeof EventSource !== 'undefined' ? EventSource : undefined,
     baseUrl,
     cacheOpts,
     debug = false,
@@ -611,12 +610,16 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error constructing url in sse', { cause: errUrl }), null];
     }
 
+    const provider = this.#sseClient;
+    if (!provider) {
+      return [new Error(`error missing sse provider in sse on url ${url}`), null];
+    }
+
     const opener = new Promise<SafeWrap<Error, SSEReturn>>((resolve) => {
       let resolved = false;
       let timeoutId: Timeout;
 
       const done = (res: SafeWrap<Error, VoidFunction>) => {
-        // I need this conditional to be tested <---
         if (resolved) {
           return;
         }
@@ -632,7 +635,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         }, opts.timeout);
       }
 
-      const [errConnection, connection] = safeWrap(() => new this.#sseClient(`${this.#baseUrl}/${url}`, opts));
+      const [errConnection, connection] = safeWrap(() => new provider(`${this.#baseUrl}/${url}`, opts));
       if (errConnection) {
         done([new Error(`error creating new connection for SSE on ${url}`, { cause: errConnection }), null]);
         return;
@@ -659,7 +662,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
           return;
         }
 
-        if (event instanceof ErrorEvent) {
+        if ('name' in event && 'message' in event && event.name === 'ErrorEvent') {
           handler([
             new Error(`error receiving on ${url} for sse: ${event.message}`, {
               cause: event,

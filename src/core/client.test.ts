@@ -1,4 +1,3 @@
-import { ErrorEvent } from 'eventsource';
 import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
 import { z } from 'zod';
 import { isTimeoutError } from '../error';
@@ -2096,6 +2095,26 @@ describe('RequestClient', () => {
       expect(instance.close).toHaveBeenCalled();
     });
 
+    test('Errors when no sseProvider is supplied', async () => {
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        // @ts-expect-error testing missing provider branch
+        sseProvider: null,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
+
+      const handler = vi.fn();
+      const [err, close] = await client.sse('/api/my-sse', null, handler);
+
+      expect(err).toStrictEqual(new Error('error missing sse provider in sse on url api/my-sse'));
+      expect(close).toBeNull();
+      expect(handler).not.toHaveBeenCalled();
+    });
+
     test('Errors on non-existant URL', async () => {
       const handler = vi.fn();
 
@@ -2134,6 +2153,22 @@ describe('RequestClient', () => {
       await vi.waitUntil(() => handler.mock.calls.length > 0);
 
       expect(handler).toHaveBeenCalledWith([null, { hello: 'world' }]);
+    });
+
+    test('onerror after open passes ErrorEvent-like details to handler', async () => {
+      const handler = vi.fn();
+
+      await requestClient.sse('/api/my-sse', null, handler);
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      // Simulate a post-open error event with name/message
+      const errorLike = { name: 'ErrorEvent', message: 'I died', extra: true } as unknown as Event;
+      instance.onerror?.(errorLike);
+
+      expect(handler).toHaveBeenCalledWith([
+        new Error('error receiving on api/my-sse for sse: I died', { cause: errorLike }),
+        null,
+      ]);
     });
 
     test('onmessage parses JSON and calls handler with data without validation', async () => {
@@ -2246,7 +2281,8 @@ describe('RequestClient', () => {
 
       const instance = MOCK_SSE_PROVIDER.mock.instances[0];
 
-      const fakeError = new ErrorEvent('error');
+      const fakeError = { name: 'EventError', message: 'Testing' };
+      // @ts-expect-error
       instance.onerror?.(fakeError);
 
       await vi.waitUntil(() => handler.mock.calls.length > 0);
