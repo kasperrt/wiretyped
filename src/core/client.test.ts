@@ -1,4 +1,3 @@
-import { ErrorEvent } from 'eventsource';
 import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
 import { z } from 'zod';
 import { isTimeoutError } from '../error';
@@ -2244,7 +2243,8 @@ describe('RequestClient', () => {
 
       const instance = MOCK_SSE_PROVIDER.mock.instances[0];
 
-      const fakeError = new ErrorEvent('error');
+      const fakeError = { name: 'EventError', message: 'Testing' };
+      // @ts-expect-error
       instance.onerror?.(fakeError);
 
       await vi.waitUntil(() => handler.mock.calls.length > 0);
