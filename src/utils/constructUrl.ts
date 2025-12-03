@@ -7,12 +7,12 @@ import type { SafeWrapAsync } from './wrap';
  * Handles strict validation of $path and $search if enabled.
  */
 export async function constructUrl<
-  Endpoint extends EndpointsWithMethod<Method, Schema> & string,
   Method extends HttpMethod,
   Schema extends RequestDefinitions,
+  Endpoint extends EndpointsWithMethod<Method, Schema> & string,
 >(
   path: Endpoint,
-  params: Params<Endpoint, Method, Schema>,
+  params: Params<Schema, Endpoint, Method>,
   schema: Schema[Endpoint][Method],
   validation?: boolean,
 ): SafeWrapAsync<Error, string> {

@@ -181,9 +181,9 @@ type PathKeys<
 
 /** Combined params object (path + query) expected by client methods. */
 export type Params<
+  Schema extends RequestDefinitions,
   Endpoint extends keyof RequestDefinitions & string,
   Method extends HttpMethod & keyof RequestDefinitions[Endpoint],
-  Schema extends RequestDefinitions,
 > = EmptyishObject<
   // drop from ParsePathParams any keys that are handled by $path
   Omit<ParsePathParams<Endpoint>, PathKeys<Schema, Endpoint, Method>> &
@@ -211,28 +211,28 @@ export type UrlEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod
 /**
  * Typed parameters for get function call parameters
  */
-export type SSEArgs<Endpoint extends SSEEndpoint<Schema> & string, Schema extends RequestDefinitions> = [
+export type SSEArgs<Schema extends RequestDefinitions, Endpoint extends SSEEndpoint<Schema> & string> = [
   endpoint: Endpoint,
-  params: Params<Endpoint, 'sse', Schema>,
-  handler: (data: SafeWrap<Error, SSEDataReturn<Endpoint, Schema>>) => void,
+  params: Params<Schema, Endpoint, 'sse'>,
+  handler: (data: SafeWrap<Error, SSEDataReturn<Schema, Endpoint>>) => void,
   options?: SSEClientSourceInit & { validate?: boolean; timeout?: number },
 ];
 
 /**
  * Typed parameters for get function call parameters
  */
-export type GetArgs<Endpoint extends GetEndpoint<Schema> & string, Schema extends RequestDefinitions> = [
+export type GetArgs<Schema extends RequestDefinitions, Endpoint extends GetEndpoint<Schema> & string> = [
   endpoint: Endpoint,
-  params: Params<Endpoint, 'get', Schema>,
+  params: Params<Schema, Endpoint, 'get'>,
   options?: HttpRequestOptions,
 ];
 
 /**
  * Typed parameters for post function call parameters
  */
-export type PostArgs<Endpoint extends PostEndpoint<Schema> & string, Schema extends RequestDefinitions> = [
+export type PostArgs<Schema extends RequestDefinitions, Endpoint extends PostEndpoint<Schema> & string> = [
   endpoint: Endpoint,
-  params: Params<Endpoint, 'post', Schema>,
+  params: Params<Schema, Endpoint, 'post'>,
   data: RequestType<Schema, Endpoint, 'post'>,
   options?: Omit<HttpRequestOptions, 'cacheRequest' | 'cacheTimeToLive'>,
 ];
@@ -240,9 +240,9 @@ export type PostArgs<Endpoint extends PostEndpoint<Schema> & string, Schema exte
 /**
  * Typed parameters for put function call parameters
  */
-export type PutArgs<Endpoint extends PutEndpoint<Schema> & string, Schema extends RequestDefinitions> = [
+export type PutArgs<Schema extends RequestDefinitions, Endpoint extends PutEndpoint<Schema> & string> = [
   endpoint: Endpoint,
-  params: Params<Endpoint, 'put', Schema>,
+  params: Params<Schema, Endpoint, 'put'>,
   data: RequestType<Schema, Endpoint, 'put'>,
   options?: Omit<HttpRequestOptions, 'cacheRequest' | 'cacheTimeToLive'>,
 ];
@@ -250,9 +250,9 @@ export type PutArgs<Endpoint extends PutEndpoint<Schema> & string, Schema extend
 /**
  * Typed parameters for patch function call parameters
  */
-export type PatchArgs<Endpoint extends PatchEndpoint<Schema> & string, Schema extends RequestDefinitions> = [
+export type PatchArgs<Schema extends RequestDefinitions, Endpoint extends PatchEndpoint<Schema> & string> = [
   endpoint: Endpoint,
-  params: Params<Endpoint, 'patch', Schema>,
+  params: Params<Schema, Endpoint, 'patch'>,
   data: RequestType<Schema, Endpoint, 'patch'>,
   options?: Omit<HttpRequestOptions, 'cacheRequest' | 'cacheTimeToLive'>,
 ];
@@ -260,66 +260,66 @@ export type PatchArgs<Endpoint extends PatchEndpoint<Schema> & string, Schema ex
 /**
  * Typed parameters for delete function call parameters
  */
-export type DeleteArgs<Endpoint extends DeleteEndpoint<Schema> & string, Schema extends RequestDefinitions> = [
+export type DeleteArgs<Schema extends RequestDefinitions, Endpoint extends DeleteEndpoint<Schema> & string> = [
   endpoint: Endpoint,
-  params: Params<Endpoint, 'delete', Schema>,
+  params: Params<Schema, Endpoint, 'delete'>,
   options?: Omit<HttpRequestOptions, 'cacheRequest' | 'cacheTimeToLive'>,
 ];
 
 /**
  * Typed parameters for download function call parameters
  */
-export type DownloadArgs<Endpoint extends DownloadEndpoint<Schema> & string, Schema extends RequestDefinitions> = [
+export type DownloadArgs<Schema extends RequestDefinitions, Endpoint extends DownloadEndpoint<Schema> & string> = [
   endpoint: Endpoint,
-  params: Params<Endpoint, 'download', Schema>,
+  params: Params<Schema, Endpoint, 'download'>,
   options?: HttpRequestOptions,
 ];
 
 /**
  * Typed parameters for url function call parameters
  */
-export type UrlArgs<Endpoint extends UrlEndpoint<Schema> & string, Schema extends RequestDefinitions> = [
+export type UrlArgs<Schema extends RequestDefinitions, Endpoint extends UrlEndpoint<Schema> & string> = [
   endpoint: Endpoint,
-  params: Params<Endpoint, 'url', Schema>,
+  params: Params<Schema, Endpoint, 'url'>,
 ];
 
 /** Typed return-type for get function */
-export type GetReturn<T extends GetEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
+export type GetReturn<Schema extends RequestDefinitions, T extends GetEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'get'
 >;
 
 /** Typed return-type for post function */
-export type PostReturn<T extends PostEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
+export type PostReturn<Schema extends RequestDefinitions, T extends PostEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'post'
 >;
 
 /** Typed return-type for put function */
-export type PutReturn<T extends PutEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
+export type PutReturn<Schema extends RequestDefinitions, T extends PutEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'put'
 >;
 
 /** Typed return-type for patch function */
-export type PatchReturn<T extends PatchEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
+export type PatchReturn<Schema extends RequestDefinitions, T extends PatchEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'patch'
 >;
 
 /** Typed return-type for delete function */
-export type DeleteReturn<T extends DeleteEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
+export type DeleteReturn<Schema extends RequestDefinitions, T extends DeleteEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'delete'
 >;
 
 /** Typed return-type for URL builder */
-export type UrlReturn<T extends UrlEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<
+export type UrlReturn<Schema extends RequestDefinitions, T extends UrlEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'url'
@@ -328,6 +328,6 @@ export type UrlReturn<T extends UrlEndpoint<Schema>, Schema extends RequestDefin
 /**
  * Typed return-type for get function
  */
-type SSEDataReturn<T extends SSEEndpoint<Schema>, Schema extends RequestDefinitions> = ResponseType<Schema, T, 'sse'>;
+type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = ResponseType<Schema, T, 'sse'>;
 
 export type SSEReturn = () => void;
