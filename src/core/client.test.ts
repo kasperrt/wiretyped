@@ -910,7 +910,9 @@ describe('RequestClient', () => {
         });
         expect(err).toBeInstanceOf(Error);
         expect(err?.message.toLowerCase()).toContain('error getting cached response in get');
-        expect((((err as Error).cause as Error).cause as Error).cause).toStrictEqual(underlyingError);
+        expect((((err as Error).cause as Error).cause as Error).cause).toStrictEqual(
+          new Error('error doing request in get', { cause: underlyingError }),
+        );
       });
     });
   });

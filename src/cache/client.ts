@@ -1,5 +1,5 @@
 import type { Interval } from '../utils/timeout';
-import type { SafeWrapAsync } from '../utils/wrap';
+import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap';
 
 export interface CacheClientOptions {
   /**
@@ -81,19 +81,20 @@ export class CacheClient {
    */
   #addPendingRequest = <T = unknown>(key: string, request: () => SafeWrapAsync<Error, T>, ttl: number) => {
     this.#pending[key] = (async (): SafeWrapAsync<Error, T> => {
-      try {
-        const [err, data] = await request();
-        if (err) {
-          return [err, null] as const;
-        }
-
-        this.#add(key, data, ttl);
-        return [null, data] as const;
-      } catch (err) {
-        return [err as Error, null] as const;
-      } finally {
+      const [errWrapped, wrapped] = await safeWrapAsync(() => request());
+      if (errWrapped) {
         delete this.#pending[key];
+        return [new Error('error thrown on cache wrapping request', { cause: errWrapped }), null];
       }
+
+      const [errData, data] = wrapped;
+      if (errData) {
+        delete this.#pending[key];
+        return [new Error('error getting cached request', { cause: errData }), null];
+      }
+
+      this.#add(key, data, ttl);
+      return [null, data];
     })();
   };
 

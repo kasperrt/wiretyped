@@ -149,7 +149,7 @@ describe('CacheClient', () => {
         // @ts-expect-error
         .catch((e) => [e as Error, null] as const),
     );
-    expect(errFail).toEqual(error);
+    expect(errFail).toEqual(new Error('error getting cached request', { cause: error }));
     expect(failingFetch).toHaveBeenCalledTimes(1);
 
     // After a failure, a new request with the same key should be executed and cached
@@ -194,9 +194,34 @@ describe('CacheClient', () => {
       ),
     );
 
-    expect(errThrow).toEqual(error);
+    expect(errThrow).toEqual(new Error('error getting cached request', { cause: error }));
     expect(resThrow).toBeNull();
     expect(throwing).toHaveBeenCalledTimes(1);
+
+    const success = vi.fn().mockResolvedValue('ok');
+    const [errOk, resOk] = await client.get('key', () =>
+      success().then(
+        // @ts-expect-error
+        (d) => [null, d] as const,
+        // @ts-expect-error
+        (e) => [e as Error, null] as const,
+      ),
+    );
+
+    expect(errOk).toBeNull();
+    expect(resOk).toBe('ok');
+    expect(success).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns tuple errors when resolver throws synchronously and allows retry', async () => {
+    const client = new CacheClient({ ttl: 5_000, cleanupInterval: 30_000 });
+    const error = new Error('runtime error');
+    const [errThrow, resThrow] = await client.get('key', () => {
+      throw error;
+    });
+
+    expect(errThrow).toEqual(new Error('error thrown on cache wrapping request', { cause: error }));
+    expect(resThrow).toBeNull();
 
     const success = vi.fn().mockResolvedValue('ok');
     const [errOk, resOk] = await client.get('key', () =>
