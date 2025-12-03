@@ -136,19 +136,12 @@ describe('isErrorType', () => {
   it('returns true when error name matches errorClass name even if not instanceof', () => {
     const err = new OtherError('boom');
 
-    // Ensure it's NOT an instanceof TargetError
     expect(err).not.toBeInstanceOf(TargetError);
-
-    // Force the name to match TargetError.name ("TargetError")
     Object.defineProperty(err, 'name', { value: TargetError.name });
 
-    // No cause, so we skip the cause-recursion branch
     expect(err.cause).toBeUndefined();
 
     const result = isErrorType(TargetError, err);
-
-    // This hits:
-    // if (err?.name && errorClass?.name && err?.name === errorClass?.name) { return true; }
     expect(result).toBe(true);
   });
 });

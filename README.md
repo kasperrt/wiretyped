@@ -1,6 +1,6 @@
 <div align="center">
 
-# WireTyped HTTP Client
+# WireTyped
 
 <img src="./public/wiretyped.png" alt="Wiretyped logo" width="400" />
 
@@ -8,7 +8,7 @@ Typed HTTP client utilities for defining endpoints with [@standard-schema](https
 
 </div>
 
-## Why this package?
+## Why
 
 - **Typed endpoints first**: Define once with the schema of your choice, get full TypeScript safety for params, bodies, and responses.
 - **Error-first ergonomics**: Returns `[error, data]` tuples (a Go-like pattern) to avoid hidden throws and make control flow explicit.
@@ -24,8 +24,8 @@ Typed HTTP client utilities for defining endpoints with [@standard-schema](https
 
 
 ## Contents
-- [WireTyped HTTP Client](#wiretyped-http-client)
-  - [Why this package?](#why-this-package)
+- [WireTyped](#wiretyped)
+  - [Why](#why)
   - [Contents](#contents)
   - [Installation](#installation)
   - [Quick start](#quick-start)

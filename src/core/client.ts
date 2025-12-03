@@ -620,7 +620,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
       let timeoutId: Timeout;
 
       const done = (res: SafeWrap<Error, VoidFunction>) => {
-        // I need this conditional to be tested <---
         if (resolved) {
           return;
         }
