@@ -154,7 +154,7 @@ Per-call `options` mirror the fetch-level options (`FetchOptions`) with extra ca
   credentials?: RequestCredentials;  // Passed to fetch
   mode?: RequestMode;                // Passed to fetch
   timeout?: number | false;          // Request timeout in ms (default 60_000). false disables
-  retry?: number | {                 // Per-call retry (default limit 2, timeout 1000ms, retry on [408, 429, 500, 501, 502, 503] and always on timeout or other errors)
+  retry?: number | {                 // Per-call retry (default limit 2, timeout 1000ms, retry on [408, 429, 500, 501, 502, 503, 504] and always on timeout or other errors)
     limit?: number;                  // How many times to retry (total attempts = limit + 1)
     timeout?: number;                // Ms between retries
     statusCodes?: number[];          // Status codes to retry

@@ -179,30 +179,32 @@ export class RequestClient<Schema extends RequestDefinitions> {
    */
   config(opts: Config) {
     const { cacheOpts, fetchOpts } = opts;
-    if (fetchOpts) {
-      const { timeout, retry, ...fetchClientOpts } = { ...fetchOpts };
-      if (timeout !== undefined) {
-        this.#requestOpts.timeout = timeout;
-      }
-      if (retry !== undefined) {
-        this.#requestOpts.retry = retry;
-      }
-
-      this.#credentials = fetchClientOpts.credentials ?? this.#credentials;
-      this.#fetchClient.config({
-        ...fetchClientOpts,
-        headers: mergeHeaderOptions(
-          {
-            Accept: 'application/json',
-          },
-          fetchClientOpts.headers,
-        ),
-      });
-    }
-
     if (cacheOpts) {
       this.#cacheClient.config(cacheOpts);
     }
+
+    if (!fetchOpts) {
+      return;
+    }
+
+    const { timeout, retry, ...fetchClientOpts } = { ...fetchOpts };
+    if (timeout !== undefined) {
+      this.#requestOpts.timeout = timeout;
+    }
+    if (retry !== undefined) {
+      this.#requestOpts.retry = retry;
+    }
+
+    this.#credentials = fetchClientOpts.credentials ?? this.#credentials;
+    this.#fetchClient.config({
+      ...fetchClientOpts,
+      headers: mergeHeaderOptions(
+        {
+          Accept: 'application/json',
+        },
+        fetchClientOpts.headers,
+      ),
+    });
   }
 
   /**
