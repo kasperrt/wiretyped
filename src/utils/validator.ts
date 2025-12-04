@@ -20,7 +20,7 @@ import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap';
  * @returns {Promise<SafeWrapAsync<StandardSchemaV1.InferOutput<T>>>}
  *   A promise resolving to `[ValidationError | null, StandardSchemaV1.InferOutput<T> | null]`.
  */
-export async function validate<T extends StandardSchemaV1>(
+export async function validator<T extends StandardSchemaV1>(
   input: StandardSchemaV1.InferInput<T>,
   schema: T,
 ): SafeWrapAsync<Error, StandardSchemaV1.InferOutput<T>> {

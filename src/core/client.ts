@@ -1,12 +1,23 @@
 import { CacheClient, type CacheClientOptions } from '../cache/client';
-import { TimeoutError } from '../error';
-import { FetchClient } from '../fetch';
-import type { FetchClientOptions } from '../fetch/client';
+import { getHttpError, HTTPError, isAbortError, isErrorType, isTimeoutError, TimeoutError } from '../error';
+import { FetchClient } from '../fetch/client';
 import { mergeHeaderOptions } from '../fetch/utils';
+import type {
+  FetchClientProvider,
+  FetchClientProviderDefinition,
+  FetchOptions,
+  FetchResponse,
+  Options,
+  RequestOptions,
+  SSEClientProvider,
+  StatusCode,
+} from '../types';
 import { constructUrl } from '../utils/constructUrl';
 import { getResponseData } from '../utils/getResponseData';
+import { retry } from '../utils/retry';
+import { createTimeoutSignal, mergeSignals } from '../utils/signals';
 import type { Timeout } from '../utils/timeout';
-import { validate } from '../utils/validate';
+import { validator } from '../utils/validator';
 import { type SafeWrap, type SafeWrapAsync, safeWrap, safeWrapAsync } from '../utils/wrap';
 import type {
   DeleteArgs,
@@ -17,8 +28,6 @@ import type {
   GetArgs,
   GetEndpoint,
   GetReturn,
-  HttpClientProvider,
-  HttpClientProviderDefinition,
   PatchArgs,
   PatchEndpoint,
   PatchReturn,
@@ -30,7 +39,6 @@ import type {
   PutReturn,
   RequestDefinitions,
   SSEArgs,
-  SSEClientProvider,
   SSEEndpoint,
   SSEReturn,
   UrlArgs,
@@ -40,7 +48,7 @@ import type {
 /** Configuration for constructing a typed {@link RequestClient}. */
 export interface RequestClientProps<Schema extends RequestDefinitions> {
   /** HTTP client implementation used for regular requests. Defaults to {@link FetchClient}. */
-  httpProvider?: HttpClientProvider;
+  fetchProvider?: FetchClientProvider;
   /** SSE client implementation used for server-sent events. Defaults to {@link EventSource}. */
   sseProvider?: SSEClientProvider;
   /** Base URL used when constructing request URLs (e.g. `https://api.example.com/`). */
@@ -49,8 +57,8 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
   hostname: string;
   /** Optional cache configuration for GET requests. {@link CacheClientOptions} */
   cacheOpts?: CacheClientOptions;
-  /** Optional fetch configuration. {@link FetchClientOptions} */
-  fetchOpts?: FetchClientOptions;
+  /** Optional fetch configuration, including request-level defaults (timeouts, retry). */
+  fetchOpts?: Omit<Options, 'signal'>;
   /**
    * Whether to log debug information to the console.
    * @default false
@@ -83,9 +91,12 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
  * @typeParam Schema - The map of endpoint definitions available to the client.
  */
 export class RequestClient<Schema extends RequestDefinitions> {
-  #httpClient: HttpClientProviderDefinition;
+  #httpClient: FetchClientProviderDefinition;
   #sseClient?: SSEClientProvider | null;
   #cacheClient: CacheClient;
+  #requestOpts: RequestOptions;
+  #defaultRetryCodes: StatusCode[] = [408, 429, 500, 501, 502, 503, 504];
+  #defaultTimeout = 60_000;
   #debug = false;
   #baseUrl: string;
   #hostname: string;
@@ -94,7 +105,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
   #credentials?: RequestCredentials;
 
   constructor({
-    httpProvider = FetchClient,
+    fetchProvider = FetchClient,
     sseProvider = typeof EventSource !== 'undefined' ? EventSource : undefined,
     baseUrl,
     cacheOpts,
@@ -109,27 +120,29 @@ export class RequestClient<Schema extends RequestDefinitions> {
     if (!sseProvider) {
       console.warn(`potentially missing event-provider polyfill, SSE handlers won't work`);
     }
+    const { timeout, retry, ...fetchClientOpts } = { ...fetchOpts };
+    this.#requestOpts = { timeout, retry };
     this.#endpoints = endpoints;
     this.#baseUrl = baseUrl;
     this.#hostname = hostname;
     this.#debug = debug;
     this.#validation = validation;
     this.#sseClient = sseProvider;
-    this.#credentials = fetchOpts?.credentials;
-    this.#httpClient = new httpProvider(baseUrl, {
-      ...fetchOpts,
+    this.#credentials = fetchClientOpts.credentials;
+    this.#httpClient = new fetchProvider(baseUrl, {
+      ...fetchClientOpts,
       headers: mergeHeaderOptions(
         {
           Accept: 'application/json',
         },
-        fetchOpts?.headers,
+        fetchClientOpts.headers,
       ),
     });
 
     this.#log(
       `initiated new RequestClient with ${JSON.stringify(
         {
-          httpProvider,
+          fetchProvider,
           sseProvider,
           baseUrl,
           cacheOpts,
@@ -157,13 +170,13 @@ export class RequestClient<Schema extends RequestDefinitions> {
   async get<Endpoint extends GetEndpoint<Schema>>(
     ...args: GetArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, GetReturn<Schema, Endpoint>> {
-    const [endpoint, params, opts = {}] = args;
+    const [endpoint, params, { validate, ...opts } = {}] = args;
     const schemas = this.#endpoints[endpoint]?.get;
     if (!schemas) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, opts.validate ?? this.#validation);
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`GET OPTIONS: ${JSON.stringify(opts, null, 4)}`);
     this.#log(`GET URL: ${url}`);
 
@@ -182,14 +195,13 @@ export class RequestClient<Schema extends RequestDefinitions> {
           const [err, uncached] = await this.get(endpoint, params, {
             ...opts,
             cacheRequest: false,
-            body: undefined,
           });
 
           if (err) {
-            return [new Error('error getting request uncached after cache attempt', { cause: err }), null] as const;
+            return [new Error('error getting request uncached after cache attempt', { cause: err }), null];
           }
 
-          return [null, uncached] as const;
+          return [null, uncached];
         },
         opts.cacheTimeToLive,
       );
@@ -207,21 +219,17 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       return [null, result];
     }
-    const [errReq, response] = await this.#httpClient.get(url, opts);
+
+    const [errReq, result] = await this.#request<GetReturn<Schema, Endpoint>>('get', url, opts, getResponseData);
     if (errReq) {
       return [new Error('error doing request in get', { cause: errReq }), null];
     }
 
-    const [errResponse, result] = await getResponseData<GetReturn<Schema, Endpoint>>(response);
-    if (errResponse) {
-      return [new Error('error getting response in get', { cause: errResponse }), null];
-    }
-
-    if (opts.validate === false || (this.#validation === false && !opts.validate)) {
+    if (validate === false || (this.#validation === false && !validate)) {
       return [null, result];
     }
 
-    const [errParse, parsed] = await validate(result, schemas.response);
+    const [errParse, parsed] = await validator(result, schemas.response);
     if (errParse) {
       return [new Error('error parsing response in get', { cause: errParse }), null];
     }
@@ -243,14 +251,14 @@ export class RequestClient<Schema extends RequestDefinitions> {
   async post<Endpoint extends PostEndpoint<Schema>>(
     ...args: PostArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, PostReturn<Schema, Endpoint>> {
-    const [endpoint, params, rawData, opts = {}] = args;
+    const [endpoint, params, rawData, { validate, ...opts } = {}] = args;
     let data = rawData;
     const schemas = this.#endpoints[endpoint]?.post;
     if (!schemas) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, opts.validate ?? this.#validation);
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`POST OPTIONS: ${JSON.stringify(opts, null, 4)}`);
     this.#log(`POST URL: ${url}`);
     this.#log(`POST DATA: ${JSON.stringify(data, null, 4)}`);
@@ -263,8 +271,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error constructing url in post', { cause: errUrl }), null];
     }
 
-    if (schemas.request && (opts.validate === true || (this.#validation === true && opts.validate !== false))) {
-      const [errParse, parsed] = await validate(data, schemas.request);
+    if (schemas.request && (validate === true || (this.#validation === true && validate !== false))) {
+      const [errParse, parsed] = await validator(data, schemas.request);
       if (errParse) {
         return [new Error('error parsing request in post', { cause: errParse }), null];
       }
@@ -272,25 +280,26 @@ export class RequestClient<Schema extends RequestDefinitions> {
       data = parsed;
     }
 
-    const [errReq, response] = await this.#httpClient.post(url, JSON.stringify(data), {
-      ...opts,
-      headers: { ...opts.headers, 'Content-Type': 'application/json' },
-    });
+    const [errReq, result] = await this.#request<PostReturn<Schema, Endpoint>>(
+      'post',
+      url,
+      {
+        ...opts,
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json', ...opts.headers },
+      },
+      getResponseData,
+    );
 
     if (errReq) {
       return [new Error('error doing request in post', { cause: errReq }), null];
     }
 
-    const [errResponse, result] = await getResponseData<PostReturn<Schema, Endpoint>>(response);
-    if (errResponse) {
-      return [new Error('error getting response in post', { cause: errResponse }), null];
-    }
-
-    if (opts.validate === false || (this.#validation === false && !opts.validate)) {
+    if (validate === false || (this.#validation === false && !validate)) {
       return [null, result];
     }
 
-    const [errParse, parsed] = await validate(result, schemas.response);
+    const [errParse, parsed] = await validator(result, schemas.response);
     if (errParse) {
       return [new Error('error parsing response in post', { cause: errParse }), null];
     }
@@ -312,14 +321,14 @@ export class RequestClient<Schema extends RequestDefinitions> {
   async put<Endpoint extends PutEndpoint<Schema>>(
     ...args: PutArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, PutReturn<Schema, Endpoint>> {
-    const [endpoint, params, rawData, opts = {}] = args;
+    const [endpoint, params, rawData, { validate, ...opts } = {}] = args;
     let data = rawData;
     const schemas = this.#endpoints[endpoint]?.put;
     if (!schemas) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, opts.validate ?? this.#validation);
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`PUT OPTIONS: ${JSON.stringify(opts, null, 4)}`);
     this.#log(`PUT URL: ${url}`);
     this.#log(`PUT DATA: ${data}`);
@@ -332,8 +341,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error constructing url in put', { cause: errUrl }), null];
     }
 
-    if (schemas.request && (opts.validate === true || (this.#validation === true && opts.validate !== false))) {
-      const [errParse, parsed] = await validate(data, schemas.request);
+    if (schemas.request && (validate === true || (this.#validation === true && validate !== false))) {
+      const [errParse, parsed] = await validator(data, schemas.request);
       if (errParse) {
         return [new Error('error parsing request in put', { cause: errParse }), null];
       }
@@ -341,24 +350,25 @@ export class RequestClient<Schema extends RequestDefinitions> {
       data = parsed;
     }
 
-    const [errReq, response] = await this.#httpClient.put(url, JSON.stringify(data), {
-      ...opts,
-      headers: { ...opts.headers, 'Content-Type': 'application/json' },
-    });
+    const [errReq, result] = await this.#request<PutReturn<Schema, Endpoint>>(
+      'put',
+      url,
+      {
+        ...opts,
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json', ...opts.headers },
+      },
+      getResponseData,
+    );
     if (errReq) {
       return [new Error('error doing request in put', { cause: errReq }), null];
     }
 
-    const [errResponse, result] = await getResponseData<PutReturn<Schema, Endpoint>>(response);
-    if (errResponse) {
-      return [new Error('error getting response in put', { cause: errResponse }), null];
-    }
-
-    if (opts.validate === false || (this.#validation === false && !opts.validate)) {
+    if (validate === false || (this.#validation === false && !validate)) {
       return [null, result];
     }
 
-    const [errParse, parsed] = await validate(result, schemas.response);
+    const [errParse, parsed] = await validator(result, schemas.response);
     if (errParse) {
       return [new Error('error parsing response in put', { cause: errParse }), null];
     }
@@ -380,14 +390,14 @@ export class RequestClient<Schema extends RequestDefinitions> {
   async patch<Endpoint extends PatchEndpoint<Schema>>(
     ...args: PatchArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, PatchReturn<Schema, Endpoint>> {
-    const [endpoint, params, rawData, opts = {}] = args;
+    const [endpoint, params, rawData, { validate, ...opts } = {}] = args;
     let data = rawData;
     const schemas = this.#endpoints[endpoint]?.patch;
     if (!schemas) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, opts.validate ?? this.#validation);
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`PATCH OPTIONS: ${JSON.stringify(opts, null, 4)}`);
     this.#log(`PATCH URL: ${url}`);
     this.#log(`PATCH DATA: ${data}`);
@@ -397,8 +407,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error constructing url in patch', { cause: errUrl }), null];
     }
 
-    if (schemas.request && (opts.validate === true || (this.#validation === true && opts.validate !== false))) {
-      const [errParse, parsed] = await validate(data, schemas.request);
+    if (schemas.request && (validate === true || (this.#validation === true && validate !== false))) {
+      const [errParse, parsed] = await validator(data, schemas.request);
       if (errParse) {
         return [new Error('error parsing request in patch', { cause: errParse }), null];
       }
@@ -406,25 +416,26 @@ export class RequestClient<Schema extends RequestDefinitions> {
       data = parsed;
     }
 
-    const [errReq, response] = await this.#httpClient.patch(url, JSON.stringify(data), {
-      ...opts,
-      headers: { ...opts.headers, 'Content-Type': 'application/json' },
-    });
+    const [errReq, result] = await this.#request<PatchReturn<Schema, Endpoint>>(
+      'patch',
+      url,
+      {
+        ...opts,
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json', ...opts.headers },
+      },
+      getResponseData,
+    );
 
     if (errReq) {
       return [new Error('error doing request in patch', { cause: errReq }), null];
     }
 
-    const [errResponse, result] = await getResponseData<PatchReturn<Schema, Endpoint>>(response);
-    if (errResponse) {
-      return [new Error('error getting response in patch', { cause: errResponse }), null];
-    }
-
-    if (opts.validate === false || (this.#validation === false && !opts.validate)) {
+    if (validate === false || (this.#validation === false && !validate)) {
       return [null, result];
     }
 
-    const [errParse, parsed] = await validate(result, schemas.response);
+    const [errParse, parsed] = await validator(result, schemas.response);
     if (errParse) {
       return [new Error('error parsing response in patch', { cause: errParse }), null];
     }
@@ -445,13 +456,13 @@ export class RequestClient<Schema extends RequestDefinitions> {
   async delete<Endpoint extends DeleteEndpoint<Schema>>(
     ...args: DeleteArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, DeleteReturn<Schema, Endpoint>> {
-    const [endpoint, params, opts = {}] = args;
+    const [endpoint, params, { validate, ...opts } = {}] = args;
     const schemas = this.#endpoints[endpoint]?.delete;
     if (!schemas) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, opts.validate ?? this.#validation);
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`DELETE OPTIONS: ${JSON.stringify(opts, null, 4)}`);
     this.#log(`DELETE URL: ${url}`);
 
@@ -463,22 +474,17 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error constructing url in delete', { cause: errUrl }), null];
     }
 
-    const [errReq, response] = await this.#httpClient.delete(url, opts);
+    const [errReq, result] = await this.#request<DeleteReturn<Schema, Endpoint>>('delete', url, opts, getResponseData);
 
     if (errReq) {
       return [new Error('error doing request in delete', { cause: errReq }), null];
     }
 
-    const [errResponse, result] = await getResponseData<DeleteReturn<Schema, Endpoint>>(response);
-    if (errResponse) {
-      return [new Error('error getting response in delete', { cause: errResponse }), null];
-    }
-
-    if (opts.validate === false || (this.#validation === false && !opts.validate)) {
+    if (validate === false || (this.#validation === false && !validate)) {
       return [null, result];
     }
 
-    const [errParse, parsed] = await validate(result, schemas.response);
+    const [errParse, parsed] = await validator(result, schemas.response);
     if (errParse) {
       return [new Error('error parsing response in delete', { cause: errParse }), null];
     }
@@ -499,13 +505,13 @@ export class RequestClient<Schema extends RequestDefinitions> {
   async download<Endpoint extends DownloadEndpoint<Schema>>(
     ...args: DownloadArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, Blob> {
-    const [endpoint, params, opts = {}] = args;
+    const [endpoint, params, { validate, ...opts } = {}] = args;
     const schemas = this.#endpoints[endpoint]?.download;
     if (!schemas) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, opts.validate ?? this.#validation);
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`DOWNLOAD OPTIONS: ${JSON.stringify(opts, null, 4)}`);
     this.#log(`DOWNLOAD URL: ${url}`);
 
@@ -517,15 +523,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error('error constructing url in download', { cause: errUrl }), null];
     }
 
-    const [errReq, response] = await this.#httpClient.get(url, opts);
+    const [errReq, blob] = await this.#request<Blob>('get', url, opts, (response) =>
+      safeWrapAsync(() => response.blob()),
+    );
 
     if (errReq) {
       return [new Error('error doing request in download', { cause: errReq }), null];
-    }
-
-    const [errBlob, blob] = await safeWrapAsync(() => response.blob());
-    if (errBlob) {
-      return [new Error('error getting blob in download', { cause: errBlob }), null];
     }
 
     return [null, blob];
@@ -544,22 +547,19 @@ export class RequestClient<Schema extends RequestDefinitions> {
   async url<Endpoint extends UrlEndpoint<Schema>>(
     ...args: UrlArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, string> {
-    const [endpoint, params] = args;
+    const [endpoint, params, { validate } = {}] = args;
     const schemas = this.#endpoints[endpoint]?.url;
     if (!schemas) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, this.#validation);
-    this.#log(`URL: ${url}`);
-
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       this.#log(`URL ERR: ${errUrl}`);
-    }
-
-    if (errUrl) {
       return [new Error('error constructing url in url', { cause: errUrl }), null];
     }
+
+    this.#log(`URL: ${url}`);
 
     let absoluteUrl = this.#baseUrl;
     if (!absoluteUrl.endsWith('/')) {
@@ -687,7 +687,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
           return;
         }
 
-        const [errParse, parsed] = await validate(result, schemas.response);
+        const [errParse, parsed] = await validator(result, schemas.response);
         if (errParse) {
           handler([
             new Error('error parsing response in sse onmessage', {
@@ -709,6 +709,120 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     return [null, close];
+  }
+
+  /**
+   * Internal request executor that applies retry/timeout handling and response parsing.
+   *
+   * - Normalizes retry/timeout options and merges abort signals.
+   * - Calls the underlying HTTP provider and wraps thrown errors.
+   * - Converts provider error tuples into wrapped `Error`s with the method context.
+   * - Validates HTTP status and parses the response via the provided parser.
+   *
+   * @template ResponseType - The parsed response type expected from the parser.
+   * @param method - HTTP method to invoke on the provider.
+   * @param url - Fully constructed request URL.
+   * @param opts - Request options (fetch options + retry/timeout/cache flags).
+   * @param parser - Function that turns a `FetchResponse` into typed data.
+   * @returns A tuple of `[error, result]`.
+   */
+  #request<ResponseType>(
+    method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+    url: string,
+    opts: FetchOptions & RequestOptions,
+    parser: (response: FetchResponse) => SafeWrapAsync<Error, ResponseType>,
+  ): SafeWrapAsync<Error, ResponseType> {
+    const { retry: retryOpt, timeout: timeoutOpt, ...fetchOptions } = opts;
+    const retryOptions = retryOpt ?? this.#requestOpts.retry ?? { limit: 2 };
+    const simpleRetry = typeof retryOptions === 'number';
+    const timeout = timeoutOpt ?? this.#requestOpts.timeout ?? this.#defaultTimeout;
+    const timeoutSignal = createTimeoutSignal(timeout);
+    const signal = mergeSignals([fetchOptions.signal, timeoutSignal]);
+    const requestOptions = { ...fetchOptions, ...(signal && { signal }) };
+
+    let retryAttempts = 2;
+    let retryTimeout = 1000;
+    let retryIgnoreStatusCodes: StatusCode[] = [];
+    let retryStatusCodes: StatusCode[] = this.#defaultRetryCodes;
+
+    if (simpleRetry) {
+      retryAttempts = retryOptions;
+    }
+
+    if (!simpleRetry) {
+      if (retryOptions.timeout) {
+        retryTimeout = retryOptions.timeout;
+      }
+
+      if (typeof retryOptions.limit === 'number') {
+        retryAttempts = retryOptions.limit;
+      }
+
+      if (retryOptions.ignoreStatusCodes) {
+        retryIgnoreStatusCodes = retryOptions.ignoreStatusCodes;
+      }
+
+      if (retryOptions.statusCodes) {
+        retryStatusCodes = retryOptions.statusCodes;
+      }
+    }
+
+    return retry<ResponseType>({
+      name: 'requestRetrier',
+      attempts: retryAttempts,
+      timeout: retryTimeout,
+      log: this.#debug,
+      errFn: (err) => {
+        if (isAbortError(err)) {
+          return true;
+        }
+
+        if (isTimeoutError(err)) {
+          return false;
+        }
+
+        if (isErrorType(TypeError, err)) {
+          return false;
+        }
+
+        const httpError = getHttpError(err);
+        if (!httpError) {
+          return false;
+        }
+
+        if (retryIgnoreStatusCodes.includes(httpError.response.status)) {
+          return true;
+        }
+
+        if (retryStatusCodes.includes(httpError.response.status) || retryIgnoreStatusCodes.length > 0) {
+          return false;
+        }
+
+        return true;
+      },
+      fn: async () => {
+        const [errWrapped, wrapped] = await safeWrapAsync(() => this.#httpClient[method](url, requestOptions));
+        if (errWrapped) {
+          return [new Error(`error calling request ${method.toUpperCase()} in request`, { cause: errWrapped }), null];
+        }
+
+        const [err, response] = wrapped;
+        if (err) {
+          return [new Error(`error request ${method.toUpperCase()} in request`, { cause: err }), null];
+        }
+
+        if (!response.ok) {
+          return [new HTTPError(response, `error in ${method.toUpperCase()} request`), null];
+        }
+
+        const [errResponse, result] = await parser(response);
+        if (errResponse) {
+          return [new Error(`error getting response in ${method.toUpperCase()}`, { cause: errResponse }), null];
+        }
+
+        return [null, result];
+      },
+    });
   }
 
   // biome-ignore lint/suspicious/noExplicitAny: Logger

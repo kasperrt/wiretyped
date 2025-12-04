@@ -1,13 +1,13 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import z from 'zod';
 import { ValidationError } from '../error/validationError';
-import { validate } from './validate';
+import { validator } from './validator';
 
 describe('validate', () => {
   it('correct schema validates to correct', async () => {
     const data = { foo: 'bar' };
     const schema = z.object({ foo: z.string() });
-    const [err, parsed] = await validate(data, schema);
+    const [err, parsed] = await validator(data, schema);
 
     expect(err).toBeNull();
     expect(parsed).toEqual(data);
@@ -24,7 +24,7 @@ describe('validate', () => {
       },
     };
 
-    const [err, value] = await validate({}, schema);
+    const [err, value] = await validator({}, schema);
 
     expect(value).toBeNull();
     expect(err).toBeInstanceOf(ValidationError);
@@ -41,7 +41,7 @@ describe('validate', () => {
       },
     };
 
-    const [err, value] = await validate({}, schema);
+    const [err, value] = await validator({}, schema);
 
     expect(value).toBeNull();
     expect(err).toBeInstanceOf(ValidationError);
@@ -57,7 +57,7 @@ describe('validate', () => {
       },
     };
 
-    const [err, value] = await validate('test', schema);
+    const [err, value] = await validator('test', schema);
 
     expect(value).toBeNull();
     expect(err).toBeInstanceOf(ValidationError);
@@ -72,7 +72,7 @@ describe('validate', () => {
       },
     };
 
-    const [err, value] = await validate('test', schema);
+    const [err, value] = await validator('test', schema);
 
     expect(value).toBeNull();
     expect(err).toBeInstanceOf(ValidationError);
@@ -89,7 +89,7 @@ describe('validate', () => {
       },
     };
 
-    const [err, value] = await validate('test', schema);
+    const [err, value] = await validator('test', schema);
 
     expect(value).toBe('test');
     expect(err).toBeNull;

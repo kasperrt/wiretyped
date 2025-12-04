@@ -1,4 +1,4 @@
-import type { FetchResponse } from '../fetch/types';
+import type { FetchResponse } from '../types';
 import { isErrorType } from './isErrorType';
 import { unwrapErrorType } from './unwrapErrorType';
 

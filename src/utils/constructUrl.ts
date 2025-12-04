@@ -1,5 +1,5 @@
 import type { EndpointsWithMethod, HttpMethod, Params, RequestDefinitions } from '../core/types';
-import { validate } from './validate';
+import { validator } from './validator';
 import type { SafeWrapAsync } from './wrap';
 
 /**
@@ -31,7 +31,7 @@ export async function constructUrl<
     let data = params.$search;
 
     if (validation) {
-      const [errParse, parsed] = await validate(params.$search, schema.$search);
+      const [errParse, parsed] = await validator(params.$search, schema.$search);
       if (errParse) {
         return [new Error(`error extracting search params`, { cause: errParse }), null];
       }
@@ -52,7 +52,7 @@ export async function constructUrl<
   if ('$path' in params && schema?.$path) {
     let data = params.$path;
     if (validation) {
-      const [errParse, parsed] = await validate(params.$path, schema.$path);
+      const [errParse, parsed] = await validator(params.$path, schema.$path);
       if (errParse) {
         return [new Error(`error $path validation failed`, { cause: errParse }), null];
       }

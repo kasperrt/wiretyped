@@ -393,11 +393,11 @@ Defaults are `FetchClient` for HTTP and the global `EventSource` for SSE. Overri
 ### HTTP provider shape
 
 ```ts
-interface HttpClientProvider {
-  new (baseUrl: string, opts: FetchClientOptions): HttpClientProviderDefinition;
+interface FetchClientProvider {
+  new (baseUrl: string, opts: FetchClientOptions): FetchClientProviderDefinition;
 }
 
-interface HttpClientProviderDefinition {
+interface FetchClientProviderDefinition {
   get(url: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
   put(url: string, body: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
   patch(url: string, body: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;

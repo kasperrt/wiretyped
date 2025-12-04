@@ -18,7 +18,7 @@ interface RetryOptions<R> {
  * @param fn function to retry with timeout
  * @param attempts number of retry-attempts we want to perform
  * @param timeout how long the wait-time should be
- * @param errorFunction optional errorFunction on whether we want to skip retrying and propagate the error
+ * @param errFn optional errorFunction on whether we want to skip retrying and propagate the error (true = retry, false = stop and move on)
  */
 export function retry<R>({
   name,
@@ -37,13 +37,13 @@ export function retry<R>({
 
     if (typeof errFn === 'function' && errFn(err)) {
       if (log) {
-        console.error(`${name} retrier: Didn't match error-condition for retrier, aborting subsequent retries.`);
+        console.debug(`${name} retrier: Didn't match error-condition for retrier, aborting subsequent retries.`);
       }
       return [err, null];
     }
     if (attempt > attempts) {
       if (log) {
-        console.error(`${name} retrier: Attempts exceeded allowed number of retries.`);
+        console.debug(`${name} retrier: Attempts exceeded allowed number of retries.`);
       }
       return [err, null];
     }
