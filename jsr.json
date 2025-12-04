@@ -6,5 +6,11 @@
     "./core": "./src/core/index.ts",
     "./error": "./src/error/index.ts"
   },
+  "compatibility": {
+    "deno": true,
+    "node": ">=18",
+    "browser": true,
+    "bun": true
+  },
   "exclude": ["scripts/**", "**/*.test.*", "**/*.spec.*", "coverage/**"]
 }
