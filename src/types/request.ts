@@ -150,6 +150,7 @@ export type Config = {
   fetchOpts?: Omit<Options, 'signal'>;
   cacheOpts?: CacheClientOptions;
 };
+
 /** Contract for HTTP client implementations used by RequestClient. */
 export interface FetchClientProviderDefinition {
   /** Executes a GET request. */
