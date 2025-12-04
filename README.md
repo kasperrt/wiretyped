@@ -118,7 +118,7 @@ import { RequestClient, type RequestDefinitions, z } from 'wiretyped';
 - `endpoints` (required): Your typed endpoint definitions (`RequestDefinitions`).
 - `validation` (default `true`): Validate request/response bodies using your schema definitions; can be overridden per call.
 - `debug` (default `false`): Log internal client debug info.
-- `cacheOpts`: Configure the cache store for GET requests (used when `cacheRequest` is enabled per-call). Avoid caching sensitive data.
+- `cacheOpts`: Configure the cache store for GET requests (used when `cacheRequest` is enabled per-call). 
 
   ```ts
   {
@@ -351,6 +351,10 @@ GET requests can use an in-memory cache.
 - Global cache defaults (applied when `cacheRequest` is true): `new RequestClient({ ..., cacheOpts: { ttl: 60_000, cleanupInterval: 30_000 } })`
 
 Cache keys are derived from the constructed URL. When `cacheRequest` is enabled, cached data is returned until the TTL expires (per-call TTL wins; otherwise the cache client's `ttl` is used).
+
+Be careful when enabling caching across callers: the cache is local to the client instance and keyed by URL plus headers. If two requests hit the same URL, the only reliable way to guarantee they do not overlap in the cache is to vary the headers (e.g., swap in a distinguishing header value) so the derived key changes.
+
+In general, to avoid any issues, avoid caching sensitive data.
 
 ## Retries
 
