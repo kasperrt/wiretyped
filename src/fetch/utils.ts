@@ -1,4 +1,4 @@
-import type { HeaderOptions } from './types';
+import type { HeaderOptions } from '../types';
 
 function headerOptionsToObject(h?: HeaderOptions): Record<string, string> {
   if (!h) {

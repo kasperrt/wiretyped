@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, type MockedFunction, vi } from 'vitest';
 import { AbortError } from '../error/abortError';
 import { HTTPError } from '../error/httpError';
+import type { FetchResponse } from '../types';
 import { FetchClient } from './client';
-import type { FetchResponse } from './types';
 
 describe('FetchClient', () => {
   beforeEach(() => {
@@ -333,12 +333,11 @@ describe('FetchClient', () => {
 
       expect(res).toBeNull();
       expect(err).toBeInstanceOf(Error);
-      expect((err as Error).message).toBe('error running GET request');
-      expect((err as Error).cause).toBe(fetchError);
+      expect(err).toStrictEqual(new Error('error wrapping GET request in fetchClient', { cause: fetchError }));
       expect(mockedFetch).toHaveBeenCalledTimes(1);
     });
 
-    it('does not retry on HTTP errors and surfaces the first response', async () => {
+    it('surfaces the first response', async () => {
       const errorResponse = {
         ok: false,
         status: 500,

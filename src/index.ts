@@ -3,7 +3,7 @@
  * Use this import if you want everything from a single module surface.
  * @module
  */
-export { RequestClient, type RequestClientProps, type RequestDefinitions, type RequestOptions } from './core';
+export { RequestClient, type RequestClientProps, type RequestDefinitions } from './core';
 export {
   AbortError,
   getHttpError,

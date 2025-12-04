@@ -1,8 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import type { FetchOptions } from '../fetch';
-import type { FetchClientOptions } from '../fetch/client';
-import type { FetchResponse, RetryOptions } from '../fetch/types';
-import type { SafeWrap, SafeWrapAsync } from '../utils/wrap';
+import type { Options, SSEClientSourceInit } from '../types';
+import type { SafeWrap } from '../utils/wrap';
 
 // biome-ignore lint/suspicious/noExplicitAny: This is used for inferrence, and requires any so inference works as it should
 type SchemaType = StandardSchemaV1<any, any>;
@@ -16,84 +14,6 @@ export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
 export type RequireAtLeastOne<T> = {
   [K in keyof T]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<keyof T, K>>>;
 }[keyof T];
-
-/** Request-level options that sit above the raw fetch options. */
-export interface RequestOptions {
-  /**
-   * Request timeout in milliseconds.
-   * @default 60000
-   */
-  timeout?: number | false;
-  /** Retry behavior (object for fine-grained control or number for attempt count). */
-  retry?: RetryOptions | number;
-}
-
-/** Common request options including cache and validation controls. */
-export interface HttpRequestOptions extends FetchOptions, RequestOptions {
-  cacheRequest?: boolean;
-  cacheTimeToLive?: number;
-  validate?: boolean;
-}
-
-/** Contract for HTTP client implementations used by RequestClient. */
-export interface HttpClientProviderDefinition {
-  get: (url: string, options: Omit<HttpRequestOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
-  put: (url: string, options: Omit<HttpRequestOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
-  patch: (url: string, options: Omit<HttpRequestOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
-  post: (url: string, options: Omit<HttpRequestOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
-  delete: (url: string, options: Omit<HttpRequestOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
-}
-
-/** Factory signature for constructing HTTP providers. */
-export interface HttpClientProvider {
-  new (baseUrl: string, opts: FetchClientOptions): HttpClientProviderDefinition;
-}
-
-/**
- * Listener mapping for SSEClient
- */
-interface SSEClientSourceEventMap {
-  error: Event;
-  message: MessageEvent;
-  open: Event;
-}
-
-/** Init options for SSEClient */
-export interface SSEClientSourceInit {
-  withCredentials?: boolean;
-}
-
-/** Minimal EventSource-like contract expected by the SSE client. */
-export interface SSEClientProviderDefinition {
-  readonly url: string;
-  readonly withCredentials: boolean;
-  readonly readyState: number;
-  readonly CLOSED: 2;
-  readonly CONNECTING: 0;
-  readonly OPEN: 1;
-
-  onopen: ((this: SSEClientProviderDefinition, ev: Event) => void) | null;
-  onmessage: ((this: SSEClientProviderDefinition, ev: MessageEvent) => void) | null;
-  onerror: ((this: SSEClientProviderDefinition, ev: Event) => void) | null;
-
-  close(): void;
-  addEventListener<K extends keyof SSEClientSourceEventMap>(
-    type: K,
-    listener: (this: SSEClientProviderDefinition, ev: SSEClientSourceEventMap[K]) => void,
-    options?: boolean | AddEventListenerOptions,
-  ): void;
-  removeEventListener<K extends keyof SSEClientSourceEventMap>(
-    type: K,
-    listener: (this: SSEClientProviderDefinition, ev: SSEClientSourceEventMap[K]) => void,
-    options?: boolean | EventListenerOptions,
-  ): void;
-  dispatchEvent(event: Event): boolean;
-}
-
-/** Factory signature for constructing SSE providers. */
-export interface SSEClientProvider {
-  new (url: string | URL, eventSourceInitDict?: SSEClientSourceInit): SSEClientProviderDefinition;
-}
 
 /**
  * EmptyishObject checks and allows for nulls on props
@@ -223,7 +143,7 @@ export type SSEArgs<Schema extends RequestDefinitions, Endpoint extends SSEEndpo
 export type GetArgs<Schema extends RequestDefinitions, Endpoint extends GetEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'get'>,
-  options?: HttpRequestOptions,
+  options?: Options,
 ];
 
 /**
@@ -233,7 +153,7 @@ export type PostArgs<Schema extends RequestDefinitions, Endpoint extends PostEnd
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'post'>,
   data: RequestType<Schema, Endpoint, 'post'>,
-  options?: Omit<HttpRequestOptions, 'cacheRequest' | 'cacheTimeToLive'>,
+  options?: Omit<Options, 'cacheRequest' | 'cacheTimeToLive'>,
 ];
 
 /**
@@ -243,7 +163,7 @@ export type PutArgs<Schema extends RequestDefinitions, Endpoint extends PutEndpo
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'put'>,
   data: RequestType<Schema, Endpoint, 'put'>,
-  options?: Omit<HttpRequestOptions, 'cacheRequest' | 'cacheTimeToLive'>,
+  options?: Omit<Options, 'cacheRequest' | 'cacheTimeToLive'>,
 ];
 
 /**
@@ -253,7 +173,7 @@ export type PatchArgs<Schema extends RequestDefinitions, Endpoint extends PatchE
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'patch'>,
   data: RequestType<Schema, Endpoint, 'patch'>,
-  options?: Omit<HttpRequestOptions, 'cacheRequest' | 'cacheTimeToLive'>,
+  options?: Omit<Options, 'cacheRequest' | 'cacheTimeToLive'>,
 ];
 
 /**
@@ -262,7 +182,7 @@ export type PatchArgs<Schema extends RequestDefinitions, Endpoint extends PatchE
 export type DeleteArgs<Schema extends RequestDefinitions, Endpoint extends DeleteEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'delete'>,
-  options?: Omit<HttpRequestOptions, 'cacheRequest' | 'cacheTimeToLive'>,
+  options?: Omit<Options, 'cacheRequest' | 'cacheTimeToLive'>,
 ];
 
 /**
@@ -271,7 +191,7 @@ export type DeleteArgs<Schema extends RequestDefinitions, Endpoint extends Delet
 export type DownloadArgs<Schema extends RequestDefinitions, Endpoint extends DownloadEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'download'>,
-  options?: Omit<HttpRequestOptions, 'cacheRequest' | 'cacheTimeToLive'>,
+  options?: Omit<Options, 'cacheRequest' | 'cacheTimeToLive'>,
 ];
 
 /**
@@ -280,7 +200,7 @@ export type DownloadArgs<Schema extends RequestDefinitions, Endpoint extends Dow
 export type UrlArgs<Schema extends RequestDefinitions, Endpoint extends UrlEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'url'>,
-  options?: Pick<HttpRequestOptions, 'validate'>,
+  options?: Pick<Options, 'validate'>,
 ];
 
 /** Typed return-type for get function */

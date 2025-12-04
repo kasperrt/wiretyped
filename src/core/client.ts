@@ -1,9 +1,17 @@
 import { CacheClient, type CacheClientOptions } from '../cache/client';
 import { getHttpError, HTTPError, isAbortError, isErrorType, isTimeoutError, TimeoutError } from '../error';
-import { FetchClient } from '../fetch';
-import type { FetchClientOptions } from '../fetch/client';
-import type { FetchOptions, FetchResponse, StatusCode } from '../fetch/types';
+import { FetchClient } from '../fetch/client';
 import { mergeHeaderOptions } from '../fetch/utils';
+import type {
+  FetchClientProvider,
+  FetchClientProviderDefinition,
+  FetchOptions,
+  FetchResponse,
+  Options,
+  RequestOptions,
+  SSEClientProvider,
+  StatusCode,
+} from '../types';
 import { constructUrl } from '../utils/constructUrl';
 import { getResponseData } from '../utils/getResponseData';
 import { retry } from '../utils/retry';
@@ -20,8 +28,6 @@ import type {
   GetArgs,
   GetEndpoint,
   GetReturn,
-  HttpClientProvider,
-  HttpClientProviderDefinition,
   PatchArgs,
   PatchEndpoint,
   PatchReturn,
@@ -32,9 +38,7 @@ import type {
   PutEndpoint,
   PutReturn,
   RequestDefinitions,
-  RequestOptions,
   SSEArgs,
-  SSEClientProvider,
   SSEEndpoint,
   SSEReturn,
   UrlArgs,
@@ -44,7 +48,7 @@ import type {
 /** Configuration for constructing a typed {@link RequestClient}. */
 export interface RequestClientProps<Schema extends RequestDefinitions> {
   /** HTTP client implementation used for regular requests. Defaults to {@link FetchClient}. */
-  httpProvider?: HttpClientProvider;
+  fetchProvider?: FetchClientProvider;
   /** SSE client implementation used for server-sent events. Defaults to {@link EventSource}. */
   sseProvider?: SSEClientProvider;
   /** Base URL used when constructing request URLs (e.g. `https://api.example.com/`). */
@@ -54,7 +58,7 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
   /** Optional cache configuration for GET requests. {@link CacheClientOptions} */
   cacheOpts?: CacheClientOptions;
   /** Optional fetch configuration, including request-level defaults (timeouts, retry). */
-  fetchOpts?: FetchClientOptions & RequestOptions;
+  fetchOpts?: Omit<Options, 'signal'>;
   /**
    * Whether to log debug information to the console.
    * @default false
@@ -87,7 +91,7 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
  * @typeParam Schema - The map of endpoint definitions available to the client.
  */
 export class RequestClient<Schema extends RequestDefinitions> {
-  #httpClient: HttpClientProviderDefinition;
+  #httpClient: FetchClientProviderDefinition;
   #sseClient?: SSEClientProvider | null;
   #cacheClient: CacheClient;
   #requestOpts: RequestOptions;
@@ -101,7 +105,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
   #credentials?: RequestCredentials;
 
   constructor({
-    httpProvider = FetchClient,
+    fetchProvider = FetchClient,
     sseProvider = typeof EventSource !== 'undefined' ? EventSource : undefined,
     baseUrl,
     cacheOpts,
@@ -125,7 +129,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#validation = validation;
     this.#sseClient = sseProvider;
     this.#credentials = fetchClientOpts.credentials;
-    this.#httpClient = new httpProvider(baseUrl, {
+    this.#httpClient = new fetchProvider(baseUrl, {
       ...fetchClientOpts,
       headers: mergeHeaderOptions(
         {
@@ -138,7 +142,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#log(
       `initiated new RequestClient with ${JSON.stringify(
         {
-          httpProvider,
+          fetchProvider,
           sseProvider,
           baseUrl,
           cacheOpts,
@@ -191,7 +195,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
           const [err, uncached] = await this.get(endpoint, params, {
             ...opts,
             cacheRequest: false,
-            body: undefined,
           });
 
           if (err) {
@@ -283,7 +286,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       {
         ...opts,
         body: JSON.stringify(data),
-        headers: { ...opts.headers, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...opts.headers },
       },
       getResponseData,
     );
@@ -353,7 +356,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       {
         ...opts,
         body: JSON.stringify(data),
-        headers: { ...opts.headers, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...opts.headers },
       },
       getResponseData,
     );
@@ -419,7 +422,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       {
         ...opts,
         body: JSON.stringify(data),
-        headers: { ...opts.headers, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...opts.headers },
       },
       getResponseData,
     );
@@ -732,20 +735,43 @@ export class RequestClient<Schema extends RequestDefinitions> {
     const { retry: retryOpt, timeout: timeoutOpt, ...fetchOptions } = opts;
     const retryOptions = retryOpt ?? this.#requestOpts.retry ?? { limit: 2 };
     const simpleRetry = typeof retryOptions === 'number';
-    const retryTimeout = simpleRetry ? 1000 : (retryOptions.timeout ?? 1000);
-    const attempts = simpleRetry ? retryOptions : (retryOptions.limit ?? 2);
-    const ignoreStatusCodes: StatusCode[] = simpleRetry ? [] : (retryOptions.ignoreStatusCodes ?? []);
-    const retryCodes = simpleRetry ? this.#defaultRetryCodes : (retryOptions.statusCodes ?? this.#defaultRetryCodes);
     const timeout = timeoutOpt ?? this.#requestOpts.timeout ?? this.#defaultTimeout;
     const timeoutSignal = createTimeoutSignal(timeout);
     const signal = mergeSignals([fetchOptions.signal, timeoutSignal]);
     const requestOptions = { ...fetchOptions, ...(signal && { signal }) };
 
+    let retryAttempts = 2;
+    let retryTimeout = 1000;
+    let retryIgnoreStatusCodes: StatusCode[] = [];
+    let retryStatusCodes: StatusCode[] = this.#defaultRetryCodes;
+
+    if (simpleRetry) {
+      retryAttempts = retryOptions;
+    }
+
+    if (!simpleRetry) {
+      if (retryOptions.timeout) {
+        retryTimeout = retryOptions.timeout;
+      }
+
+      if (typeof retryOptions.limit === 'number') {
+        retryAttempts = retryOptions.limit;
+      }
+
+      if (retryOptions.ignoreStatusCodes) {
+        retryIgnoreStatusCodes = retryOptions.ignoreStatusCodes;
+      }
+
+      if (retryOptions.statusCodes) {
+        retryStatusCodes = retryOptions.statusCodes;
+      }
+    }
+
     return retry<ResponseType>({
       name: 'requestRetrier',
-      attempts,
+      attempts: retryAttempts,
       timeout: retryTimeout,
-      log: false,
+      log: this.#debug,
       errFn: (err) => {
         if (isAbortError(err)) {
           return true;
@@ -764,11 +790,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
           return false;
         }
 
-        if (ignoreStatusCodes.includes(httpError.response.status)) {
+        if (retryIgnoreStatusCodes.includes(httpError.response.status)) {
           return true;
         }
 
-        if (retryCodes.includes(httpError.response.status) || ignoreStatusCodes.length > 0) {
+        if (retryStatusCodes.includes(httpError.response.status) || retryIgnoreStatusCodes.length > 0) {
           return false;
         }
 

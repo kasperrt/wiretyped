@@ -1,5 +1,5 @@
 import { isErrorType } from '../error';
-import type { FetchResponse } from '../fetch/types';
+import type { FetchResponse } from '../types';
 import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap';
 
 /**
@@ -29,9 +29,13 @@ export async function getResponseData<ReturnValue>(response: FetchResponse): Saf
   const contentType = response.headers.get('Content-Type');
   if (contentType?.includes('application/json')) {
     let [errJson, json] = await safeWrapAsync(() => response.json());
+    // if we get a normal non TypeError, we want to try more aggressively at parsing this still, in case
+    // the browser fumbled and didn't supply us with a proper json method
     if (errJson && !isErrorType(TypeError, errJson)) {
       return [new Error('error parsing json in getResponseData', { cause: errJson }), null];
     }
+
+    // If TypeError, try again, more aggressively
     if (isErrorType(TypeError, errJson)) {
       const [errText, text] = await safeWrapAsync(() => response.text());
       if (errText) {
@@ -48,6 +52,7 @@ export async function getResponseData<ReturnValue>(response: FetchResponse): Saf
 
       json = parsed;
     }
+
     return [null, json];
   }
 

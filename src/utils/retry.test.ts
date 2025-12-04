@@ -4,15 +4,15 @@ import { retry } from './retry';
 import type { SafeWrapAsync } from './wrap';
 
 describe('retry', () => {
-  let consoleErrorSpy: MockedFunction<typeof console.error>;
+  let consoleDebugSpy: MockedFunction<typeof console.debug>;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    consoleErrorSpy.mockRestore();
+    consoleDebugSpy.mockRestore();
     vi.useRealTimers();
   });
 
@@ -32,7 +32,7 @@ describe('retry', () => {
     expect(err).toBeNull();
     expect(data).toBe('ok');
     expect(fn).toHaveBeenCalledTimes(1);
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(consoleDebugSpy).not.toHaveBeenCalled();
   });
 
   it('retries until fn succeeds within the allowed number of attempts', async () => {
@@ -69,7 +69,7 @@ describe('retry', () => {
 
     expect(err).toBeNull();
     expect(data).toBe('ok');
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(consoleDebugSpy).not.toHaveBeenCalled();
   });
 
   it('does not retry when errFn returns true and returns the error', async () => {
@@ -96,8 +96,8 @@ describe('retry', () => {
     expect(data).toBeNull();
     expect(err).toBe(fatalError);
 
-    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
-    expect(consoleErrorSpy.mock.calls[0][0]).toContain("fatalCase retrier: Didn't match error-condition for retrier");
+    expect(consoleDebugSpy).toHaveBeenCalledTimes(1);
+    expect(consoleDebugSpy.mock.calls[0][0]).toContain("fatalCase retrier: Didn't match error-condition for retrier");
   });
 
   it('retries up to the configured attempts and then returns last error', async () => {
@@ -134,8 +134,8 @@ describe('retry', () => {
     expect(data).toBeNull();
     expect(err).toBe(error);
 
-    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
-    expect(consoleErrorSpy.mock.calls[0][0]).toContain(
+    expect(consoleDebugSpy).toHaveBeenCalledTimes(1);
+    expect(consoleDebugSpy.mock.calls[0][0]).toContain(
       'exhaustedCase retrier: Attempts exceeded allowed number of retries.',
     );
   });
@@ -168,6 +168,6 @@ describe('retry', () => {
 
     expect(data).toBeNull();
     expect(err).toBe(error);
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(consoleDebugSpy).not.toHaveBeenCalled();
   });
 });

@@ -37,13 +37,13 @@ export function retry<R>({
 
     if (typeof errFn === 'function' && errFn(err)) {
       if (log) {
-        console.error(`${name} retrier: Didn't match error-condition for retrier, aborting subsequent retries.`);
+        console.debug(`${name} retrier: Didn't match error-condition for retrier, aborting subsequent retries.`);
       }
       return [err, null];
     }
     if (attempt > attempts) {
       if (log) {
-        console.error(`${name} retrier: Attempts exceeded allowed number of retries.`);
+        console.debug(`${name} retrier: Attempts exceeded allowed number of retries.`);
       }
       return [err, null];
     }

@@ -1,6 +1,6 @@
 import { HTTPError } from '../error/httpError';
+import type { FetchOptions, FetchResponse } from '../types';
 import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap';
-import type { FetchOptions, FetchResponse } from './types';
 import { mergeHeaderOptions } from './utils';
 
 /** Options to configure the {@link FetchClient} wrapper. */
@@ -127,11 +127,11 @@ export class FetchClient {
     );
 
     if (err) {
-      return [new Error(`error running ${opts.method} request`, { cause: err }), null];
+      return [new Error(`error wrapping ${opts.method} request in fetchClient`, { cause: err }), null];
     }
 
     if (!res.ok) {
-      return [new HTTPError(res, `error in ${opts.method} request`), null];
+      return [new HTTPError(res, `error in ${opts.method} request in fetchClient`), null];
     }
 
     // Cast this for some more type-safety on http-status-codes
