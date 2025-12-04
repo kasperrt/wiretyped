@@ -140,6 +140,12 @@ export interface RequestOptions {
 
 /** Common request options including cache and validation controls. */
 export type Options = Pick<FetchOptions, 'credentials' | 'headers' | 'mode' | 'signal'> & RequestOptions;
+
+/**
+ * Runtime configuration payload accepted by `RequestClient.config`.
+ * - `fetchOpts`: default fetch/request options (headers, credentials, etc.).
+ * - `cacheOpts`: cache defaults for GET requests.
+ */
 export type Config = {
   fetchOpts?: Omit<Options, 'signal'>;
   cacheOpts?: CacheClientOptions;

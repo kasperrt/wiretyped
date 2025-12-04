@@ -135,6 +135,7 @@ describe('RequestClient', () => {
       expect(requestClient).toHaveProperty('post');
       expect(requestClient).toHaveProperty('patch');
       expect(requestClient).toHaveProperty('delete');
+      expect(requestClient).toHaveProperty('config');
       expect(requestClient).toHaveProperty('download');
 
       consoleLogSpy.mockRestore();
@@ -172,6 +173,7 @@ describe('RequestClient', () => {
       expect(requestClient).toHaveProperty('post');
       expect(requestClient).toHaveProperty('patch');
       expect(requestClient).toHaveProperty('delete');
+      expect(requestClient).toHaveProperty('config');
       expect(requestClient).toHaveProperty('download');
 
       consoleLogSpy.mockRestore();

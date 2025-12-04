@@ -1,60 +1,18 @@
 {
-  "type": "module",
   "name": "wiretyped",
   "version": "0.1.2",
   "description": "Typed HTTP client built on zod with error-first ergonomics, caching, retries, SSE, and runtime validation for APIs.",
+  "type": "module",
   "keywords": ["http-client", "api-client", "typed", "typescript", "zod", "fetch", "rest", "sse", "retry", "cache"],
   "author": "Kasper Rynning-Tønnesen <kasperrt@users.noreply.github.com> (https://github.com/kasperrt)",
   "license": "MIT",
-  "sideEffects": false,
+  "repository": "https://github.com/kasperrt/wiretyped",
+  "packageManager": "pnpm@10.20.0",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/types/index.d.ts",
   "files": ["dist"],
-  "publishConfig": {
-    "access": "public"
-  },
-  "packageManager": "pnpm@10.20.0",
-  "repository": "https://github.com/kasperrt/wiretyped",
-  "scripts": {
-    "fix:format": "pnpm exec biome format --write",
-    "fix:lint": "pnpm exec biome lint --write",
-    "fix": "pnpm exec biome check --write",
-    "build": "vite build && pnpm run build:types",
-    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
-    "smoke:node": "node scripts/smoke-node.mjs",
-    "smoke:build": "pnpm run build && pnpm run smoke",
-    "smoke:bun": "bun run scripts/smoke-bun.ts",
-    "smoke:deno": "deno run --allow-read scripts/smoke-deno.ts",
-    "smoke:worker": "node scripts/smoke-worker.mjs",
-    "smoke:types": "pnpm exec tsc -p scripts/types-smoke/tsconfig.json",
-    "check:lint": "pnpm exec biome lint --error-on-warnings",
-    "check:format": "pnpm exec biome format --error-on-warnings",
-    "check:ts": "tsc --noEmit",
-    "check": "pnpm check:lint && pnpm check:format && pnpm check:ts",
-    "check:watch": "tsc --noEmit --watch",
-    "test": "vitest run --no-isolate --no-file-parallelism",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "pnpm check && pnpm run test && pnpm run build",
-    "prepare": "pnpm exec simple-git-hooks"
-  },
-  "dependencies": {
-    "@standard-schema/spec": "^1.0.0"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.3.8",
-    "@types/node": "^24.10.1",
-    "@vitest/coverage-v8": "^4.0.14",
-    "simple-git-hooks": "^2.11.1",
-    "typescript": "^5.9.3",
-    "vite": "^5.4.11",
-    "vitest": "^4.0.14",
-    "zod": "^4.1.13"
-  },
-  "simple-git-hooks": {
-    "pre-commit": "sh scripts/pre-commit.sh"
-  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
@@ -72,5 +30,47 @@
       "require": "./dist/error.cjs"
     },
     "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vite build && pnpm run build:types",
+    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
+    "check": "pnpm check:lint && pnpm check:format && pnpm check:ts",
+    "check:format": "pnpm exec biome format --error-on-warnings",
+    "check:lint": "pnpm exec biome lint --error-on-warnings",
+    "check:ts": "tsc --noEmit",
+    "check:watch": "tsc --noEmit --watch",
+    "fix": "pnpm exec biome check --write",
+    "fix:format": "pnpm exec biome format --write",
+    "fix:lint": "pnpm exec biome lint --write",
+    "prepare": "pnpm exec simple-git-hooks",
+    "prepublishOnly": "pnpm check && pnpm run test && pnpm run build",
+    "smoke:build": "pnpm run build && pnpm run smoke",
+    "smoke:bun": "bun run scripts/smoke-bun.ts",
+    "smoke:deno": "deno run --allow-read scripts/smoke-deno.ts",
+    "smoke:node": "node scripts/smoke-node.mjs",
+    "smoke:types": "pnpm exec tsc -p scripts/types-smoke/tsconfig.json",
+    "smoke:worker": "node scripts/smoke-worker.mjs",
+    "test": "vitest run --no-isolate --no-file-parallelism",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@standard-schema/spec": "^1.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.8",
+    "@types/node": "^24.10.1",
+    "@vitest/coverage-v8": "^4.0.14",
+    "simple-git-hooks": "^2.11.1",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.11",
+    "vitest": "^4.0.14",
+    "zod": "^4.1.13"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "sh scripts/pre-commit.sh"
   }
 }
