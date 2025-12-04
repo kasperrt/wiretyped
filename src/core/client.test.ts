@@ -617,7 +617,7 @@ describe('RequestClient', () => {
       expect(err?.message).toContain('error doing request in get');
       expect(err).toStrictEqual(
         new Error('error doing request in get', {
-          cause: new Error('error calling request get in request', { cause: thrown }),
+          cause: new Error('error calling request GET in request', { cause: thrown }),
         }),
       );
       expect(getSpy).toHaveBeenCalledOnce();

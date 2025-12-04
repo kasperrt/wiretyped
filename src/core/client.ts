@@ -803,7 +803,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       fn: async () => {
         const [errWrapped, wrapped] = await safeWrapAsync(() => this.#httpClient[method](url, requestOptions));
         if (errWrapped) {
-          return [new Error(`error calling request ${method} in request`, { cause: errWrapped }), null];
+          return [new Error(`error calling request ${method.toUpperCase()} in request`, { cause: errWrapped }), null];
         }
 
         const [err, response] = wrapped;
