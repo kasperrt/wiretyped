@@ -63,15 +63,26 @@ try {
 
     return {
       root: {
+        abortError: typeof root.AbortError === 'function',
         requestClient: typeof root.RequestClient === 'function',
         httpError: typeof root.HTTPError === 'function',
         timeoutError: typeof root.TimeoutError === 'function',
+        getHttpError: typeof root.getHttpError === 'function',
+        isAbortError: typeof root.isAbortError === 'function',
         isHttpError: typeof root.isHttpError === 'function',
+        isTimeoutError: typeof root.isTimeoutError === 'function',
       },
       core: {
         requestClient: typeof core.RequestClient === 'function',
       },
       error: {
+        abortError: typeof error.AbortError === 'function',
+        httpError: typeof error.HTTPError === 'function',
+        timeoutError: typeof error.TimeoutError === 'function',
+        getHttpError: typeof error.getHttpError === 'function',
+        isAbortError: typeof error.isAbortError === 'function',
+        isHttpError: typeof error.isHttpError === 'function',
+        isTimeoutError: typeof error.isTimeoutError === 'function',
         unwrapErrorType: typeof error.unwrapErrorType === 'function',
         isErrorType: typeof error.isErrorType === 'function',
       },
@@ -79,13 +90,24 @@ try {
   }, base);
 
   assert.deepStrictEqual(result.root, {
+    abortError: true,
     requestClient: true,
     httpError: true,
     timeoutError: true,
+    getHttpError: true,
+    isAbortError: true,
     isHttpError: true,
+    isTimeoutError: true,
   });
   assert.deepStrictEqual(result.core, { requestClient: true });
   assert.deepStrictEqual(result.error, {
+    abortError: true,
+    httpError: true,
+    timeoutError: true,
+    getHttpError: true,
+    isAbortError: true,
+    isHttpError: true,
+    isTimeoutError: true,
     unwrapErrorType: true,
     isErrorType: true,
   });
