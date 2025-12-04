@@ -748,9 +748,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
     const retryOptions = retryOpt ?? this.#requestOpts.retry ?? { limit: 2 };
     const simpleRetry = typeof retryOptions === 'number';
     const timeout = timeoutOpt ?? this.#requestOpts.timeout ?? this.#defaultTimeout;
-    const timeoutSignal = createTimeoutSignal(timeout);
-    const signal = mergeSignals([fetchOptions.signal, timeoutSignal]);
-    const requestOptions = { ...fetchOptions, ...(signal && { signal }) };
 
     let retryAttempts = 2;
     let retryTimeout = 1000;
@@ -813,6 +810,10 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return true;
       },
       fn: async () => {
+        const timeoutSignal = createTimeoutSignal(timeout);
+        const signal = mergeSignals([fetchOptions.signal, timeoutSignal]);
+        const requestOptions = { ...fetchOptions, ...(signal && { signal }) };
+
         const [errWrapped, wrapped] = await safeWrapAsync(() => this.#fetchClient[method](url, requestOptions));
         if (errWrapped) {
           return [new Error(`error calling request ${method.toUpperCase()} in request`, { cause: errWrapped }), null];
