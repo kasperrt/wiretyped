@@ -1,5 +1,8 @@
 import type { HeaderOptions } from '../types/request';
 
+/**
+ * Normalizes various header representations into a lowercase string map.
+ */
 function headerOptionsToObject(h?: HeaderOptions): Record<string, string> {
   if (!h) {
     return {};

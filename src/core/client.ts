@@ -91,17 +91,29 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
  * @typeParam Schema - The map of endpoint definitions available to the client.
  */
 export class RequestClient<Schema extends RequestDefinitions> {
-  #httpClient: FetchClientProviderDefinition;
+  /** Underlying fetch-capable HTTP provider. */
+  #fetchClient: FetchClientProviderDefinition;
+  /** SSE client provider instance used for streaming endpoints. */
   #sseClient?: SSEClientProvider | null;
+  /** In-memory cache for GET requests. */
   #cacheClient: CacheClient;
+  /** Default request-level options (timeout, retry). */
   #requestOpts: RequestOptions;
+  /** Default HTTP status codes to retry on when unspecified. */
   #defaultRetryCodes: StatusCode[] = [408, 429, 500, 501, 502, 503, 504];
+  /** Default request timeout in milliseconds. */
   #defaultTimeout = 60_000;
+  /** When true, emits debug logging. */
   #debug = false;
+  /** Base URL prefix applied to all endpoints. */
   #baseUrl: string;
+  /** Absolute hostname used to build URLs. */
   #hostname: string;
+  /** Endpoint schema definitions for this client. */
   #endpoints: Schema;
+  /** Global validation flag controlling request/response validation. */
   #validation: boolean;
+  /** Credentials policy passed through to requests/SSE where applicable. */
   #credentials?: RequestCredentials;
 
   constructor({
@@ -129,7 +141,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#validation = validation;
     this.#sseClient = sseProvider;
     this.#credentials = fetchClientOpts.credentials;
-    this.#httpClient = new fetchProvider(baseUrl, {
+    this.#fetchClient = new fetchProvider(baseUrl, {
       ...fetchClientOpts,
       headers: mergeHeaderOptions(
         {
@@ -801,7 +813,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return true;
       },
       fn: async () => {
-        const [errWrapped, wrapped] = await safeWrapAsync(() => this.#httpClient[method](url, requestOptions));
+        const [errWrapped, wrapped] = await safeWrapAsync(() => this.#fetchClient[method](url, requestOptions));
         if (errWrapped) {
           return [new Error(`error calling request ${method.toUpperCase()} in request`, { cause: errWrapped }), null];
         }

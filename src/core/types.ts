@@ -251,4 +251,5 @@ export type UrlReturn<Schema extends RequestDefinitions, T extends UrlEndpoint<S
  */
 type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = ResponseType<Schema, T, 'sse'>;
 
+/** Function returned from `sse` requests that closes the stream. */
 export type SSEReturn = () => void;

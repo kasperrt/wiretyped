@@ -1,11 +1,20 @@
 import type { SafeWrapAsync } from './wrap';
 
 interface RetryOptions<R> {
+  /** Name used for debug logging when retries occur. */
   name: string;
+  /** Function to execute; must return a tuple-style result. */
   fn: () => SafeWrapAsync<Error, R>;
+  /** Maximum number of attempts before giving up. */
   attempts?: number;
+  /** Milliseconds to wait between attempts. */
   timeout?: number;
+  /**
+   * Predicate that decides whether to stop retrying.
+   * Return true to stop retrying and surface the error, false to continue.
+   */
   errFn?: (e: Error) => boolean;
+  /** Whether to log retry decisions to the console. */
   log?: boolean;
 }
 
