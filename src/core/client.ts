@@ -152,7 +152,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     });
 
     this.#log(
-      `initiated new RequestClient with ${JSON.stringify(
+      `RequestClient: ${JSON.stringify(
         {
           fetchProvider,
           sseProvider,
@@ -188,17 +188,15 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`GET OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-    this.#log(`GET URL: ${url}`);
 
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       this.#log(`GET ERRURL: ${errUrl}`);
-    }
-
-    if (errUrl) {
       return [new Error('error constructing URL in get', { cause: errUrl }), null];
     }
+
+    this.#log(`GET URL: ${url}`);
 
     if (opts.cacheRequest) {
       const [errCacheClient, result] = await this.#cacheClient.get(
@@ -270,18 +268,15 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`POST OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-    this.#log(`POST URL: ${url}`);
-    this.#log(`POST DATA: ${JSON.stringify(data, null, 4)}`);
 
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       this.#log(`POST ERRURL: ${errUrl}`);
-    }
-
-    if (errUrl) {
       return [new Error('error constructing url in post', { cause: errUrl }), null];
     }
+
+    this.#log(`POST URL: ${url}`);
 
     if (schemas.request && (validate === true || (this.#validation === true && validate !== false))) {
       const [errParse, parsed] = await validator(data, schemas.request);
@@ -340,18 +335,15 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`PUT OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-    this.#log(`PUT URL: ${url}`);
-    this.#log(`PUT DATA: ${data}`);
 
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       this.#log(`PUT ERRURL: ${errUrl}`);
-    }
-
-    if (errUrl) {
       return [new Error('error constructing url in put', { cause: errUrl }), null];
     }
+
+    this.#log(`PUT URL: ${url}`);
 
     if (schemas.request && (validate === true || (this.#validation === true && validate !== false))) {
       const [errParse, parsed] = await validator(data, schemas.request);
@@ -372,6 +364,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       },
       getResponseData,
     );
+
     if (errReq) {
       return [new Error('error doing request in put', { cause: errReq }), null];
     }
@@ -409,15 +402,15 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`PATCH OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-    this.#log(`PATCH URL: ${url}`);
-    this.#log(`PATCH DATA: ${data}`);
 
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       this.#log(`PATCH ERRURL: ${errUrl}`);
       return [new Error('error constructing url in patch', { cause: errUrl }), null];
     }
+
+    this.#log(`PATCH URL: ${url}`);
 
     if (schemas.request && (validate === true || (this.#validation === true && validate !== false))) {
       const [errParse, parsed] = await validator(data, schemas.request);
@@ -474,20 +467,17 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`DELETE OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-    this.#log(`DELETE URL: ${url}`);
 
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       this.#log(`DELETE ERRURL: ${errUrl}`);
-    }
-
-    if (errUrl) {
       return [new Error('error constructing url in delete', { cause: errUrl }), null];
     }
 
-    const [errReq, result] = await this.#request<DeleteReturn<Schema, Endpoint>>('delete', url, opts, getResponseData);
+    this.#log(`DELETE URL: ${url}`);
 
+    const [errReq, result] = await this.#request<DeleteReturn<Schema, Endpoint>>('delete', url, opts, getResponseData);
     if (errReq) {
       return [new Error('error doing request in delete', { cause: errReq }), null];
     }
@@ -523,17 +513,15 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     this.#log(`DOWNLOAD OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-    this.#log(`DOWNLOAD URL: ${url}`);
 
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       this.#log(`DOWNLOAD ERRURL: ${errUrl}`);
-    }
-
-    if (errUrl) {
       return [new Error('error constructing url in download', { cause: errUrl }), null];
     }
+
+    this.#log(`DOWNLOAD URL: ${url}`);
 
     const [errReq, blob] = await this.#request<Blob>('get', url, opts, (response) =>
       safeWrapAsync(() => response.blob()),
@@ -606,7 +594,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
   async sse<Endpoint extends SSEEndpoint<Schema>>(
     ...args: SSEArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, SSEReturn> {
-    const [endpoint, params, handler, options] = args;
+    const [endpoint, params, handler, { validate, ...options } = {}] = args;
     const opts = { withCredentials: this.#credentials !== 'omit', ...options };
 
     this.#log(`SSE OPTIONS: ${JSON.stringify(opts, null, 4)}`);
@@ -616,7 +604,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, opts.validate ?? this.#validation);
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       this.#log(`SSE ERRURL: ${errUrl}`);
       return [new Error('error constructing url in sse', { cause: errUrl }), null];
@@ -694,7 +682,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
           return;
         }
 
-        if (opts.validate === false || (this.#validation === false && !opts.validate)) {
+        if (validate === false || (this.#validation === false && !validate)) {
           handler([null, result]);
           return;
         }
@@ -741,7 +729,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
   #request<ResponseType>(
     method: 'get' | 'post' | 'put' | 'patch' | 'delete',
     url: string,
-    opts: FetchOptions & RequestOptions,
+    opts: FetchOptions & Pick<RequestOptions, 'retry' | 'timeout'>,
     parser: (response: FetchResponse) => SafeWrapAsync<Error, ResponseType>,
   ): SafeWrapAsync<Error, ResponseType> {
     const { retry: retryOpt, timeout: timeoutOpt, ...fetchOptions } = opts;
