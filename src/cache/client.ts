@@ -151,6 +151,38 @@ export class CacheClient {
   };
 
   /**
+   * Constructs a deterministic cache key that incorporates the URL and merged headers.
+   * The key is sha256 or base64-encoded using built-in primitives.
+   */
+  public async key(url: string, headers: Headers): Promise<string> {
+    const header = Array.from(headers.entries())
+      .sort()
+      .map(([key, value]) => `${key}:${value}`)
+      .join('|');
+
+    const input = `${url}|${header}`;
+    const data = new TextEncoder().encode(input);
+
+    if (typeof globalThis.crypto?.subtle?.digest === 'function') {
+      const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
+      return hashHex;
+    }
+
+    if (typeof globalThis.btoa === 'function') {
+      return globalThis.btoa(input);
+    }
+
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(input, 'utf-8').toString('base64');
+    }
+
+    return input;
+  }
+
+  /**
    * cleanup that does housekeeping every 30 seconds, removing
    * invalid cache items to prevent unecessary memory usage;
    */
