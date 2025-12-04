@@ -75,7 +75,7 @@ Notes on path params:
 - For dynamic segments that accept generic strings/numbers, you can omit `$path`—the URL template (e.g., `/users/{id}`) already infers string/number.
 
 ```ts
-import { RequestClient, type RequestDefinitions, z } from 'wiretype/core';
+import { RequestClient, type RequestDefinitions, z } from 'wiretyped/core';
 
 const endpoints = {
   '/users/{id}': {
@@ -102,14 +102,14 @@ console.log(user.name);
 Prefer a single import? The root export works too:
 
 ```ts
-import { RequestClient, type RequestDefinitions, z } from 'wiretype';
+import { RequestClient, type RequestDefinitions, z } from 'wiretyped';
 ```
 
 ## Imports
 
-- Root: `import { RequestClient, z, ...errors } from 'wiretype'`
-- Subpath: `import { RequestClient, z } from 'wiretype/core'`
-- Errors-only: `import { HTTPError, unwrapErrorType, ... } from 'wiretype/error'`
+- Root: `import { RequestClient, z, ...errors } from 'wiretyped'`
+- Subpath: `import { RequestClient, z } from 'wiretyped/core'`
+- Errors-only: `import { HTTPError, unwrapErrorType, ... } from 'wiretyped/error'`
 
 ## Client options
 
@@ -118,12 +118,12 @@ import { RequestClient, type RequestDefinitions, z } from 'wiretype';
 - `endpoints` (required): Your typed endpoint definitions (`RequestDefinitions`).
 - `validation` (default `true`): Validate request/response bodies using your schema definitions; can be overridden per call.
 - `debug` (default `false`): Log internal client debug info.
-- `cacheOpts`: Configure GET caching (ttl, enable per-call via `{ cacheRequest: true }`).
+- `cacheOpts`: Configure the cache store for GET requests (used when `cacheRequest` is enabled per-call). Avoid caching sensitive data.
 
   ```ts
   {
-    cacheRequest?: boolean;      // Enable in-memory cache
-    cacheTimeToLive?: number;    // Cache TTL in ms (default 500)
+    ttl?: number;              // Default cache TTL in ms (default 500)
+    cleanupInterval?: number;  // How often to evict expired entries (default 30_000)
   }
   ```
 
@@ -136,7 +136,7 @@ import { RequestClient, type RequestDefinitions, z } from 'wiretype';
     mode?: RequestMode;                // Passed to fetch
     timeout?: number | false;          // Request timeout in ms (default 60_000). false disables
     retry?: number | {                 // Per-call retry (default limit 2, timeout 1000ms, retry on 408/429/500-504)
-      limit?: number;                  // How many times to retry
+      limit?: number;                  // How many times to retry (total attempts = limit + 1)
       timeout?: number;                // Ms between retries
       statusCodes?: number[];          // Status codes to retry
       ignoreStatusCodes?: number[];    // Status codes to never retry
@@ -155,7 +155,7 @@ Per-call `options` mirror the fetch-level options (`FetchOptions`) with extra ca
   mode?: RequestMode;                // Passed to fetch
   timeout?: number | false;          // Request timeout in ms (default 60_000). false disables
   retry?: number | {                 // Per-call retry (default limit 2, timeout 1000ms, retry on [408, 429, 500, 501, 502, 503] and always on timeout or other errors)
-    limit?: number;                  // How many times to retry
+    limit?: number;                  // How many times to retry (total attempts = limit + 1)
     timeout?: number;                // Ms between retries
     statusCodes?: number[];          // Status codes to retry
     ignoreStatusCodes?: number[];    // Status codes to never retry
@@ -176,14 +176,12 @@ Per-call `options` mirror the fetch-level options (`FetchOptions`) with extra ca
 // Later in your app lifecycle
 client.config({
   fetchOpts: {
-    headers: { Authorization: `Bearer ${token}` }, // merged with existing + default Accept
-    credentials: 'include',
+    headers: { Authorization: `Bearer ${token}` },    // merged with existing + default Accept
+    credentials: 'include',                           // fetch-level only
+    retry: { limit: 1 },                              // max retries; total attempts = limit + 1
+    timeout: 10_000,                                  // request timeout in ms
   },
-  requestOpts: {
-    retry: { limit: 0 },
-    timeout: 10_000,
-  },
-  cacheOpts: { ttl: 5_000 },
+  cacheOpts: { ttl: 5_000, cleanupInterval: 30_000 }, // cache defaults when cacheRequest is enabled
 });
 ```
 
@@ -350,13 +348,13 @@ close();
 GET requests can use an in-memory cache.
 
 - Per-call: `client.get('/users', params, { cacheRequest: true, cacheTimeToLive: 60_000 })`
-- Global defaults: `new RequestClient({ ..., cacheOpts: { cacheRequest: true, cacheTimeToLive: 60_000 } })`
+- Global cache defaults (applied when `cacheRequest` is true): `new RequestClient({ ..., cacheOpts: { ttl: 60_000, cleanupInterval: 30_000 } })`
 
-Cache keys are derived from the constructed URL. When `cacheRequest` is enabled, cached data is returned until the TTL expires.
+Cache keys are derived from the constructed URL. When `cacheRequest` is enabled, cached data is returned until the TTL expires (per-call TTL wins; otherwise the cache client's `ttl` is used).
 
 ## Retries
 
-Configure retries via `retry` on request options (or globally in the client constructor). Default retriable codes: 408, 429, 500–504.
+Configure retries via `retry` on request options (or globally in the client constructor). Default retriable codes: 408, 429, 500–504. Be careful enabling retries on non-idempotent verbs (POST/PATCH/PUT/DELETE) to avoid duplicate side effects.
 
 - Number only: `retry: 3` (just a limit)
 - Custom object:
@@ -364,9 +362,9 @@ Configure retries via `retry` on request options (or globally in the client cons
 ```ts
 const [err, data] = await client.get('/users', params, {
   retry: {
-    limit: 5,                // total attempts (including the first)
+    limit: 5,                // max retries (total attempts = limit + 1)
     statusCodes: [429, 500], // retry only these statuses
-    abortStatusCodes: [404], // never retry on these
+    ignoreStatusCodes: [404], // never retry on these (skip retry)
     timeout: 500,            // wait 500ms between tries
   },
 });
@@ -383,10 +381,10 @@ const [err, _] = await client.post('/users', null, body, {
 
 ## Error handling
 
-`wiretype/error` exports helpers for richer error handling:
+`wiretyped/error` exports helpers for richer error handling:
 
 ```ts
-import { HTTPError, getHttpError, isHttpError, isTimeoutError, unwrapErrorType } from 'wiretype/error';
+import { HTTPError, getHttpError, isHttpError, isTimeoutError, unwrapErrorType } from 'wiretyped/error';
 
 const [err, user] = await client.get('/users/{id}', { $path: { id: '123' } });
 if (err) {
@@ -407,9 +405,9 @@ if (err) {
 
 ## Exposed entrypoints
 
-- Root import (client, types, z, errors): `wiretype`
-- Core client and types (includes `z` re-export): `wiretype/core`
-- Error helpers: `wiretype/error`
+- Root import (client, types, z, errors): `wiretyped`
+- Core client and types (includes `z` re-export): `wiretyped/core`
+- Error helpers: `wiretyped/error`
 
 ## Providers
 
