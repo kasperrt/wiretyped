@@ -28,6 +28,7 @@ export class FetchClient {
   /** Default fetch options (headers, credentials, mode). */
   #opts: FetchClientOptions;
 
+  /** Creates a new instance of the fetch-client, with a base-url + options */
   constructor(baseUrl: string, opts?: FetchClientOptions) {
     if (!baseUrl.endsWith('/')) {
       baseUrl += '/';
@@ -38,13 +39,24 @@ export class FetchClient {
   }
 
   /**
+   * Updates default fetch options (merged with existing headers).
+   */
+  public config(opts: FetchClientOptions) {
+    this.#opts = {
+      ...this.#opts,
+      ...opts,
+      headers: mergeHeaderOptions(this.#opts.headers, opts.headers),
+    };
+  }
+
+  /**
    * Executes a GET request against the given endpoint.
    *
    * @param endpoint - Relative endpoint path (e.g. `users/123`).
    * @param opts - Request options merged with the client's defaults.
    * @returns A promise resolving to `[error, response]`.
    */
-  public get(endpoint: string, opts: Omit<FetchOptions, 'method' | 'body'>) {
+  public get(endpoint: string, opts: Omit<FetchOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse> {
     return this.#request(endpoint, { ...opts, method: 'GET', body: undefined });
   }
 
@@ -56,7 +68,7 @@ export class FetchClient {
    * @param opts - Request options merged with the client's defaults.
    * @returns A promise resolving to `[error, response]`.
    */
-  public put(endpoint: string, opts: Omit<FetchOptions, 'method'>) {
+  public put(endpoint: string, opts: Omit<FetchOptions, 'method'>): SafeWrapAsync<Error, FetchResponse> {
     return this.#request(endpoint, { ...opts, method: 'PUT' });
   }
 
@@ -68,7 +80,7 @@ export class FetchClient {
    * @param opts - Request options merged with the client's defaults.
    * @returns A promise resolving to `[error, response]`.
    */
-  public patch(endpoint: string, opts: Omit<FetchOptions, 'method'>) {
+  public patch(endpoint: string, opts: Omit<FetchOptions, 'method'>): SafeWrapAsync<Error, FetchResponse> {
     return this.#request(endpoint, { ...opts, method: 'PATCH' });
   }
 
@@ -80,7 +92,7 @@ export class FetchClient {
    * @param opts - Request options merged with the client's defaults.
    * @returns A promise resolving to `[error, response]`.
    */
-  public post(endpoint: string, opts: Omit<FetchOptions, 'method'>) {
+  public post(endpoint: string, opts: Omit<FetchOptions, 'method'>): SafeWrapAsync<Error, FetchResponse> {
     return this.#request(endpoint, { ...opts, method: 'POST' });
   }
 
@@ -91,7 +103,7 @@ export class FetchClient {
    * @param opts - Request options merged with the client's defaults.
    * @returns A promise resolving to `[error, response]`.
    */
-  public delete(endpoint: string, opts: Omit<FetchOptions, 'method' | 'body'>) {
+  public delete(endpoint: string, opts: Omit<FetchOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse> {
     return this.#request(endpoint, {
       ...opts,
       method: 'DELETE',

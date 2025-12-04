@@ -1,9 +1,12 @@
 /**
  * Listener mapping for SSEClient
  */
-interface SSEClientSourceEventMap {
+export interface SSEClientSourceEventMap {
+  /** Error message event mapper */
   error: Event;
+  /** Message message event mapper */
   message: MessageEvent;
+  /** Open message event mapper */
   open: Event;
 }
 
@@ -55,5 +58,6 @@ export interface SSEClientProviderDefinition {
 
 /** Factory signature for constructing SSE providers. */
 export interface SSEClientProvider {
+  /** Creates a new instance of the SSEClient through the provider */
   new (url: string | URL, eventSourceInitDict?: SSEClientSourceInit): SSEClientProviderDefinition;
 }

@@ -1,6 +1,8 @@
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 export default defineConfig({
   build: {
     lib: {
@@ -10,24 +12,25 @@ export default defineConfig({
         error: resolve(__dirname, 'src/error/index.ts'),
       },
     },
-    sourcemap: true,
+    minify: 'esbuild',
     outDir: 'dist',
     rollupOptions: {
-      // Keep zod external so consumers supply their own version; bundle the EventSource polyfill
-      external: ['zod'],
       output: [
         {
           format: 'es',
           entryFileNames: '[name].mjs',
           chunkFileNames: 'chunks/[name]-[hash].js',
+          compact: true,
         },
         {
           format: 'cjs',
           entryFileNames: '[name].cjs',
           chunkFileNames: 'chunks/[name]-[hash].cjs',
           exports: 'named',
+          compact: true,
         },
       ],
     },
+    sourcemap: !isProd,
   },
 });

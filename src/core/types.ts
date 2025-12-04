@@ -3,10 +3,13 @@ import type { Options } from '../types/request';
 import type { SSEClientSourceInit } from '../types/sse';
 import type { SafeWrap } from '../utils/wrap';
 
+/** Schema for unknown input, any output, used to easier infer data */
 // biome-ignore lint/suspicious/noExplicitAny: This is used for inferrence, and requires any so inference works as it should
-type SchemaType = StandardSchemaV1<any, any>;
-type SchemaString = StandardSchemaV1<string, string>;
-type EmptyObject = Record<never, never>;
+export type SchemaType = StandardSchemaV1<unknown, any>;
+/** Schema representing string */
+export type SchemaString = StandardSchemaV1<string, string>;
+/** Empty object definition */
+export type EmptyObject = Record<never, never>;
 
 /** Make a subset of keys required while keeping the rest intact. */
 export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
@@ -19,7 +22,7 @@ export type RequireAtLeastOne<T> = {
 /**
  * EmptyishObject checks and allows for nulls on props
  */
-type EmptyishObject<T> = [keyof T] extends [never] ? null : T;
+export type EmptyishObject<T> = [keyof T] extends [never] ? null : T;
 
 /** Allowed HTTP methods supported by the client. */
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'download' | 'url' | 'sse';
@@ -44,7 +47,7 @@ export type RequestDefinitions = {
 };
 
 /** Parse `{param}` segments from a path template into a typed object. */
-type ParsePathParams<Path extends string | number> = Path extends `${infer _Start}{${infer Param}}${infer Rest}`
+export type ParsePathParams<Path extends string | number> = Path extends `${infer _Start}{${infer Param}}${infer Rest}`
   ? { [K in Param]: string | number } & ParsePathParams<Rest>
   : EmptyObject;
 
@@ -73,7 +76,7 @@ export type RequestType<
   : Record<string, string>;
 
 /** Typed query params via `$search` if present. */
-type SearchType<
+export type SearchType<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
@@ -82,7 +85,7 @@ type SearchType<
   : EmptyObject;
 
 /** Typed path params via `$path` if present */
-type PathParametersType<
+export type PathParametersType<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
@@ -91,7 +94,7 @@ type PathParametersType<
   : Record<never, never>;
 
 /** Extract `$path` keys from schema for substitution. */
-type PathKeys<
+export type PathKeys<
   Schema,
   Endpoint extends keyof Schema,
   Method extends keyof Schema[Endpoint],
@@ -249,7 +252,11 @@ export type UrlReturn<Schema extends RequestDefinitions, T extends UrlEndpoint<S
 /**
  * Typed return-type for get function
  */
-type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = ResponseType<Schema, T, 'sse'>;
+export type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = ResponseType<
+  Schema,
+  T,
+  'sse'
+>;
 
 /** Function returned from `sse` requests that closes the stream. */
 export type SSEReturn = () => void;

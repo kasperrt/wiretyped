@@ -14,6 +14,76 @@ describe('FetchClient', () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
+
+  describe('config', () => {
+    it('merges headers and updates defaults', async () => {
+      const responseBody = { id: 1 };
+      const successResponse = {
+        ok: true,
+        status: 200,
+        json: async () => responseBody,
+      } as FetchResponse;
+
+      const mockedFetch = global.fetch as MockedFunction<typeof fetch>;
+      mockedFetch.mockResolvedValueOnce(successResponse);
+
+      const client = new FetchClient('https://api.example.com/', {
+        headers: new Headers({ 'X-Base': '1' }),
+      });
+
+      client.config({
+        headers: new Headers({ 'X-Extra': '2' }),
+        credentials: 'include',
+        mode: 'cors',
+      });
+
+      const [err, response] = await client.get('/data', {});
+      expect(err).toBeNull();
+      expect(response).toEqual(successResponse);
+
+      expect(mockedFetch).toHaveBeenCalledWith('https://api.example.com/data', {
+        body: undefined,
+        credentials: 'include',
+        headers: expect.any(Headers),
+        method: 'GET',
+        mode: 'cors',
+      });
+
+      const headers = mockedFetch.mock.calls[0][1]?.headers as Headers;
+      expect(headers.get('x-base')).toBe('1');
+      expect(headers.get('x-extra')).toBe('2');
+    });
+
+    it('allows removing headers via config', async () => {
+      const successResponse = {
+        ok: true,
+        status: 200,
+      } as FetchResponse;
+
+      const mockedFetch = global.fetch as MockedFunction<typeof fetch>;
+      mockedFetch.mockResolvedValueOnce(successResponse);
+
+      const client = new FetchClient('https://api.example.com/', {
+        headers: { 'X-Base': '1' },
+      });
+
+      client.config({
+        headers: { 'X-Extra': '2' },
+      });
+
+      client.config({
+        headers: { 'X-Base': null, 'X-Extra': '3' },
+      });
+
+      const [err, response] = await client.get('/data', {});
+      expect(err).toBeNull();
+      expect(response).toEqual(successResponse);
+
+      const headers = mockedFetch.mock.calls[0][1]?.headers as Headers;
+      expect(headers.get('x-extra')).toBe('3');
+      expect(headers.get('x-base')).toBeNull();
+    });
+  });
   describe('GET', () => {
     it('should make a get request with JSON body', async () => {
       const responseBody = { id: 123 };

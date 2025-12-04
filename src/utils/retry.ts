@@ -1,6 +1,7 @@
 import type { SafeWrapAsync } from './wrap';
 
-interface RetryOptions<R> {
+/** Options for retry-function */
+export interface RetryOptions<R> {
   /** Name used for debug logging when retries occur. */
   name: string;
   /** Function to execute; must return a tuple-style result. */

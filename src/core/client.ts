@@ -3,6 +3,7 @@ import { getHttpError, HTTPError, isAbortError, isErrorType, isTimeoutError, Tim
 import { FetchClient } from '../fetch/client';
 import { mergeHeaderOptions } from '../fetch/utils';
 import type {
+  Config,
   FetchClientProvider,
   FetchClientProviderDefinition,
   FetchOptions,
@@ -91,7 +92,7 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
  * @typeParam Schema - The map of endpoint definitions available to the client.
  */
 export class RequestClient<Schema extends RequestDefinitions> {
-  /** Underlying fetch-capable HTTP provider. */
+  /** Underlying fetch-capable HTTP provider instance. */
   #fetchClient: FetchClientProviderDefinition;
   /** SSE client provider instance used for streaming endpoints. */
   #sseClient?: SSEClientProvider | null;
@@ -116,6 +117,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
   /** Credentials policy passed through to requests/SSE where applicable. */
   #credentials?: RequestCredentials;
 
+  /**
+   * Creates a typed RequestClient that wires together the fetch provider, SSE provider, and cache.
+   *
+   * @param props - Configuration including base URLs, endpoint schemas, and default options.
+   */
   constructor({
     fetchProvider = FetchClient,
     sseProvider = typeof EventSource !== 'undefined' ? EventSource : undefined,
@@ -130,7 +136,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#cacheClient = new CacheClient(cacheOpts);
 
     if (!sseProvider) {
-      console.warn(`potentially missing event-provider polyfill, SSE handlers won't work`);
+      this.#log(`potentially missing event-provider polyfill, SSE handlers won't work`);
     }
     const { timeout, retry, ...fetchClientOpts } = { ...fetchOpts };
     this.#requestOpts = { timeout, retry };
@@ -166,6 +172,37 @@ export class RequestClient<Schema extends RequestDefinitions> {
         4,
       )}`,
     );
+  }
+
+  /**
+   * Updates request, fetch, and cache options at runtime and propagates them to underlying clients.
+   */
+  config(opts: Config) {
+    const { cacheOpts, fetchOpts } = opts;
+    if (fetchOpts) {
+      const { timeout, retry, ...fetchClientOpts } = { ...fetchOpts };
+      if (timeout !== undefined) {
+        this.#requestOpts.timeout = timeout;
+      }
+      if (retry !== undefined) {
+        this.#requestOpts.retry = retry;
+      }
+
+      this.#credentials = fetchClientOpts.credentials ?? this.#credentials;
+      this.#fetchClient.config({
+        ...fetchClientOpts,
+        headers: mergeHeaderOptions(
+          {
+            Accept: 'application/json',
+          },
+          fetchClientOpts.headers,
+        ),
+      });
+    }
+
+    if (cacheOpts) {
+      this.#cacheClient.config(cacheOpts);
+    }
   }
 
   /**
@@ -801,7 +838,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
         const timeoutSignal = createTimeoutSignal(timeout);
         const signal = mergeSignals([fetchOptions.signal, timeoutSignal]);
         const requestOptions = { ...fetchOptions, ...(signal && { signal }) };
-
         const [errWrapped, wrapped] = await safeWrapAsync(() => this.#fetchClient[method](url, requestOptions));
         if (errWrapped) {
           return [new Error(`error calling request ${method.toUpperCase()} in request`, { cause: errWrapped }), null];

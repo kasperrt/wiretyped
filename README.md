@@ -32,6 +32,7 @@ Typed HTTP client utilities for defining endpoints with [@standard-schema](https
   - [Imports](#imports)
   - [Client options](#client-options)
   - [Request options](#request-options)
+  - [Runtime config (optional)](#runtime-config-optional)
   - [Methods](#methods)
     - [GET](#get)
     - [POST](#post)
@@ -163,6 +164,27 @@ Per-call `options` mirror `HttpRequestOptions`; caching flags are only for GET.
   cacheTimeToLive?: number;          // GET only: cache TTL in ms (default 500)
 }
 ```
+
+## Runtime config (optional)
+
+`RequestClient` exposes a `config()` helper to update defaults at runtime—useful for rotated auth headers, new retry/timeout settings, or cache tuning. It is entirely optional; if you never call it, the client sticks with the constructor options.
+
+```ts
+// Later in your app lifecycle
+client.config({
+  fetchOpts: {
+    headers: { Authorization: `Bearer ${token}` }, // merged with existing + default Accept
+    credentials: 'include',
+  },
+  requestOpts: {
+    retry: { limit: 0 },
+    timeout: 10_000,
+  },
+  cacheOpts: { ttl: 5_000 },
+});
+```
+
+The method forwards fetch-related updates to the underlying fetch provider and cache-related updates to the cache client without recreating them, so connections and caches stay intact while defaults change.
 
 ## Methods
 
