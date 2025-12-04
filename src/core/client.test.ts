@@ -1,14 +1,18 @@
 import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
 import { z } from 'zod';
-import { isTimeoutError } from '../error';
+import { isTimeoutError, TimeoutError } from '../error';
+import { AbortError } from '../error/abortError';
+import { HTTPError } from '../error/httpError';
 import { isErrorType } from '../error/isErrorType';
 import { ValidationError } from '../error/validationError';
+import * as signals from '../utils/signals';
 import { RequestClient } from './client';
 import type {
   HttpClientProvider,
   HttpClientProviderDefinition,
   HttpRequestOptions,
   RequestDefinitions,
+  RequestOptions,
   SSEClientProvider,
   SSEClientProviderDefinition,
   SSEClientSourceInit,
@@ -84,6 +88,7 @@ const DEFAULT_HEADERS_SEND = {
 };
 
 const defaultEndpoints: RequestDefinitions = {};
+const DEFAULT_REQUEST_OPTS: RequestOptions = { timeout: false, retry: { limit: 0 } };
 
 // AsyncWrap helpers
 // biome-ignore lint/suspicious/noExplicitAny: We are testing and don't want to go too deep in on types
@@ -108,11 +113,7 @@ describe('RequestClient', () => {
         hostname: 'https://api.example.com',
         endpoints: defaultEndpoints,
         validation: true,
-        fetchOpts: {
-          credentials: 'include',
-          mode: 'cors',
-          timeout: 10_000,
-        },
+        fetchOpts: { timeout: 10_000, retry: { limit: 0 }, credentials: 'include', mode: 'cors' },
         debug: true,
       });
 
@@ -123,7 +124,6 @@ describe('RequestClient', () => {
       expect(options).toEqual({
         credentials: 'include',
         mode: 'cors',
-        timeout: 10_000,
         headers: new Headers(DEFAULT_HEADERS),
       });
 
@@ -150,6 +150,7 @@ describe('RequestClient', () => {
         sseProvider: null,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: defaultEndpoints,
         validation: true,
         debug: true,
@@ -183,12 +184,13 @@ describe('RequestClient', () => {
         '/api/my-endpoint': {
           get: { response: z.object({ data: z.string() }) },
         },
-      } as const satisfies RequestDefinitions;
+      } satisfies RequestDefinitions;
 
       const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => {
         const response = {
           json: () => ({ data: 'GET request data no params' }),
           text: () => '{ "data": "GET request data no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         };
@@ -202,6 +204,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockGetEndpoints,
         validation: true,
       });
@@ -209,14 +212,537 @@ describe('RequestClient', () => {
         limit: 1,
       };
 
-      const [_, __] = await requestClient.get('/api/my-endpoint', null, {
+      const [err, res] = await requestClient.get('/api/my-endpoint', null, {
         retry: retryObject,
       });
 
+      expect(err).toBeNull();
+      expect(res).toEqual({ data: 'GET request data no params' });
       expect(getSpy).toHaveBeenCalledOnce();
-      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {
-        retry: retryObject,
+      // Retry/timeout are handled inside RequestClient; the provider only receives fetch options.
+      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', expect.any(Object));
+    });
+
+    test('uses default retry limit when none provided', async () => {
+      vi.useFakeTimers();
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const getSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+        .mockImplementationOnce(async () => asyncErr(new TypeError('transient')))
+        .mockImplementationOnce(async () => asyncErr(new TypeError('transient-2')))
+        .mockImplementationOnce(async () =>
+          asyncOk({
+            json: () => ({ data: 'recovered' }),
+            text: () => '{ "data": "recovered" }',
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+      const client: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { timeout: false }, // no retry provided -> default { limit: 2 }
+        endpoints: mockGetEndpoints,
+        validation: false,
       });
+
+      const promise = client.get('/api/my-endpoint', null);
+
+      await vi.advanceTimersByTimeAsync(2000);
+      await Promise.resolve();
+
+      const [err, res] = await promise;
+
+      expect(err).toBeNull();
+      expect(res).toEqual({ data: 'recovered' });
+      expect(getSpy).toHaveBeenCalledTimes(3); // initial + 2 retries (default limit)
+      vi.useRealTimers();
+    });
+
+    test('honors numeric retry option (simple retry)', async () => {
+      vi.useFakeTimers();
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const getSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+        .mockImplementationOnce(async () => asyncErr(new TypeError('first')))
+        .mockImplementationOnce(async () => asyncErr(new TypeError('second')))
+        .mockImplementationOnce(async () => asyncErr(new TypeError('third')))
+        .mockImplementationOnce(async () => asyncErr(new TypeError('fourth')))
+        .mockImplementationOnce(async () => asyncErr(new TypeError('fifth')))
+        .mockImplementationOnce(async () =>
+          asyncOk({
+            json: () => ({ data: 'eventual success' }),
+            text: () => '{ "data": "eventual success" }',
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+      const client: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { timeout: false, retry: 5 },
+        endpoints: mockGetEndpoints,
+        validation: false,
+      });
+
+      const promise = client.get('/api/my-endpoint', null);
+
+      await vi.advanceTimersByTimeAsync(5000);
+      await Promise.resolve();
+
+      const [err, res] = await promise;
+
+      expect(err).toBeNull();
+      expect(res).toEqual({ data: 'eventual success' });
+      expect(getSpy).toHaveBeenCalledTimes(6); // 1 initial + 5 simple retries
+      vi.useRealTimers();
+    });
+
+    test('uses default retry limit when limit is null in object retry', async () => {
+      vi.useFakeTimers();
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const getSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+        .mockImplementationOnce(async () => asyncErr(new TypeError('first')))
+        .mockImplementationOnce(async () => asyncErr(new TypeError('second')))
+        .mockImplementationOnce(async () =>
+          asyncOk({
+            json: () => ({ data: 'default limit success' }),
+            text: () => '{ "data": "default limit success" }',
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+          }),
+        );
+
+      const client: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        // @ts-expect-error
+        fetchOpts: { timeout: false, retry: { limit: null, timeout: 1 } },
+        endpoints: mockGetEndpoints,
+        validation: false,
+      });
+
+      const promise = client.get('/api/my-endpoint', null, { retry: { limit: undefined, timeout: 1 } });
+
+      await vi.advanceTimersByTimeAsync(2000);
+      await Promise.resolve();
+
+      const [err, res] = await promise;
+
+      expect(err).toBeNull();
+      expect(res).toEqual({ data: 'default limit success' });
+      expect(getSpy).toHaveBeenCalledTimes(3); // default limit (2) + initial
+      vi.useRealTimers();
+    });
+
+    test('Stops retrying when provider returns an AbortError', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const abortErr = new AbortError('stopped');
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(async () => asyncErr(abortErr));
+
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { retry: { limit: 3, timeout: 1 }, timeout: false },
+        endpoints: mockGetEndpoints,
+        validation: true,
+      });
+
+      const [err, res] = await requestClient.get('/api/my-endpoint', null);
+
+      expect(res).toBeNull();
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).cause).toStrictEqual(new Error('error request GET in request', { cause: abortErr }));
+      expect(getSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test('Retries when provider returns TimeoutError', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const timeoutErr = new TimeoutError('slow');
+      const successResponse = {
+        json: () => ({ data: 'ok' }),
+        text: () => '{ "data": "ok" }',
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+      };
+
+      const getSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+        .mockImplementationOnce(async () => asyncErr(timeoutErr))
+        .mockImplementationOnce(async () => asyncOk(successResponse));
+
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { retry: { limit: 1, timeout: 1 }, timeout: false },
+        endpoints: mockGetEndpoints,
+        validation: true,
+      });
+
+      const [err, res] = await requestClient.get('/api/my-endpoint', null);
+
+      expect(err).toBeNull();
+      expect(res).toEqual({ data: 'ok' });
+      expect(getSpy).toHaveBeenCalledTimes(2);
+    });
+
+    test('Retries when provider returns TypeError', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const typeErr = new TypeError('network');
+      const successResponse = {
+        json: () => ({ data: 'ok' }),
+        text: () => '{ "data": "ok" }',
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+      };
+
+      const getSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+        .mockImplementationOnce(async () => asyncErr(typeErr))
+        .mockImplementationOnce(async () => asyncOk(successResponse));
+
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { retry: { limit: 1, timeout: 1 }, timeout: false },
+        endpoints: mockGetEndpoints,
+        validation: true,
+      });
+
+      const [err, res] = await requestClient.get('/api/my-endpoint', null);
+
+      expect(err).toBeNull();
+      expect(res).toEqual({ data: 'ok' });
+      expect(getSpy).toHaveBeenCalledTimes(2);
+    });
+
+    test('Skips retries when status is in ignoreStatusCodes', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const httpResponse = {
+        ok: false,
+        status: 429,
+        json: () => ({ message: 'too many requests' }),
+        text: () => '{ "message": "too many requests" }',
+        headers: { get: () => 'application/json' },
+      };
+
+      const getSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+        .mockImplementation(async () => asyncOk(httpResponse));
+
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { retry: { limit: 3, timeout: 1, ignoreStatusCodes: [429] }, timeout: false },
+        endpoints: mockGetEndpoints,
+        validation: true,
+      });
+
+      const [err, res] = await requestClient.get('/api/my-endpoint', null);
+
+      expect(res).toBeNull();
+      expect(err).toBeInstanceOf(Error);
+      expect(getSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test('Retries when status is in retryCodes and ignoreStatusCodes is empty', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const errorResponse = {
+        ok: false,
+        status: 500,
+        json: () => ({ message: 'server error' }),
+        text: () => '{ "message": "server error" }',
+        headers: { get: () => 'application/json' },
+      };
+
+      const successResponse = {
+        ok: true,
+        status: 200,
+        json: () => ({ data: 'ok' }),
+        text: () => '{ "data": "ok" }',
+        headers: { get: () => 'application/json' },
+      };
+
+      const getSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+        .mockImplementationOnce(async () => asyncOk(errorResponse))
+        .mockImplementationOnce(async () => asyncOk(successResponse));
+
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { retry: { limit: 1, timeout: 1, statusCodes: [500] }, timeout: false },
+        endpoints: mockGetEndpoints,
+        validation: true,
+      });
+
+      const [err, res] = await requestClient.get('/api/my-endpoint', null);
+
+      expect(err).toBeNull();
+      expect(res).toEqual({ data: 'ok' });
+      expect(getSpy).toHaveBeenCalledTimes(2);
+    });
+
+    test('Stops retrying when status is not in retryCodes', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const httpResponse = {
+        ok: false,
+        status: 418,
+        json: () => ({ message: 'teapot' }),
+        text: () => '{ "message": "teapot" }',
+        headers: { get: () => 'application/json' },
+      };
+
+      const getSpy = vi
+        .spyOn(MOCK_HTTP_PROVIDER.prototype, 'get')
+        .mockImplementation(async () => asyncOk(httpResponse));
+
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { retry: { limit: 3, timeout: 1, statusCodes: [500] }, timeout: false },
+        endpoints: mockGetEndpoints,
+        validation: true,
+      });
+
+      const [err, res] = await requestClient.get('/api/my-endpoint', null);
+
+      expect(res).toBeNull();
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).cause).toBeInstanceOf(HTTPError);
+      expect(getSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test('wraps thrown provider error before processing tuple', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const thrown = new Error('boom');
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => {
+        throw thrown;
+      });
+
+      const client: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { timeout: false, retry: { limit: 0 } },
+        endpoints: mockGetEndpoints,
+        validation: false,
+      });
+
+      const [err, res] = await client.get('/api/my-endpoint', null);
+
+      expect(res).toBeNull();
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toContain('error doing request in get');
+      expect((err as Error).cause).toStrictEqual(new Error('error calling request get in request', { cause: thrown }));
+      expect(getSpy).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('Signals', () => {
+    test('merges provided signal into request options', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const externalController = new AbortController();
+      const timeoutSpy = vi.spyOn(signals, 'createTimeoutSignal').mockReturnValue(null);
+      const mergeSpy = vi.spyOn(signals, 'mergeSignals').mockReturnValue(externalController.signal);
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk({
+          json: () => ({ data: 'ok' }),
+          text: () => '{ "data": "ok" }',
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { timeout: false, retry: { limit: 0 } },
+        endpoints: mockGetEndpoints,
+        validation: false,
+      });
+
+      await client.get('/api/my-endpoint', null, { signal: externalController.signal, timeout: false });
+
+      expect(timeoutSpy).toHaveBeenCalledWith(false);
+      expect(mergeSpy).toHaveBeenCalledWith([externalController.signal, null]);
+      expect(getSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: externalController.signal }),
+      );
+
+      timeoutSpy.mockRestore();
+      mergeSpy.mockRestore();
+      getSpy.mockRestore();
+    });
+
+    test('includes default timeout signal in request options when none provided', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const timeoutSignal = new AbortController().signal;
+      const timeoutSpy = vi.spyOn(signals, 'createTimeoutSignal').mockReturnValue(timeoutSignal);
+      const mergeSpy = vi.spyOn(signals, 'mergeSignals').mockReturnValue(timeoutSignal);
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk({
+          json: () => ({ data: 'ok' }),
+          text: () => '{ "data": "ok" }',
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: {},
+        endpoints: mockGetEndpoints,
+        validation: false,
+      });
+
+      await client.get('/api/my-endpoint', null, {});
+
+      expect(timeoutSpy).toHaveBeenCalledWith(60_000);
+      expect(mergeSpy).toHaveBeenCalledWith([undefined, timeoutSignal]);
+      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', expect.objectContaining({ signal: timeoutSignal }));
+
+      timeoutSpy.mockRestore();
+      mergeSpy.mockRestore();
+      getSpy.mockRestore();
+    });
+
+    test('falls back to default timeout when both opts and requestOpts timeout are null', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const timeoutSignal = new AbortController().signal;
+      const timeoutSpy = vi.spyOn(signals, 'createTimeoutSignal').mockReturnValue(timeoutSignal);
+      const mergeSpy = vi.spyOn(signals, 'mergeSignals').mockReturnValue(timeoutSignal);
+      const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk({
+          json: () => ({ data: 'ok' }),
+          text: () => '{ "data": "ok" }',
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const client = new RequestClient({
+        httpProvider: MOCK_HTTP_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        //@ts-expect-error
+        fetchOpts: { timeout: null, retry: { limit: 0 } },
+        endpoints: mockGetEndpoints,
+        validation: false,
+      });
+
+      //@ts-expect-error
+      await client.get('/api/my-endpoint', null, { timeout: null });
+
+      expect(timeoutSpy).toHaveBeenCalledWith(60_000);
+      expect(mergeSpy).toHaveBeenCalledWith([undefined, timeoutSignal]);
+      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', expect.objectContaining({ signal: timeoutSignal }));
+
+      timeoutSpy.mockRestore();
+      mergeSpy.mockRestore();
+      getSpy.mockRestore();
     });
   });
 
@@ -244,7 +770,7 @@ describe('RequestClient', () => {
           response: z.string(),
         },
       },
-    } as const satisfies RequestDefinitions;
+    } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockEndpoints>;
     let consoleLogSpy: MockedFunction<VoidFunction>;
@@ -261,6 +787,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: '/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockEndpoints,
         validation: true,
         debug: true,
@@ -310,7 +837,7 @@ describe('RequestClient', () => {
       '/api/my-bad-endpoint/{ye}}': {
         download: { response: z.instanceof(Blob) },
       },
-    } as const satisfies RequestDefinitions;
+    } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockGetEndpoints>;
     let consoleLogSpy: MockedFunction<VoidFunction>;
@@ -327,6 +854,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockGetEndpoints,
         validation: true,
         debug: true,
@@ -369,8 +897,8 @@ describe('RequestClient', () => {
       expect(getSpy).toHaveBeenCalledOnce();
       expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
       expect(err).toBeInstanceOf(Error);
-      expect(err?.message.toLowerCase()).toContain('error doing request');
-      expect((err as Error).cause).toStrictEqual(underlyingError);
+      expect(err?.message).toBe('error doing request in download');
+      expect((err as Error).cause).toStrictEqual(new Error('error request GET in request', { cause: underlyingError }));
     });
 
     test("No params: returns blob data from provider's get when request was successful", async () => {
@@ -379,6 +907,7 @@ describe('RequestClient', () => {
           blob: () => {
             throw new Error('error in blob');
           },
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         };
@@ -388,7 +917,8 @@ describe('RequestClient', () => {
 
       const [err, res] = await requestClient.download('/api/my-endpoint', null);
 
-      expect(err).toStrictEqual(new Error('error getting blob in download'));
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error doing request in download');
       expect(getSpy).toHaveBeenCalledOnce();
       expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
       expect(res).toBeNull();
@@ -400,6 +930,7 @@ describe('RequestClient', () => {
       const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => {
         const response = {
           blob: (() => Promise.resolve(dummyBlob)) as () => Promise<Blob>,
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         };
@@ -424,6 +955,7 @@ describe('RequestClient', () => {
       const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => {
         const response = {
           blob: (() => Promise.resolve(dummyBlob)) as () => Promise<Blob>,
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         };
@@ -450,6 +982,7 @@ describe('RequestClient', () => {
       const getSpy = vi.spyOn(MOCK_HTTP_PROVIDER.prototype, 'get').mockImplementation(() => {
         const response = {
           blob: (() => Promise.resolve(dummyBlob)) as () => Promise<Blob>,
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         };
@@ -490,7 +1023,7 @@ describe('RequestClient', () => {
       '/api/my-bad-endpoint/{ye}}': {
         get: { response: z.object({ data: z.string() }) },
       },
-    } as const satisfies RequestDefinitions;
+    } satisfies RequestDefinitions;
 
     describe('Without caching', () => {
       let requestClient: RequestClient<typeof mockGetEndpoints>;
@@ -506,6 +1039,7 @@ describe('RequestClient', () => {
           sseProvider: MOCK_SSE_PROVIDER,
           baseUrl: 'https://api.example.com/base',
           hostname: 'https://api.example.com',
+          fetchOpts: DEFAULT_REQUEST_OPTS,
           endpoints: mockGetEndpoints,
           validation: true,
           debug: true,
@@ -533,6 +1067,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => ({ data: 'GET request data no params' }),
             text: () => '{ "data": "GET request data no params" }',
+            ok: true,
             status: 200,
             headers: { get: () => 'application/json' },
           }),
@@ -551,6 +1086,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => ({ data: 'GET request data no params' }),
             text: () => '{ "data": "GET request data no params" }',
+            ok: true,
             status: 200,
             headers: { get: () => 'application/json' },
           }),
@@ -562,9 +1098,7 @@ describe('RequestClient', () => {
 
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {
-          validate: false,
-        });
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', expect.any(Object));
         expect(res).toStrictEqual({ data: 'GET request data no params' });
       });
 
@@ -574,6 +1108,7 @@ describe('RequestClient', () => {
           sseProvider: MOCK_SSE_PROVIDER,
           baseUrl: 'https://api.example.com/base',
           hostname: 'https://api.example.com',
+          fetchOpts: DEFAULT_REQUEST_OPTS,
           endpoints: mockGetEndpoints,
           validation: false,
           debug: false,
@@ -582,6 +1117,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => ({ data: 'GET request data no params' }),
             text: () => '{ "data": "GET request data no params" }',
+            ok: true,
             status: 200,
             headers: { get: () => 'application/json' },
           }),
@@ -600,6 +1136,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => null,
             text: () => '{ "data": "GET request data no params" }',
+            ok: true,
             status: 200,
             headers: { get: () => 'application/json' },
           }),
@@ -617,6 +1154,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => null,
             text: () => 'null',
+            ok: true,
             status: 204,
             headers: { get: () => 'application/json' },
           }),
@@ -638,6 +1176,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => '',
             text: () => '',
+            ok: true,
             status: 200,
             headers: { get: () => 'text/plain' },
           }),
@@ -659,6 +1198,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => 'test',
             text: () => 'test',
+            ok: true,
             status: 200,
             headers: { get: () => 'text/plain' },
           }),
@@ -680,13 +1220,15 @@ describe('RequestClient', () => {
             text: () => {
               throw new Error('text-error');
             },
+            ok: true,
             status: 200,
             headers: { get: () => 'text/plain' },
           }),
         );
 
         const [err, res] = await requestClient.get('/api/my-string-endpoint', null);
-        expect(err).toStrictEqual(new Error('error getting response in get'));
+        expect(err).toBeInstanceOf(Error);
+        expect(err?.message).toBe('error doing request in get');
         expect(getSpy).toHaveBeenCalledOnce();
         expect(getSpy).toHaveBeenCalledWith('api/my-string-endpoint', {});
         expect(res).toBeNull;
@@ -697,6 +1239,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => ({ data: 'GET request data with params' }),
             text: () => '{ "data": "GET request data with params" }',
+            ok: true,
             status: 200,
             headers: { get: () => 'application/json' },
           }),
@@ -728,8 +1271,10 @@ describe('RequestClient', () => {
         expect(getSpy).toHaveBeenCalledOnce();
         expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
         expect(err).toBeInstanceOf(Error);
-        expect(err?.message.toLowerCase()).toContain('error doing request');
-        expect((err as Error).cause).toStrictEqual(underlyingError);
+        expect(err?.message).toBe('error doing request in get');
+        expect((err as Error).cause).toStrictEqual(
+          new Error('error request GET in request', { cause: underlyingError }),
+        );
       });
 
       test('All params: Returns json parsed data when request was successful', async () => {
@@ -737,6 +1282,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => ({ data: 'GET request data no params' }),
             text: () => '{ "data": "GET request data no params" }',
+            ok: true,
             status: 200,
             headers: { get: () => 'application/json' },
           }),
@@ -758,6 +1304,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => ({ data: 'GET request data no params' }),
             text: () => '{ "data": "GET request data no params" }',
+            ok: true,
             status: 200,
             headers: { get: () => 'application/json' },
           }),
@@ -800,6 +1347,7 @@ describe('RequestClient', () => {
           sseProvider: MOCK_SSE_PROVIDER,
           baseUrl: 'https://api.example.com/base',
           hostname: 'https://api.example.com',
+          fetchOpts: DEFAULT_REQUEST_OPTS,
           endpoints: mockGetEndpoints,
           validation: true,
           debug: true,
@@ -809,6 +1357,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => ({ data: 'GET request data with cacheRequest' }),
             text: () => '{ "data": "GET request data with cacheRequest" }',
+            ok: true,
             status: 200,
             headers: { get: () => 'application/json' },
           }),
@@ -820,10 +1369,7 @@ describe('RequestClient', () => {
 
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {
-          cacheRequest: false, // Intentional, see implementation
-          body: undefined,
-        });
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', expect.any(Object));
         expect(res).toStrictEqual({
           data: 'GET request data with cacheRequest',
         });
@@ -838,6 +1384,7 @@ describe('RequestClient', () => {
           sseProvider: MOCK_SSE_PROVIDER,
           baseUrl: 'https://api.example.com/base',
           hostname: 'https://api.example.com',
+          fetchOpts: DEFAULT_REQUEST_OPTS,
           endpoints: mockGetEndpoints,
           validation: true,
         });
@@ -847,6 +1394,7 @@ describe('RequestClient', () => {
           asyncOk({
             json: () => ({ data: 'GET request data with cacheRequest' }),
             text: () => '{ "data": "GET request data with cacheRequest" }',
+            ok: true,
             status: 200,
             headers: { get: () => 'application/json' },
           }),
@@ -855,10 +1403,7 @@ describe('RequestClient', () => {
           cacheRequest: true,
         });
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {
-          cacheRequest: false,
-          body: undefined,
-        });
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', expect.any(Object));
         expect(err).toBeNull();
         expect(res).toStrictEqual({
           data: 'GET request data with cacheRequest',
@@ -884,6 +1429,7 @@ describe('RequestClient', () => {
           sseProvider: MOCK_SSE_PROVIDER,
           baseUrl: 'https://api.example.com/base',
           hostname: 'https://api.example.com',
+          fetchOpts: DEFAULT_REQUEST_OPTS,
           endpoints: mockGetEndpoints,
           validation: true,
         });
@@ -903,14 +1449,13 @@ describe('RequestClient', () => {
 
         expect(res).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {
-          cacheRequest: false, // Se implementation
-          body: undefined,
-        });
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', expect.any(Object));
         expect(err).toBeInstanceOf(Error);
         expect(err?.message.toLowerCase()).toContain('error getting cached response in get');
         expect((((err as Error).cause as Error).cause as Error).cause).toStrictEqual(
-          new Error('error doing request in get', { cause: underlyingError }),
+          new Error('error doing request in get', {
+            cause: new Error('error request GET in request', { cause: underlyingError }),
+          }),
         );
       });
     });
@@ -936,7 +1481,7 @@ describe('RequestClient', () => {
           response: z.object({ data: z.string() }),
         },
       },
-    } as const satisfies RequestDefinitions;
+    } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockPostEndpoints>;
 
@@ -954,6 +1499,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPostEndpoints,
         validation: true,
         debug: true,
@@ -982,6 +1528,7 @@ describe('RequestClient', () => {
         asyncOk({
           json: () => null,
           text: () => '{ "data": "POST returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1002,6 +1549,7 @@ describe('RequestClient', () => {
         asyncOk({
           json: () => null,
           text: () => '',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1013,9 +1561,10 @@ describe('RequestClient', () => {
 
       expect(isErrorType(ValidationError, err)).toBe(true);
       expect(postSpy).toHaveBeenCalledOnce();
-      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(postSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toBeNull();
     });
 
@@ -1028,6 +1577,7 @@ describe('RequestClient', () => {
           text: () => {
             throw new Error('json-error');
           },
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1037,11 +1587,13 @@ describe('RequestClient', () => {
         name: 'Brother',
       });
 
-      expect(err).toStrictEqual(new Error('error getting response in post'));
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error doing request in post');
       expect(postSpy).toHaveBeenCalledOnce();
-      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(postSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toBeNull();
     });
 
@@ -1052,6 +1604,7 @@ describe('RequestClient', () => {
             data: 'POST returned from mock provider no params',
           }),
           text: () => '{ "data": "POST returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1063,9 +1616,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(postSpy).toHaveBeenCalledOnce();
-      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(postSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider no params',
       });
@@ -1078,6 +1632,7 @@ describe('RequestClient', () => {
             data: 'POST returned from mock provider no params',
           }),
           text: () => '{ "data": "POST returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1087,10 +1642,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(postSpy).toHaveBeenCalledOnce();
-      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-        validate: false,
-      });
+      expect(postSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider no params',
       });
@@ -1102,6 +1657,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPostEndpoints,
         validation: false,
         debug: false,
@@ -1113,6 +1669,7 @@ describe('RequestClient', () => {
             data: 'POST returned from mock provider no params',
           }),
           text: () => '{ "data": "POST returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1124,9 +1681,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(postSpy).toHaveBeenCalledOnce();
-      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(postSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider no params',
       });
@@ -1139,6 +1697,7 @@ describe('RequestClient', () => {
             data: 'POST returned from mock provider with params',
           }),
           text: () => '{ "data": "POST returned from mock provider with params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1152,9 +1711,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(postSpy).toHaveBeenCalledOnce();
-      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint/hey', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(postSpy).toHaveBeenCalledWith(
+        'api/my-endpoint/hey',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider with params',
       });
@@ -1176,12 +1736,15 @@ describe('RequestClient', () => {
 
       expect(res).toBeNull();
       expect(postSpy).toHaveBeenCalledOnce();
-      expect(postSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(postSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(err).toBeInstanceOf(Error);
-      expect(err?.message.toLowerCase()).toContain('error doing request');
-      expect((err as Error).cause).toStrictEqual(underlyingError);
+      expect(err?.message).toBe('error doing request in post');
+      expect((err as Error).cause).toStrictEqual(
+        new Error('error request POST in request', { cause: underlyingError }),
+      );
     });
 
     test('Returns error and null data when constructUrl errors due to bad url', async () => {
@@ -1220,7 +1783,7 @@ describe('RequestClient', () => {
           response: z.object({ data: z.string() }),
         },
       },
-    } as const satisfies RequestDefinitions;
+    } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockPutEndpoints>;
 
@@ -1238,6 +1801,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPutEndpoints,
         validation: true,
         debug: true,
@@ -1277,6 +1841,7 @@ describe('RequestClient', () => {
         asyncOk({
           json: () => null,
           text: () => 'null',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1297,6 +1862,7 @@ describe('RequestClient', () => {
         asyncOk({
           json: () => null,
           text: () => 'null',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1308,9 +1874,10 @@ describe('RequestClient', () => {
 
       expect(isErrorType(ValidationError, err)).toBe(true);
       expect(putSpy).toHaveBeenCalledOnce();
-      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(putSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toBeNull();
     });
 
@@ -1323,6 +1890,7 @@ describe('RequestClient', () => {
           text: () => {
             throw new Error('json-error');
           },
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1332,11 +1900,13 @@ describe('RequestClient', () => {
         name: 'Brother',
       });
 
-      expect(err).toStrictEqual(new Error('error getting response in put'));
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error doing request in put');
       expect(putSpy).toHaveBeenCalledOnce();
-      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(putSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toBeNull();
     });
 
@@ -1345,6 +1915,7 @@ describe('RequestClient', () => {
         asyncOk({
           json: () => ({ data: 'PUT returned from mock provider no params' }),
           text: () => '{ "data": "PUT returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1356,9 +1927,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(putSpy).toHaveBeenCalledOnce();
-      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Pooh' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(putSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Pooh' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'PUT returned from mock provider no params',
       });
@@ -1371,6 +1943,7 @@ describe('RequestClient', () => {
             data: 'POST returned from mock provider no params',
           }),
           text: () => '{ "data": "POST returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1380,10 +1953,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(putSpy).toHaveBeenCalledOnce();
-      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-        validate: false,
-      });
+      expect(putSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider no params',
       });
@@ -1395,6 +1968,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPutEndpoints,
         validation: false,
         debug: false,
@@ -1406,6 +1980,7 @@ describe('RequestClient', () => {
             data: 'POST returned from mock provider no params',
           }),
           text: () => '{ "data": "POST returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1417,9 +1992,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(putSpy).toHaveBeenCalledOnce();
-      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(putSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider no params',
       });
@@ -1432,6 +2008,7 @@ describe('RequestClient', () => {
             data: 'PUT returned from mock provider with params',
           }),
           text: () => '{ "data": "PUT returned from mock provider with params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1445,9 +2022,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(putSpy).toHaveBeenCalledOnce();
-      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint/hey', JSON.stringify({ name: 'Pooh' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(putSpy).toHaveBeenCalledWith(
+        'api/my-endpoint/hey',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Pooh' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'PUT returned from mock provider with params',
       });
@@ -1469,12 +2047,14 @@ describe('RequestClient', () => {
 
       expect(res).toBeNull();
       expect(putSpy).toHaveBeenCalledOnce();
-      expect(putSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Pooh' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(putSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Pooh' }) }),
+      );
       expect(err).toBeInstanceOf(Error);
-      expect(err?.message.toLowerCase()).toContain('error doing request');
-      expect((err as Error).cause).toStrictEqual(underlyingError);
+      expect(err?.message).toBe('error doing request in put');
+      expect((err as Error).cause as Error).toStrictEqual(new Error('error request PUT in request'));
+      expect(((err as Error).cause as Error).cause).toStrictEqual(underlyingError);
     });
 
     test('Returns error and null data when constructUrl errors due to bad url', async () => {
@@ -1509,7 +2089,7 @@ describe('RequestClient', () => {
           response: z.object({ data: z.string() }),
         },
       },
-    } as const satisfies RequestDefinitions;
+    } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockPatchEndpoints>;
     let consoleLogSpy: MockedFunction<VoidFunction>;
@@ -1526,6 +2106,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPatchEndpoints,
         validation: true,
         debug: true,
@@ -1565,6 +2146,7 @@ describe('RequestClient', () => {
         asyncOk({
           json: () => null,
           text: () => 'null',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1585,6 +2167,7 @@ describe('RequestClient', () => {
         asyncOk({
           json: () => null,
           text: () => 'null',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1596,9 +2179,10 @@ describe('RequestClient', () => {
 
       expect(isErrorType(ValidationError, err)).toBe(true);
       expect(patchSpy).toHaveBeenCalledOnce();
-      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(patchSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toBeNull();
     });
 
@@ -1611,6 +2195,7 @@ describe('RequestClient', () => {
           text: () => {
             throw new Error('json-error');
           },
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1620,11 +2205,13 @@ describe('RequestClient', () => {
         name: 'Brother',
       });
 
-      expect(err).toStrictEqual(new Error('error getting response in patch'));
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error doing request in patch');
       expect(patchSpy).toHaveBeenCalledOnce();
-      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Brother' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(patchSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+      );
       expect(res).toBeNull();
     });
 
@@ -1635,6 +2222,7 @@ describe('RequestClient', () => {
             data: 'PATCH returned from mock provider no params',
           }),
           text: () => '{ "data": "PATCH returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1646,9 +2234,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(patchSpy).toHaveBeenCalledOnce();
-      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Little Foot' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(patchSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Little Foot' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'PATCH returned from mock provider no params',
       });
@@ -1661,6 +2250,7 @@ describe('RequestClient', () => {
             data: 'PATCH returned from mock provider no params',
           }),
           text: () => '{ "data": "PATCH returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1675,10 +2265,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(patchSpy).toHaveBeenCalledOnce();
-      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Little Foot' }), {
-        headers: DEFAULT_HEADERS_SEND,
-        validate: false,
-      });
+      expect(patchSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Little Foot' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'PATCH returned from mock provider no params',
       });
@@ -1690,6 +2280,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPatchEndpoints,
         validation: false,
         debug: false,
@@ -1701,6 +2292,7 @@ describe('RequestClient', () => {
             data: 'PATCH returned from mock provider no params',
           }),
           text: () => '{ "data": "PATCH returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1712,9 +2304,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(patchSpy).toHaveBeenCalledOnce();
-      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Little Foot' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(patchSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Little Foot' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'PATCH returned from mock provider no params',
       });
@@ -1727,6 +2320,7 @@ describe('RequestClient', () => {
             data: 'PATCH returned from mock provider with params',
           }),
           text: () => '{ "data": "PATCH returned from mock provider with params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1740,9 +2334,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(patchSpy).toHaveBeenCalledOnce();
-      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint/hey', JSON.stringify({ name: 'Little Foot' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(patchSpy).toHaveBeenCalledWith(
+        'api/my-endpoint/hey',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Little Foot' }) }),
+      );
       expect(res).toStrictEqual({
         data: 'PATCH returned from mock provider with params',
       });
@@ -1764,12 +2359,14 @@ describe('RequestClient', () => {
 
       expect(res).toBeNull();
       expect(patchSpy).toHaveBeenCalledOnce();
-      expect(patchSpy).toHaveBeenCalledWith('api/my-endpoint', JSON.stringify({ name: 'Little Foot' }), {
-        headers: DEFAULT_HEADERS_SEND,
-      });
+      expect(patchSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Little Foot' }) }),
+      );
       expect(err).toBeInstanceOf(Error);
-      expect(err?.message.toLowerCase()).toContain('error doing request');
-      expect((err as Error).cause).toStrictEqual(underlyingError);
+      expect(err?.message).toBe('error doing request in patch');
+      expect((err as Error).cause as Error).toStrictEqual(new Error('error request PATCH in request'));
+      expect(((err as Error).cause as Error).cause).toStrictEqual(underlyingError);
     });
 
     test('Returns error and null data when constructUrl errors due to bad url', async () => {
@@ -1799,7 +2396,7 @@ describe('RequestClient', () => {
       '/api/my-bad-endpoint/{ye}}': {
         delete: { response: z.object({ data: z.string() }) },
       },
-    } as const satisfies RequestDefinitions;
+    } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockDeleteEndpoints>;
     let consoleLogSpy: MockedFunction<VoidFunction>;
@@ -1816,6 +2413,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockDeleteEndpoints,
         validation: true,
         debug: true,
@@ -1859,6 +2457,7 @@ describe('RequestClient', () => {
           text: () => {
             throw new Error('json-error');
           },
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1866,7 +2465,8 @@ describe('RequestClient', () => {
 
       const [err, res] = await requestClient.delete('/api/my-endpoint', null);
 
-      expect(err).toStrictEqual(new Error('error getting response in delete'));
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toBe('error doing request in delete');
       expect(deleteSpy).toHaveBeenCalledOnce();
       expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
       expect(res).toBeNull();
@@ -1877,6 +2477,7 @@ describe('RequestClient', () => {
         asyncOk({
           json: () => null,
           text: () => 'null',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1897,6 +2498,7 @@ describe('RequestClient', () => {
             data: 'DELETE returned from mock provider no params',
           }),
           text: () => '{ "data": "DELETE returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1919,6 +2521,7 @@ describe('RequestClient', () => {
             data: 'DELETE returned from mock provider no params',
           }),
           text: () => '{ "data": "DELETE returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1930,9 +2533,7 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(deleteSpy).toHaveBeenCalledOnce();
-      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {
-        validate: false,
-      });
+      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', expect.any(Object));
       expect(res).toStrictEqual({
         data: 'DELETE returned from mock provider no params',
       });
@@ -1944,6 +2545,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockDeleteEndpoints,
         validation: false,
         debug: false,
@@ -1954,6 +2556,7 @@ describe('RequestClient', () => {
             data: 'DELETE returned from mock provider no params',
           }),
           text: () => '{ "data": "DELETE returned from mock provider no params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -1976,6 +2579,7 @@ describe('RequestClient', () => {
             data: 'DELETE returned from mock provider with params',
           }),
           text: () => '{ "data": "DELETE returned from mock provider with params" }',
+          ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
         }),
@@ -2009,8 +2613,8 @@ describe('RequestClient', () => {
       expect(deleteSpy).toHaveBeenCalledOnce();
       expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
       expect(err).toBeInstanceOf(Error);
-      expect(err?.message.toLowerCase()).toContain('error doing request');
-      expect((err as Error).cause).toStrictEqual(underlyingError);
+      expect((err as Error).cause as Error).toStrictEqual(new Error('error request DELETE in request'));
+      expect(((err as Error).cause as Error).cause).toStrictEqual(underlyingError);
     });
 
     test('Returns error and null data when constructUrl errors due to bad url', async () => {
@@ -2046,7 +2650,7 @@ describe('RequestClient', () => {
           }),
         },
       },
-    } as const satisfies RequestDefinitions;
+    } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockSseEndpoints>;
 
@@ -2064,6 +2668,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: true,
         debug: true,
@@ -2102,6 +2707,7 @@ describe('RequestClient', () => {
         sseProvider: null,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: true,
         debug: false,
@@ -2197,6 +2803,7 @@ describe('RequestClient', () => {
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: false,
         debug: false,
@@ -2335,6 +2942,7 @@ describe('RequestClient', () => {
         sseProvider: LOCAL_CLOSED_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: true,
         debug: true,
@@ -2412,6 +3020,7 @@ describe('RequestClient', () => {
         sseProvider: LOCAL_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: true,
         debug: false,
@@ -2458,6 +3067,7 @@ describe('RequestClient', () => {
         sseProvider: LOCAL_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: true,
         debug: false,
@@ -2523,6 +3133,7 @@ describe('RequestClient', () => {
         sseProvider: LOCAL_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: true,
         debug: false,
@@ -2595,6 +3206,7 @@ describe('RequestClient', () => {
         sseProvider: LOCAL_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: true,
         debug: false,

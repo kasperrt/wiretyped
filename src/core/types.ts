@@ -271,7 +271,7 @@ export type DeleteArgs<Schema extends RequestDefinitions, Endpoint extends Delet
 export type DownloadArgs<Schema extends RequestDefinitions, Endpoint extends DownloadEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'download'>,
-  options?: HttpRequestOptions,
+  options?: Omit<HttpRequestOptions, 'cacheRequest' | 'cacheTimeToLive'>,
 ];
 
 /**
@@ -280,6 +280,7 @@ export type DownloadArgs<Schema extends RequestDefinitions, Endpoint extends Dow
 export type UrlArgs<Schema extends RequestDefinitions, Endpoint extends UrlEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'url'>,
+  options?: Pick<HttpRequestOptions, 'validate'>,
 ];
 
 /** Typed return-type for get function */
