@@ -8,6 +8,7 @@ import type {
   FetchClientProviderDefinition,
   FetchOptions,
   FetchResponse,
+  HeaderOptions,
   Options,
   RequestOptions,
   StatusCode,
@@ -116,6 +117,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
   #validation: boolean;
   /** Credentials policy passed through to requests/SSE where applicable. */
   #credentials?: RequestCredentials;
+  /** Default headers applied to every request (merged with per-call headers). */
+  #defaultHeaders: HeaderOptions;
 
   /**
    * Creates a typed RequestClient that wires together the fetch provider, SSE provider, and cache.
@@ -147,14 +150,16 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#validation = validation;
     this.#sseClient = sseProvider;
     this.#credentials = fetchClientOpts.credentials;
+    this.#defaultHeaders = mergeHeaderOptions(
+      {
+        Accept: 'application/json',
+      },
+      fetchClientOpts.headers,
+    );
+
     this.#fetchClient = new fetchProvider(baseUrl, {
       ...fetchClientOpts,
-      headers: mergeHeaderOptions(
-        {
-          Accept: 'application/json',
-        },
-        fetchClientOpts.headers,
-      ),
+      headers: this.#defaultHeaders,
     });
 
     this.#log(
@@ -189,14 +194,16 @@ export class RequestClient<Schema extends RequestDefinitions> {
       }
 
       this.#credentials = fetchClientOpts.credentials ?? this.#credentials;
+      this.#defaultHeaders = mergeHeaderOptions(
+        {
+          Accept: 'application/json',
+        },
+        fetchClientOpts.headers,
+      );
+
       this.#fetchClient.config({
         ...fetchClientOpts,
-        headers: mergeHeaderOptions(
-          {
-            Accept: 'application/json',
-          },
-          fetchClientOpts.headers,
-        ),
+        headers: this.#defaultHeaders,
       });
     }
 
@@ -236,8 +243,9 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#log(`GET URL: ${url}`);
 
     if (opts.cacheRequest) {
+      const cacheKey = await this.#cacheClient.key(url, mergeHeaderOptions(this.#defaultHeaders, opts.headers));
       const [errCacheClient, result] = await this.#cacheClient.get(
-        url,
+        cacheKey,
         async () => {
           const [err, uncached] = await this.get(endpoint, params, {
             ...opts,
