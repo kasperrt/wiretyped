@@ -18,7 +18,7 @@ interface RetryOptions<R> {
  * @param fn function to retry with timeout
  * @param attempts number of retry-attempts we want to perform
  * @param timeout how long the wait-time should be
- * @param errorFunction optional errorFunction on whether we want to skip retrying and propagate the error
+ * @param errFn optional errorFunction on whether we want to skip retrying and propagate the error (true = retry, false = stop and move on)
  */
 export function retry<R>({
   name,
