@@ -23,7 +23,9 @@ export interface FetchClientOptions extends Pick<FetchOptions, 'headers'> {
  * - returns error-first tuples via {@link SafeWrapAsync}.
  */
 export class FetchClient {
+  /** Base URL prepended to all request paths. */
   #baseUrl: string;
+  /** Default fetch options (headers, credentials, mode). */
   #opts: FetchClientOptions;
 
   constructor(baseUrl: string, opts?: FetchClientOptions) {
