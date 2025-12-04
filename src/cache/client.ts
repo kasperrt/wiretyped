@@ -161,12 +161,10 @@ export class CacheClient {
       .join('|');
 
     const input = `${url}|${header}`;
-    const enc = new TextEncoder();
-    const data = enc.encode(input);
+    const data = new TextEncoder().encode(input);
 
-    const cryptoObj = globalThis.crypto?.subtle;
-    if (cryptoObj) {
-      const hashBuffer = await cryptoObj.digest('SHA-256', data);
+    if (typeof globalThis.crypto?.subtle?.digest === 'function') {
+      const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
