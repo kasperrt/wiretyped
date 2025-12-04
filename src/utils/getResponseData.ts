@@ -1,5 +1,5 @@
 import { isErrorType } from '../error';
-import type { FetchResponse } from '../types';
+import type { FetchResponse } from '../types/request';
 import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap';
 
 /**

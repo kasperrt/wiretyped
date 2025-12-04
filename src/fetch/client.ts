@@ -1,5 +1,5 @@
 import { HTTPError } from '../error/httpError';
-import type { FetchOptions, FetchResponse } from '../types';
+import type { FetchOptions, FetchResponse } from '../types/request';
 import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap';
 import { mergeHeaderOptions } from './utils';
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { FetchResponse } from '../types';
+import type { FetchResponse } from '../types/request';
 import { getResponseData } from './getResponseData';
 
 describe('getResponseData', () => {

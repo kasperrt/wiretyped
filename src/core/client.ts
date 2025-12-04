@@ -9,9 +9,9 @@ import type {
   FetchResponse,
   Options,
   RequestOptions,
-  SSEClientProvider,
   StatusCode,
-} from '../types';
+} from '../types/request';
+import type { SSEClientProvider } from '../types/sse';
 import { constructUrl } from '../utils/constructUrl';
 import { getResponseData } from '../utils/getResponseData';
 import { retry } from '../utils/retry';
