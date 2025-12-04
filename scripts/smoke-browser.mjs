@@ -1,7 +1,7 @@
 // Browser smoke: verify bundles load in a real browser (Chromium) via ESM imports
 import assert from 'node:assert';
-import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -29,6 +29,7 @@ const server = createServer(async (req, res) => {
 
   if (!targetPath.startsWith(distDir)) {
     res.statusCode = 403;
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.end('Forbidden');
     return;
   }
@@ -38,9 +39,11 @@ const server = createServer(async (req, res) => {
     res.statusCode = 200;
     res.setHeader('Content-Type', contentTypeFor(extname(targetPath)));
     res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.end(data);
   } catch {
     res.statusCode = 404;
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.end('Not found');
   }
 });
