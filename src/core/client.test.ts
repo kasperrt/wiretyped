@@ -32,6 +32,7 @@ MOCK_FETCH_PROVIDER.prototype.post = vi.fn();
 MOCK_FETCH_PROVIDER.prototype.put = vi.fn();
 MOCK_FETCH_PROVIDER.prototype.patch = vi.fn();
 MOCK_FETCH_PROVIDER.prototype.delete = vi.fn();
+MOCK_FETCH_PROVIDER.prototype.config = vi.fn();
 
 type MockedSSEClientProvider = MockedFunction<SSEClientProvider>;
 
@@ -80,7 +81,15 @@ const DEFAULT_HEADERS_SEND = {
   'Content-Type': 'application/json',
 };
 
-const defaultEndpoints: RequestDefinitions = {};
+const defaultEndpoints = {
+  '/api/noop': {
+    get: {
+      response: z.object({
+        data: z.string(),
+      }),
+    },
+  },
+} satisfies RequestDefinitions;
 const DEFAULT_REQUEST_OPTS: RequestOptions = { timeout: false, retry: { limit: 0 } };
 
 // AsyncWrap helpers
@@ -593,7 +602,7 @@ describe('RequestClient', () => {
         throw thrown;
       });
 
-      const client: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+      const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
@@ -614,6 +623,144 @@ describe('RequestClient', () => {
         }),
       );
       expect(getSpy).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('config', () => {
+    test('forwards fetch options to provider without retry/timeout', async () => {
+      vi.useFakeTimers();
+      const fetchSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(async () =>
+        asyncOk({
+          json: () => {
+            throw new Error('test');
+          },
+          text: () => '{ "ok": true }',
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const requestClient = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: defaultEndpoints,
+        validation: true,
+        fetchOpts: {
+          timeout: 60_000,
+        },
+      });
+
+      requestClient.config({
+        fetchOpts: {
+          headers: new Headers({ 'X-Test': '1' }),
+          credentials: 'include',
+          mode: 'cors',
+          retry: { limit: 9 },
+          timeout: 1000,
+        },
+      });
+
+      const request = requestClient.get('/api/noop', null);
+      await vi.advanceTimersByTimeAsync(9 * 1000);
+      const [err, res] = await request;
+
+      expect(err).toStrictEqual(
+        new Error('error doing request in get', {
+          cause: new Error('error getting response in GET', {
+            cause: new Error('error parsing json in getResponseData', { cause: new Error('test') }),
+          }),
+        }),
+      );
+      expect(res).toBeNull();
+      expect(fetchSpy).toHaveBeenCalledTimes(10);
+      vi.useRealTimers();
+    });
+
+    test('applies request-level retry settings to future calls', async () => {
+      vi.useFakeTimers();
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } as const satisfies RequestDefinitions;
+
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() => Promise.resolve([new TypeError('boom') as unknown as Error, null]));
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockGetEndpoints,
+        validation: true,
+        fetchOpts: {
+          timeout: 60_000,
+        },
+      });
+
+      client.config({
+        fetchOpts: {
+          retry: {
+            limit: 0,
+          },
+        },
+      });
+
+      const [err, res] = await client.get('/api/my-endpoint', null);
+
+      expect(res).toBeNull();
+      expect(err).toBeInstanceOf(Error);
+      expect(getSpy).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
+    });
+
+    test('updates cache options and affects caching behavior', async () => {
+      vi.useFakeTimers();
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } as const satisfies RequestDefinitions;
+
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk({
+          json: () => ({ data: 'from-fetch' }),
+          text: () => '{ "data": "from-fetch" }',
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+        }),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        endpoints: mockGetEndpoints,
+        validation: true,
+        cacheOpts: { ttl: 1_000, cleanupInterval: 30_000 },
+      });
+
+      // Prime cache
+      await client.get('/api/my-endpoint', null, { cacheRequest: true });
+      expect(getSpy).toHaveBeenCalledTimes(1);
+
+      // Change cache TTL to a shorter value
+      client.config({ cacheOpts: { ttl: 100 } });
+
+      // Advance beyond new TTL so cache should expire
+      await vi.advanceTimersByTimeAsync(150);
+
+      await client.get('/api/my-endpoint', null, { cacheRequest: true });
+      expect(getSpy).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
     });
   });
 

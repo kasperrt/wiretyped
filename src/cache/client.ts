@@ -1,17 +1,18 @@
 import type { Interval } from '../utils/timeout';
 import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap';
 
+/** Options for cache-client */
 export interface CacheClientOptions {
   /**
    * Cache time to live.
    * @default 500
    */
-  ttl: number;
+  ttl?: number;
   /**
    * Cache cleanup interval.
    * @default 30_000
    */
-  cleanupInterval: number;
+  cleanupInterval?: number;
 }
 
 interface CacheItem<T = unknown> {
@@ -33,9 +34,37 @@ export class CacheClient {
   #cache: Record<string, CacheItem> = {};
   #pending: Record<string, SafeWrapAsync<Error, unknown>> = {};
 
-  constructor(opts: CacheClientOptions = { ttl: 500, cleanupInterval: 30_000 }) {
-    this.#ttl = opts.ttl;
-    this.#cleanupInterval = opts.cleanupInterval;
+  /**
+   * Creates a cache client with in-memory TTL-based storage.
+   *
+   * @param opts - Cache configuration; defaults to `ttl: 500` and `cleanupInterval: 30_000`.
+   */
+  constructor(opts?: CacheClientOptions) {
+    this.#ttl = opts?.ttl ?? 500;
+    this.#cleanupInterval = opts?.cleanupInterval ?? 30_000;
+
+    this.#cleanup();
+  }
+
+  /**
+   * Updates cache configuration without recreating the client.
+   */
+  public config(opts: Partial<CacheClientOptions>) {
+    const ttlChanged = opts.ttl !== undefined && opts.ttl !== this.#ttl;
+
+    if (opts.ttl !== undefined) {
+      this.#ttl = opts.ttl;
+    }
+
+    if (opts.cleanupInterval !== undefined) {
+      this.#cleanupInterval = opts.cleanupInterval;
+    }
+
+    // If TTL was changed, we should clear any cache immediately
+    if (ttlChanged) {
+      this.#cache = {};
+      this.#pending = {};
+    }
 
     this.#cleanup();
   }

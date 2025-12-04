@@ -51,4 +51,11 @@ describe('mergeHeaderOptions', () => {
 
     expect(merged).toEqual(new Headers({ a: 'd' }));
   });
+
+  test('drops headers explicitly set to undefined/null', () => {
+    const merged = mergeHeaderOptions({ keep: '1', remove: null }, { added: '2' });
+
+    expect(merged).toEqual(new Headers({ keep: '1', added: '2' }));
+    expect(merged.get('remove')).toBeNull();
+  });
 });

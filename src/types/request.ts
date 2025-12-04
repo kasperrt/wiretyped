@@ -1,8 +1,9 @@
+import type { CacheClientOptions } from '../cache/client';
 import type { FetchClientOptions } from '../fetch/client';
 import type { SafeWrapAsync } from '../utils/wrap';
 
 /** Header options accepted by the fetch wrapper. */
-export type HeaderOptions = NonNullable<RequestInit['headers']> | Record<string, string | undefined>;
+export type HeaderOptions = NonNullable<RequestInit['headers']> | Record<string, string | null>;
 
 /** Subset of HTTP status codes used for retry logic. */
 export type StatusCode =
@@ -70,6 +71,7 @@ export type StatusCode =
   | 510
   | 511;
 
+/** Options to pass in for each fetch request */
 export interface FetchOptions extends Omit<RequestInit, 'headers'> {
   /** Headers merged with provider defaults. */
   headers?: HeaderOptions;
@@ -79,9 +81,11 @@ export interface FetchOptions extends Omit<RequestInit, 'headers'> {
 
 /** Fetch response with a narrowed status code union. */
 export interface FetchResponse extends Response {
+  /** "Strong" type of status-codes {@link StatusCode} */
   status: StatusCode;
 }
 
+/** Options for retry logic and standard */
 export type RetryOptions = {
   /**
    * The number of times to retry failed requests.
@@ -136,7 +140,10 @@ export interface RequestOptions {
 
 /** Common request options including cache and validation controls. */
 export type Options = Pick<FetchOptions, 'credentials' | 'headers' | 'mode' | 'signal'> & RequestOptions;
-
+export type Config = {
+  fetchOpts?: Omit<Options, 'signal'>;
+  cacheOpts?: CacheClientOptions;
+};
 /** Contract for HTTP client implementations used by RequestClient. */
 export interface FetchClientProviderDefinition {
   /** Executes a GET request. */
@@ -149,9 +156,12 @@ export interface FetchClientProviderDefinition {
   post: (url: string, options: Omit<FetchOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
   /** Executes a DELETE request. */
   delete: (url: string, options: Omit<FetchOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
+  /** Updates default options for the provider. */
+  config: (opts: FetchClientOptions) => void;
 }
 
 /** Factory signature for constructing HTTP providers. */
 export interface FetchClientProvider {
+  /** Creates a new instance of the fetch-client, with a base-url + options */
   new (baseUrl: string, opts: FetchClientOptions): FetchClientProviderDefinition;
 }
