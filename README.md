@@ -146,7 +146,7 @@ import { RequestClient, type RequestDefinitions, z } from 'wiretype';
 
 ## Request options
 
-Per-call `options` mirror `HttpRequestOptions`; caching flags are only for GET.
+Per-call `options` mirror the fetch-level options (`FetchOptions`) with extra cache/validation flags for GET.
 
 ```ts
 {
@@ -423,11 +423,12 @@ interface FetchClientProvider {
 }
 
 interface FetchClientProviderDefinition {
-  get(url: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
-  put(url: string, body: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
-  patch(url: string, body: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
-  post(url: string, body: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
-  delete(url: string, opts: Omit<HttpRequestOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
+  get(url: string, opts: Omit<FetchOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
+  put(url: string, opts: Omit<FetchOptions, 'method'>): SafeWrapAsync<Error, FetchResponse>;
+  patch(url: string, opts: Omit<FetchOptions, 'method'>): SafeWrapAsync<Error, FetchResponse>;
+  post(url: string, opts: Omit<FetchOptions, 'method'>): SafeWrapAsync<Error, FetchResponse>;
+  delete(url: string, opts: Omit<FetchOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
+  config(opts: FetchClientOptions): void;
 }
 ```
 
