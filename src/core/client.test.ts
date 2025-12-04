@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
 import { z } from 'zod';
-import { isTimeoutError, TimeoutError } from '../error';
 import { AbortError } from '../error/abortError';
 import { HTTPError } from '../error/httpError';
 import { isErrorType } from '../error/isErrorType';
+import { isTimeoutError, TimeoutError } from '../error/timeoutError';
 import { ValidationError } from '../error/validationError';
 import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request';
 import type { SSEClientProvider, SSEClientProviderDefinition, SSEClientSourceInit } from '../types/sse';
@@ -2768,6 +2768,7 @@ describe('RequestClient', () => {
     });
 
     test('onmessage parses JSON and calls handler with data', async () => {
+      vi.useFakeTimers();
       const handler = vi.fn();
 
       await requestClient.sse('/api/my-sse', null, handler);
@@ -2779,10 +2780,11 @@ describe('RequestClient', () => {
       } as MessageEvent;
 
       instance.onmessage?.(fakeMessage);
-
+      await vi.advanceTimersByTimeAsync(1000);
       await vi.waitUntil(() => handler.mock.calls.length > 0);
 
       expect(handler).toHaveBeenCalledWith([null, { hello: 'world' }]);
+      vi.useRealTimers();
     });
 
     test('onerror after open passes ErrorEvent-like details to handler', async () => {
@@ -2802,12 +2804,14 @@ describe('RequestClient', () => {
     });
 
     test('onmessage parses JSON and calls handler with data without validation', async () => {
+      vi.useFakeTimers();
       const handler = vi.fn();
 
       await requestClient.sse('/api/my-sse', null, handler, {
         validate: false,
       });
 
+      await vi.advanceTimersByTimeAsync(1000);
       const instance = MOCK_SSE_PROVIDER.mock.instances[0];
 
       const fakeMessage = {
@@ -2819,9 +2823,11 @@ describe('RequestClient', () => {
       await vi.waitUntil(() => handler.mock.calls.length > 0);
 
       expect(handler).toHaveBeenCalledWith([null, { hello: 'world' }]);
+      vi.useRealTimers();
     });
 
     test('onmessage parses JSON and calls handler with data without validation on client', async () => {
+      vi.useFakeTimers();
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         sseProvider: MOCK_SSE_PROVIDER,
@@ -2835,6 +2841,7 @@ describe('RequestClient', () => {
 
       const handler = vi.fn();
 
+      await vi.advanceTimersByTimeAsync(1000);
       await requestClient.sse('/api/my-sse', null, handler);
 
       const instance = MOCK_SSE_PROVIDER.mock.instances[0];
@@ -2848,9 +2855,11 @@ describe('RequestClient', () => {
       await vi.waitUntil(() => handler.mock.calls.length > 0);
 
       expect(handler).toHaveBeenCalledWith([null, { hello: 'world' }]);
+      vi.useRealTimers();
     });
 
     test('onmessage calls handler with error when JSON is invalid', async () => {
+      vi.useFakeTimers();
       const handler = vi.fn();
 
       await requestClient.sse('/api/my-sse', null, handler);
@@ -2860,15 +2869,18 @@ describe('RequestClient', () => {
       const fakeMessage = { data: 'not-json' } as MessageEvent;
       instance.onmessage?.(fakeMessage);
 
+      await vi.advanceTimersByTimeAsync(1000);
       await vi.waitUntil(() => handler.mock.calls.length > 0);
 
       const [err, data] = handler.mock.calls[0][0];
 
       expect(err).toBeInstanceOf(Error);
       expect(data).toBeNull();
+      vi.useRealTimers();
     });
 
     test('onmessage calls handler with error when JSON is invalid', async () => {
+      vi.useFakeTimers();
       const handler = vi.fn();
 
       await requestClient.sse('/api/my-sse', null, handler);
@@ -2880,15 +2892,18 @@ describe('RequestClient', () => {
       } as MessageEvent;
       instance.onmessage?.(fakeMessage);
 
+      await vi.advanceTimersByTimeAsync(1000);
       await vi.waitUntil(() => handler.mock.calls.length > 0);
 
       const [err, data] = handler.mock.calls[0][0];
 
       expect(err).toBeInstanceOf(Error);
       expect(data).toBeNull();
+      vi.useRealTimers();
     });
 
     test('onerror calls handler with generic error', async () => {
+      vi.useFakeTimers();
       const handler = vi.fn();
 
       await requestClient.sse('/api/my-sse', null, handler);
@@ -2898,14 +2913,17 @@ describe('RequestClient', () => {
       const fakeError = new Event('error');
       instance.onerror?.(fakeError);
 
+      await vi.advanceTimersByTimeAsync(1000);
       await vi.waitUntil(() => handler.mock.calls.length > 0);
 
       const [err, data] = handler.mock.calls[0][0];
       expect(err).toBeInstanceOf(Error);
       expect(data).toBeNull();
+      vi.useRealTimers();
     });
 
     test('onerror calls handler with error-event error', async () => {
+      vi.useFakeTimers();
       const handler = vi.fn();
 
       await requestClient.sse('/api/my-sse', null, handler);
@@ -2916,14 +2934,17 @@ describe('RequestClient', () => {
       // @ts-expect-error
       instance.onerror?.(fakeError);
 
+      await vi.advanceTimersByTimeAsync(1000);
       await vi.waitUntil(() => handler.mock.calls.length > 0);
 
       const [err, data] = handler.mock.calls[0][0];
       expect(err).toBeInstanceOf(Error);
       expect(data).toBeNull();
+      vi.useRealTimers();
     });
 
     test('close() is a no-op when SSE stream is already closed', async () => {
+      vi.useFakeTimers();
       const LOCAL_CLOSED_SSE_PROVIDER = vi.fn(function (
         this: SSEClientProviderDefinition,
         url: string | URL,
@@ -2975,6 +2996,7 @@ describe('RequestClient', () => {
       // Start the SSE, but DON'T await yet – we want to control when it resolves
       const ssePromise = localClient.sse('/api/my-sse', null, handler);
 
+      await vi.advanceTimersByTimeAsync(1000);
       // Wait until constructUrl has finished and the SSE provider has actually been constructed
       await vi.waitFor(() => {
         expect(LOCAL_CLOSED_SSE_PROVIDER).toHaveBeenCalledOnce();
@@ -3002,6 +3024,7 @@ describe('RequestClient', () => {
 
       consoleDebugSpy.mockRestore();
       consoleWarnSpy.mockRestore();
+      vi.useRealTimers();
     });
 
     test('sse() returns timeout error when opening SSE connection exceeds timeout', async () => {
@@ -3053,13 +3076,11 @@ describe('RequestClient', () => {
       // Start the SSE, but don't resolve it yet; we want the timeout to fire
       const ssePromise = client.sse('/api/my-sse', null, handler, { timeout: 1000 });
 
+      await vi.advanceTimersByTimeAsync(1000);
       // Ensure the SSE provider has actually been instantiated (constructUrl finished)
       await vi.waitFor(() => {
         expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
       });
-
-      // No onopen / onerror — simulate time passing so the timeout callback runs
-      await vi.advanceTimersByTimeAsync(1000);
 
       const [err, close] = await ssePromise;
 
@@ -3076,6 +3097,7 @@ describe('RequestClient', () => {
     });
 
     test('sse() returns error when new is run', async () => {
+      vi.useFakeTimers();
       const LOCAL_SSE_PROVIDER = vi.fn(function (
         this: SSEClientProviderDefinition,
         _: string | URL,
@@ -3100,6 +3122,7 @@ describe('RequestClient', () => {
       // Start the SSE, do NOT await yet – we want to trigger onerror manually
       const ssePromise = client.sse('/api/my-sse', null, handler);
 
+      await vi.advanceTimersByTimeAsync(1000);
       // Wait for provider construction so connection.onerror has been wired
       await vi.waitFor(() => {
         expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
@@ -3115,9 +3138,11 @@ describe('RequestClient', () => {
       );
       expect(close).toBeNull();
       expect(handler).not.toHaveBeenCalled();
+      vi.useRealTimers();
     });
 
     test('sse() returns error when connection.onerror fires before SSE opens', async () => {
+      vi.useFakeTimers();
       const LOCAL_SSE_PROVIDER = vi.fn(function (
         this: SSEClientProviderDefinition,
         url: string | URL,
@@ -3164,6 +3189,7 @@ describe('RequestClient', () => {
       // Start the SSE, do NOT await yet – we want to trigger onerror manually
       const ssePromise = client.sse('/api/my-sse', null, handler);
 
+      await vi.advanceTimersByTimeAsync(1000);
       // Wait for provider construction so connection.onerror has been wired
       await vi.waitFor(() => {
         expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
@@ -3186,6 +3212,7 @@ describe('RequestClient', () => {
       // Because we resolved via the "opening" error branch, the message handler
       // should never be called
       expect(handler).not.toHaveBeenCalled();
+      vi.useRealTimers();
     });
 
     test('sse opener ignores subsequent resolution attempts (timeout then onopen)', async () => {
@@ -3237,6 +3264,8 @@ describe('RequestClient', () => {
       // Start the SSE, but don't await yet – we need to manipulate timers and instance
       const ssePromise = client.sse('/api/my-sse', null, handler, { timeout: 1000 });
 
+      await vi.advanceTimersByTimeAsync(1000);
+
       // Wait until the SSE provider has actually been constructed
       await vi.waitFor(() => {
         expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
@@ -3244,9 +3273,6 @@ describe('RequestClient', () => {
 
       const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
       expect(instance).toBeDefined();
-
-      // 1) Let the timeout fire first -> first call to `done`
-      await vi.advanceTimersByTimeAsync(1000);
 
       // At this point, opener should have resolved with a timeout error
       // but we haven't awaited ssePromise yet.
