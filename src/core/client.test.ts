@@ -5,15 +5,8 @@ import { AbortError } from '../error/abortError';
 import { HTTPError } from '../error/httpError';
 import { isErrorType } from '../error/isErrorType';
 import { ValidationError } from '../error/validationError';
-import type {
-  FetchClientProvider,
-  FetchClientProviderDefinition,
-  Options,
-  RequestOptions,
-  SSEClientProvider,
-  SSEClientProviderDefinition,
-  SSEClientSourceInit,
-} from '../types';
+import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request';
+import type { SSEClientProvider, SSEClientProviderDefinition, SSEClientSourceInit } from '../types/sse';
 import * as signals from '../utils/signals';
 import { RequestClient } from './client';
 import type { RequestDefinitions } from './types';

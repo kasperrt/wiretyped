@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, type MockedFunction, vi } from 'vitest';
 import { AbortError } from '../error/abortError';
 import { HTTPError } from '../error/httpError';
-import type { FetchResponse } from '../types';
+import type { FetchResponse } from '../types/request';
 import { FetchClient } from './client';
 
 describe('FetchClient', () => {

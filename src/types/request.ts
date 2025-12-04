@@ -1,5 +1,5 @@
-import type { FetchClientOptions } from './fetch/client';
-import type { SafeWrapAsync } from './utils/wrap';
+import type { FetchClientOptions } from '../fetch/client';
+import type { SafeWrapAsync } from '../utils/wrap';
 
 /** Header options accepted by the fetch wrapper. */
 export type HeaderOptions = NonNullable<RequestInit['headers']> | Record<string, string | undefined>;
@@ -71,6 +71,7 @@ export type StatusCode =
   | 511;
 
 export interface FetchOptions extends Omit<RequestInit, 'headers'> {
+  /** Headers merged with provider defaults. */
   headers?: HeaderOptions;
   /** Abort signal to cancel the request. */
   signal?: AbortSignal;
@@ -138,60 +139,19 @@ export type Options = Pick<FetchOptions, 'credentials' | 'headers' | 'mode' | 's
 
 /** Contract for HTTP client implementations used by RequestClient. */
 export interface FetchClientProviderDefinition {
+  /** Executes a GET request. */
   get: (url: string, options: Omit<FetchOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
+  /** Executes a PUT request. */
   put: (url: string, options: Omit<FetchOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
+  /** Executes a PATCH request. */
   patch: (url: string, options: Omit<FetchOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
+  /** Executes a POST request. */
   post: (url: string, options: Omit<FetchOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
+  /** Executes a DELETE request. */
   delete: (url: string, options: Omit<FetchOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
 }
 
 /** Factory signature for constructing HTTP providers. */
 export interface FetchClientProvider {
   new (baseUrl: string, opts: FetchClientOptions): FetchClientProviderDefinition;
-}
-
-/**
- * Listener mapping for SSEClient
- */
-interface SSEClientSourceEventMap {
-  error: Event;
-  message: MessageEvent;
-  open: Event;
-}
-
-/** Init options for SSEClient */
-export interface SSEClientSourceInit {
-  withCredentials?: boolean;
-}
-
-/** Minimal EventSource-like contract expected by the SSE client. */
-export interface SSEClientProviderDefinition {
-  readonly url: string;
-  readonly withCredentials: boolean;
-  readonly readyState: number;
-  readonly CLOSED: 2;
-  readonly CONNECTING: 0;
-  readonly OPEN: 1;
-
-  onopen: ((this: SSEClientProviderDefinition, ev: Event) => void) | null;
-  onmessage: ((this: SSEClientProviderDefinition, ev: MessageEvent) => void) | null;
-  onerror: ((this: SSEClientProviderDefinition, ev: Event) => void) | null;
-
-  close(): void;
-  addEventListener<K extends keyof SSEClientSourceEventMap>(
-    type: K,
-    listener: (this: SSEClientProviderDefinition, ev: SSEClientSourceEventMap[K]) => void,
-    options?: boolean | AddEventListenerOptions,
-  ): void;
-  removeEventListener<K extends keyof SSEClientSourceEventMap>(
-    type: K,
-    listener: (this: SSEClientProviderDefinition, ev: SSEClientSourceEventMap[K]) => void,
-    options?: boolean | EventListenerOptions,
-  ): void;
-  dispatchEvent(event: Event): boolean;
-}
-
-/** Factory signature for constructing SSE providers. */
-export interface SSEClientProvider {
-  new (url: string | URL, eventSourceInitDict?: SSEClientSourceInit): SSEClientProviderDefinition;
 }
