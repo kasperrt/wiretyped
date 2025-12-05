@@ -880,6 +880,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return;
     }
 
-    console.debug(args);
+    console.debug(...args);
   }
 }
