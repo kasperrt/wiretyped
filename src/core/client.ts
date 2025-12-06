@@ -13,7 +13,7 @@ import type {
   RequestOptions,
   StatusCode,
 } from '../types/request';
-import type { SSEClientProvider } from '../types/sse';
+import type { SSEClientProvider, SSEClientProviderDefinition } from '../types/sse';
 import { constructUrl } from '../utils/constructUrl';
 import { getResponseData } from '../utils/getResponseData';
 import { retry } from '../utils/retry';
@@ -676,8 +676,23 @@ export class RequestClient<Schema extends RequestDefinitions> {
     const opener = new Promise<SafeWrap<Error, SSEReturn>>((resolve) => {
       let resolved = false;
       let timeoutId: Timeout;
+      let connection: SSEClientProviderDefinition | null = null;
+
+      const closeConnection = () => {
+        if (!connection) {
+          return;
+        }
+
+        if (connection.readyState === connection.CLOSED) {
+          return;
+        }
+
+        connection.close();
+      };
 
       const done = (res: SafeWrap<Error, VoidFunction>) => {
+        closeConnection();
+
         if (resolved) {
           return;
         }
@@ -693,11 +708,13 @@ export class RequestClient<Schema extends RequestDefinitions> {
         }, opts.timeout);
       }
 
-      const [errConnection, connection] = safeWrap(() => new provider(`${this.#baseUrl}/${url}`, opts));
-      if (errConnection) {
+      const [errConnection, createdConnection] = safeWrap(() => new provider(`${this.#baseUrl}/${url}`, opts));
+      if (errConnection || !createdConnection) {
         done([new Error(`error creating new connection for SSE on ${url}`, { cause: errConnection }), null]);
         return;
       }
+
+      connection = createdConnection;
 
       const close = (): void => {
         this.#log(`SSE CLOSE: ${url}`);

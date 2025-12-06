@@ -3282,7 +3282,7 @@ describe('RequestClient', () => {
             value: init?.withCredentials ?? true,
             writable: false,
           },
-          readyState: { value: 1, writable: true },
+          readyState: { value: 2, writable: true },
           CLOSED: { value: 2, writable: false },
           CONNECTING: { value: 0, writable: false },
           OPEN: { value: 1, writable: false },
@@ -3377,7 +3377,10 @@ describe('RequestClient', () => {
         this.onmessage = null;
         this.onerror = null;
 
-        this.close = vi.fn();
+        this.close = vi.fn().mockImplementation(() => {
+          // @ts-expect-error
+          this.readyState = 2;
+        });
         this.addEventListener = vi.fn();
         this.removeEventListener = vi.fn();
         this.dispatchEvent = vi.fn().mockReturnValue(true);
@@ -3409,12 +3412,12 @@ describe('RequestClient', () => {
 
       expect(err).toBeInstanceOf(Error);
       expect(err?.message).toBe('error opening SSE connection');
-      // If TimeoutError is exported somewhere, you can check the cause:
       expect(isTimeoutError(err)).toBe(true);
       expect(close).toBeNull();
-
-      // No messages should have been delivered to the handler
       expect(handler).not.toHaveBeenCalled();
+
+      const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
+      expect(instance.close).toHaveBeenCalledTimes(1);
 
       vi.useRealTimers();
     });
@@ -3442,11 +3445,8 @@ describe('RequestClient', () => {
         debug: false,
       });
 
-      // Start the SSE, do NOT await yet – we want to trigger onerror manually
       const ssePromise = client.sse('/api/my-sse', null, handler);
-
       await vi.advanceTimersByTimeAsync(1000);
-      // Wait for provider construction so connection.onerror has been wired
       await vi.waitFor(() => {
         expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
       });
@@ -3528,13 +3528,9 @@ describe('RequestClient', () => {
 
       expect(err).toBeInstanceOf(Error);
       expect(err?.message).toBe('error opening SSE connection');
-
-      // Because the error happened during "open", we never get a close function
       expect(close).toBeNull();
-
-      // Because we resolved via the "opening" error branch, the message handler
-      // should never be called
       expect(handler).not.toHaveBeenCalled();
+      expect(instance.close).toHaveBeenCalledTimes(1);
       vi.useRealTimers();
     });
 
