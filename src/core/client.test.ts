@@ -3488,7 +3488,6 @@ describe('RequestClient', () => {
       vi.useRealTimers();
     });
 
-
     test('sse() returns error when new is run', async () => {
       vi.useFakeTimers();
       const LOCAL_SSE_PROVIDER = vi.fn(function (
