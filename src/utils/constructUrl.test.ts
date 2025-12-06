@@ -34,4 +34,26 @@ describe('constructUrl', () => {
     expect(err).toBeNull();
     expect(url).toBe('integrations/slack%20github/files/file%2Fname?q=query+param&tag=a%2Bb');
   });
+
+  it('errors when required path params are missing', async () => {
+    const schema = {
+      '/users/{id}': {
+        get: {
+          response: z.string(),
+        },
+      },
+    } satisfies RequestDefinitions;
+
+    const [err, url] = await constructUrl<'get', typeof schema, '/users/{id}'>(
+      '/users/{id}',
+      // @ts-expect-error
+      null,
+      schema['/users/{id}'].get,
+      false,
+    );
+
+    expect(url).toBeNull();
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.message).toContain('path contains {} users/{id}');
+  });
 });

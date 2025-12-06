@@ -71,7 +71,7 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
    *
    * When `true`, request and response payloads are validated with the
    * configured schemas by default. Per-request options can override this.
-   * @default false
+   * @default true
    */
   validation?: boolean;
   /**
@@ -342,7 +342,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       {
         ...opts,
         body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json', ...opts.headers },
+        headers: mergeHeaderOptions({ 'Content-Type': 'application/json' }, opts.headers),
       },
       getResponseData,
     );
@@ -409,7 +409,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       {
         ...opts,
         body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json', ...opts.headers },
+        headers: mergeHeaderOptions({ 'Content-Type': 'application/json' }, opts.headers),
       },
       getResponseData,
     );
@@ -476,7 +476,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       {
         ...opts,
         body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json', ...opts.headers },
+        headers: mergeHeaderOptions({ 'Content-Type': 'application/json' }, opts.headers),
       },
       getResponseData,
     );
@@ -644,7 +644,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     ...args: SSEArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, SSEReturn> {
     const [endpoint, params, handler, { validate, ...options } = {}] = args;
-    const opts = { withCredentials: this.#credentials !== 'omit', ...options };
+    const opts = { withCredentials: options?.withCredentials ?? this.#credentials === 'include', ...options };
 
     this.#log(`SSE OPTIONS: ${JSON.stringify(opts, null, 4)}`);
 
@@ -840,7 +840,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
           return true;
         }
 
-        if (retryStatusCodes.includes(httpError.response.status) || retryIgnoreStatusCodes.length > 0) {
+        if (retryStatusCodes.includes(httpError.response.status)) {
           return false;
         }
 

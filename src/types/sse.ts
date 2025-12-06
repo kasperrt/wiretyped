@@ -12,7 +12,7 @@ export interface SSEClientSourceEventMap {
 
 /** Init options for SSEClient */
 export interface SSEClientSourceInit {
-  /** Whether to send cookies/credentials with the SSE connection. */
+  /** Whether to send cookies/credentials with the SSE connection. Here will default to what client sets, usually true */
   withCredentials?: boolean;
 }
 

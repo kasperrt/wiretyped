@@ -331,7 +331,7 @@ const [err, close] = await client.sse(
     console.log('sse message', data);
   },
   // The SSE client also inherits credentials adding from the fetchOpts
-  // as long as it is not 'omit'
+  // as long as it is not 'omit', so usually this will end up sending withCredentials: true
   { withCredentials: true },
 );
 

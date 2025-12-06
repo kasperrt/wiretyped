@@ -510,6 +510,44 @@ describe('RequestClient', () => {
       expect(getSpy).toHaveBeenCalledTimes(1);
     });
 
+    test('Skips retries for non-listed status when ignoreStatusCodes is set', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const httpResponse = {
+        ok: false,
+        status: 418,
+        json: () => ({ message: 'teapot' }),
+        text: () => '{ "message": "teapot" }',
+        headers: { get: () => 'application/json' },
+      };
+
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(async () => asyncOk(httpResponse));
+
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { retry: { limit: 3, timeout: 1, ignoreStatusCodes: [429] }, timeout: false },
+        endpoints: mockGetEndpoints,
+        validation: true,
+      });
+
+      const promise = requestClient.get('/api/my-endpoint', null);
+      const [err, res] = await promise;
+
+      expect(res).toBeNull();
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).cause).toBeInstanceOf(HTTPError);
+      expect(getSpy).toHaveBeenCalledTimes(1);
+    });
+
     test('Retries when status is in retryCodes and ignoreStatusCodes is empty', async () => {
       const mockGetEndpoints = {
         '/api/my-endpoint': {
@@ -1728,7 +1766,10 @@ describe('RequestClient', () => {
       expect(postSpy).toHaveBeenCalledOnce();
       expect(postSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toBeNull();
     });
@@ -1757,7 +1798,10 @@ describe('RequestClient', () => {
       expect(postSpy).toHaveBeenCalledOnce();
       expect(postSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toBeNull();
     });
@@ -1783,7 +1827,10 @@ describe('RequestClient', () => {
       expect(postSpy).toHaveBeenCalledOnce();
       expect(postSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider no params',
@@ -1809,7 +1856,10 @@ describe('RequestClient', () => {
       expect(postSpy).toHaveBeenCalledOnce();
       expect(postSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider no params',
@@ -1848,7 +1898,10 @@ describe('RequestClient', () => {
       expect(postSpy).toHaveBeenCalledOnce();
       expect(postSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider no params',
@@ -1878,7 +1931,10 @@ describe('RequestClient', () => {
       expect(postSpy).toHaveBeenCalledOnce();
       expect(postSpy).toHaveBeenCalledWith(
         'api/my-endpoint/hey',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider with params',
@@ -1903,7 +1959,10 @@ describe('RequestClient', () => {
       expect(postSpy).toHaveBeenCalledOnce();
       expect(postSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(err).toBeInstanceOf(Error);
       expect(err).toStrictEqual(
@@ -2042,7 +2101,10 @@ describe('RequestClient', () => {
       expect(putSpy).toHaveBeenCalledOnce();
       expect(putSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toBeNull();
     });
@@ -2071,7 +2133,10 @@ describe('RequestClient', () => {
       expect(putSpy).toHaveBeenCalledOnce();
       expect(putSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toBeNull();
     });
@@ -2095,7 +2160,7 @@ describe('RequestClient', () => {
       expect(putSpy).toHaveBeenCalledOnce();
       expect(putSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Pooh' }) }),
+        expect.objectContaining({ headers: new Headers(DEFAULT_HEADERS_SEND), body: JSON.stringify({ name: 'Pooh' }) }),
       );
       expect(res).toStrictEqual({
         data: 'PUT returned from mock provider no params',
@@ -2121,7 +2186,10 @@ describe('RequestClient', () => {
       expect(putSpy).toHaveBeenCalledOnce();
       expect(putSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider no params',
@@ -2160,7 +2228,10 @@ describe('RequestClient', () => {
       expect(putSpy).toHaveBeenCalledOnce();
       expect(putSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toStrictEqual({
         data: 'POST returned from mock provider no params',
@@ -2190,7 +2261,7 @@ describe('RequestClient', () => {
       expect(putSpy).toHaveBeenCalledOnce();
       expect(putSpy).toHaveBeenCalledWith(
         'api/my-endpoint/hey',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Pooh' }) }),
+        expect.objectContaining({ headers: new Headers(DEFAULT_HEADERS_SEND), body: JSON.stringify({ name: 'Pooh' }) }),
       );
       expect(res).toStrictEqual({
         data: 'PUT returned from mock provider with params',
@@ -2215,7 +2286,7 @@ describe('RequestClient', () => {
       expect(putSpy).toHaveBeenCalledOnce();
       expect(putSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Pooh' }) }),
+        expect.objectContaining({ headers: new Headers(DEFAULT_HEADERS_SEND), body: JSON.stringify({ name: 'Pooh' }) }),
       );
       expect(err).toBeInstanceOf(Error);
       expect(err).toStrictEqual(
@@ -2349,7 +2420,10 @@ describe('RequestClient', () => {
       expect(patchSpy).toHaveBeenCalledOnce();
       expect(patchSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toBeNull();
     });
@@ -2378,7 +2452,10 @@ describe('RequestClient', () => {
       expect(patchSpy).toHaveBeenCalledOnce();
       expect(patchSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Brother' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Brother' }),
+        }),
       );
       expect(res).toBeNull();
     });
@@ -2404,7 +2481,10 @@ describe('RequestClient', () => {
       expect(patchSpy).toHaveBeenCalledOnce();
       expect(patchSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Little Foot' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Little Foot' }),
+        }),
       );
       expect(res).toStrictEqual({
         data: 'PATCH returned from mock provider no params',
@@ -2435,7 +2515,10 @@ describe('RequestClient', () => {
       expect(patchSpy).toHaveBeenCalledOnce();
       expect(patchSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Little Foot' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Little Foot' }),
+        }),
       );
       expect(res).toStrictEqual({
         data: 'PATCH returned from mock provider no params',
@@ -2474,7 +2557,10 @@ describe('RequestClient', () => {
       expect(patchSpy).toHaveBeenCalledOnce();
       expect(patchSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Little Foot' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Little Foot' }),
+        }),
       );
       expect(res).toStrictEqual({
         data: 'PATCH returned from mock provider no params',
@@ -2504,7 +2590,10 @@ describe('RequestClient', () => {
       expect(patchSpy).toHaveBeenCalledOnce();
       expect(patchSpy).toHaveBeenCalledWith(
         'api/my-endpoint/hey',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Little Foot' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Little Foot' }),
+        }),
       );
       expect(res).toStrictEqual({
         data: 'PATCH returned from mock provider with params',
@@ -2529,7 +2618,10 @@ describe('RequestClient', () => {
       expect(patchSpy).toHaveBeenCalledOnce();
       expect(patchSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ headers: DEFAULT_HEADERS_SEND, body: JSON.stringify({ name: 'Little Foot' }) }),
+        expect.objectContaining({
+          headers: new Headers(DEFAULT_HEADERS_SEND),
+          body: JSON.stringify({ name: 'Little Foot' }),
+        }),
       );
       expect(err).toBeInstanceOf(Error);
       expect(err).toStrictEqual(
@@ -2860,6 +2952,23 @@ describe('RequestClient', () => {
       const handler = vi.fn();
 
       const [err, close] = await requestClient.sse('/api/my-sse', null, handler);
+
+      expect(err).toBeNull();
+      expect(MOCK_SSE_PROVIDER).toHaveBeenCalledOnce();
+
+      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+
+      expect(instance.url).toBe('https://api.example.com/base/api/my-sse');
+      expect(instance.withCredentials).toBe(false);
+
+      close?.();
+      expect(instance.close).toHaveBeenCalled();
+    });
+
+    test('Constructs SSE connection and returns close function, with credentials', async () => {
+      const handler = vi.fn();
+
+      const [err, close] = await requestClient.sse('/api/my-sse', null, handler, { withCredentials: true });
 
       expect(err).toBeNull();
       expect(MOCK_SSE_PROVIDER).toHaveBeenCalledOnce();

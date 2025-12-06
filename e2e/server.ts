@@ -41,6 +41,15 @@ export async function startE2EServer(endpoints: RequestDefinitions): SafeWrapAsy
         return c.notFound();
       }
 
+          const headers = c.req.header();
+    if (headers['x-client'] !== 'e2e-scoped') {
+      return c.json({ error: 'missing inlined header' }, 500);
+    }
+
+    if (headers['x-type'] !== 'e2e-global') {
+      return c.json({ error: 'missing global header' }, 500);
+    }
+
       const integration = c.req.param('integration');
       const counterPath = `/ok/${integration}`;
       incremenet(`${counterMethod} ${counterPath}`);
@@ -95,6 +104,15 @@ export async function startE2EServer(endpoints: RequestDefinitions): SafeWrapAsy
     const schemas = flakySchemas.get;
     if (!schemas) {
       return c.json({ error: 'missing schema for flaky' }, 500);
+    }
+
+        const headers = c.req.header();
+    if (headers['x-client'] !== 'e2e-scoped') {
+      return c.json({ error: 'missing inlined header' }, 500);
+    }
+
+    if (headers['x-type'] !== 'e2e-global') {
+      return c.json({ error: 'missing global header' }, 500);
     }
 
     const searchParams = c.req.query();

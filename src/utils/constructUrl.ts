@@ -23,6 +23,12 @@ export async function constructUrl<
     if (result.startsWith('/')) {
       result = result.substring(1);
     }
+
+    // Check for remaining unreplaced braces
+    if (result.includes('{') || result.includes('}')) {
+      return [new Error(`error constructing URL, path contains {} ${result}`), null];
+    }
+
     return [null, result];
   }
 
