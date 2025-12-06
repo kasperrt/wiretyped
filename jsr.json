@@ -12,15 +12,7 @@
     "browser": true,
     "bun": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": [
-    "**/*.test.*",
-    "**/*.spec.*",
-    "coverage/**",
-    "scripts/**",
-    "e2e/**",
-    "vitest.config.ts",
-    "vite.config.ts",
-    "tsconfig*.json"
-  ]
+  "publish": {
+    "include": ["LICENSE", "README.md", "src/**/*.ts"]
+  }
 }
