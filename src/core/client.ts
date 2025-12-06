@@ -819,12 +819,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
       timeout: retryTimeout,
       log: this.#debug,
       errFn: (err) => {
-        if (isAbortError(err)) {
-          return true;
-        }
-
         if (isTimeoutError(err)) {
           return false;
+        }
+
+        if (isAbortError(err)) {
+          return true;
         }
 
         if (isErrorType(TypeError, err)) {

@@ -436,6 +436,45 @@ describe('RequestClient', () => {
       expect(getSpy).toHaveBeenCalledTimes(2);
     });
 
+    test('Retries when provider returns AbortError wrapping TimeoutError', async () => {
+      const mockGetEndpoints = {
+        '/api/my-endpoint': {
+          get: { response: z.object({ data: z.string() }) },
+        },
+      } satisfies RequestDefinitions;
+
+      const timeoutErr = new TimeoutError('slow');
+      const abortErr = new AbortError('aborted', { cause: timeoutErr });
+      const successResponse = {
+        json: () => ({ data: 'ok' }),
+        text: () => '{ "data": "ok" }',
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+      };
+
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementationOnce(async () => asyncErr(abortErr))
+        .mockImplementationOnce(async () => asyncOk(successResponse));
+
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: { retry: { limit: 1, timeout: 1 }, timeout: false },
+        endpoints: mockGetEndpoints,
+        validation: true,
+      });
+
+      const [err, res] = await requestClient.get('/api/my-endpoint', null);
+
+      expect(err).toBeNull();
+      expect(res).toEqual({ data: 'ok' });
+      expect(getSpy).toHaveBeenCalledTimes(2);
+    });
+
     test('Retries when provider returns TypeError', async () => {
       const mockGetEndpoints = {
         '/api/my-endpoint': {
