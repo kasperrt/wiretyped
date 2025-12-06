@@ -691,8 +691,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
       };
 
       const done = (res: SafeWrap<Error, VoidFunction>) => {
-        closeConnection();
-
         if (resolved) {
           return;
         }
@@ -704,6 +702,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       if (opts.timeout) {
         timeoutId = setTimeout(() => {
+          closeConnection();
           done([new TimeoutError(`error timed out opening connection to SSE endpoint: ${url}`), null]);
         }, opts.timeout);
       }
@@ -733,6 +732,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       connection.onerror = (event: Event) => {
         if (!resolved) {
+          closeConnection();
           done([new Error(`error opening SSE connection`, { cause: event }), null]);
           return;
         }
