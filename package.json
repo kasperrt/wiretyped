@@ -67,7 +67,9 @@
     "smoke:node": "node scripts/smoke-node.mjs",
     "smoke:types": "pnpm exec tsc -p scripts/types-smoke/tsconfig.json",
     "smoke:worker": "node scripts/smoke-worker.mjs",
-    "test": "vitest run --no-isolate --no-file-parallelism",
+    "test": "pnpm test:integrations && pnpm test:e2e",
+    "test:integrations": "vitest run --no-isolate --no-file-parallelism",
+    "test:e2e": "vitest run --config ./e2e/vitest.e2e.config.ts --no-isolate --no-file-parallelism",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"
   },
@@ -75,11 +77,14 @@
     "@standard-schema/spec": "^1.0.0"
   },
   "devDependencies": {
+    "@hono/node-server": "^1.13.0",
     "@biomejs/biome": "^2.3.8",
     "@codecov/vite-plugin": "1.9.1",
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.0.15",
+    "eventsource": "^4.1.0",
     "playwright": "^1.57.0",
+    "hono": "^4.6.12",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5.9.3",
     "vite": "^7.2.6",
