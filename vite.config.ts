@@ -3,7 +3,7 @@ import { codecovVitePlugin } from '@codecov/vite-plugin';
 import { defineConfig } from 'vite';
 
 const isProd = process.env.NODE_ENV === 'production';
-const isGitHubActions = process.env.GITHUB_ACTIONS === 'true';
+const enableBundle = process.env.CODECOV_BUNDLE_ANALYSIS === "true";
 
 export default defineConfig({
   build: {
@@ -37,7 +37,7 @@ export default defineConfig({
   },
   plugins: [
     codecovVitePlugin({
-      enableBundleAnalysis: isGitHubActions,
+      enableBundleAnalysis: enableBundle,
       bundleName: 'wiretyped',
       oidc: {
         useGitHubOIDC: true,

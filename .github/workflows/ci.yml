@@ -41,6 +41,8 @@ jobs:
         run: pnpm run check:ts
 
       - name: Build
+        env:
+          CODECOV_BUNDLE_ANALYSIS: "true"
         run: pnpm run build
 
       - name: Test with coverage
