@@ -12,5 +12,15 @@
     "browser": true,
     "bun": true
   },
-  "exclude": ["scripts/**", "**/*.test.*", "**/*.spec.*", "coverage/**", "e2e/**"]
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "**/*.test.*",
+    "**/*.spec.*",
+    "coverage/**",
+    "scripts/**",
+    "e2e/**",
+    "vitest.config.ts",
+    "vite.config.ts",
+    "tsconfig*.json"
+  ]
 }
