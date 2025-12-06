@@ -60,7 +60,7 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
   /** Optional cache configuration for GET requests. {@link CacheClientOptions} */
   cacheOpts?: CacheClientOptions;
   /** Optional fetch configuration, including request-level defaults (timeouts, retry). */
-  fetchOpts?: Omit<Options, 'signal'>;
+  fetchOpts?: Omit<Options, 'signal' | 'cacheRequest' | 'cacheTimeToLive'>;
   /**
    * Whether to log debug information to the console.
    * @default false
@@ -880,6 +880,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return;
     }
 
-    console.debug(args);
+    console.debug(...args);
   }
 }

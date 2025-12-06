@@ -146,10 +146,10 @@ export type Options = Pick<FetchOptions, 'credentials' | 'headers' | 'mode' | 's
  * - `fetchOpts`: default fetch/request options (headers, credentials, etc.).
  * - `cacheOpts`: cache defaults for GET requests.
  */
-export type Config = {
-  fetchOpts?: Omit<Options, 'signal'>;
+export interface Config {
+  fetchOpts?: Omit<Options, 'signal' | 'cacheRequest' | 'cacheTimeToLive'>;
   cacheOpts?: CacheClientOptions;
-};
+}
 
 /** Contract for HTTP client implementations used by RequestClient. */
 export interface FetchClientProviderDefinition {
