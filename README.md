@@ -102,13 +102,13 @@ console.log(user.name);
 Prefer a single import? The root export works too:
 
 ```ts
-import { RequestClient, type RequestDefinitions, z } from 'wiretyped';
+import { RequestClient, type RequestDefinitions } from 'wiretyped';
 ```
 
 ## Imports
 
-- Root: `import { RequestClient, z, ...errors } from 'wiretyped'`
-- Subpath: `import { RequestClient, z } from 'wiretyped/core'`
+- Root: `import { RequestClient,  ...errors } from 'wiretyped'`
+- Subpath: `import { RequestClient } from 'wiretyped/core'`
 - Errors-only: `import { HTTPError, unwrapErrorType, ... } from 'wiretyped/error'`
 
 ## Client options
@@ -409,8 +409,8 @@ if (err) {
 
 ## Exposed entrypoints
 
-- Root import (client, types, z, errors): `wiretyped`
-- Core client and types (includes `z` re-export): `wiretyped/core`
+- Root import (client, types, errors): `wiretyped`
+- Core client and types: `wiretyped/core`
 - Error helpers: `wiretyped/error`
 
 ## Providers
@@ -466,7 +466,7 @@ interface SSEClientProviderInstance {
 }
 ```
 
-Pass these via `httpProvider` or `sseProvider` in the `RequestClient` constructor when swapping transports.
+Pass these via `fetchProvider` or `sseProvider` in the `RequestClient` constructor when swapping transports.
 
 ## Building
 
