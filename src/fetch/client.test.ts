@@ -84,6 +84,30 @@ describe('FetchClient', () => {
       expect(headers.get('x-base')).toBeNull();
     });
   });
+
+  describe('dispose', () => {
+    it('is a no-op and can be called multiple times', async () => {
+      const successResponse = {
+        ok: true,
+        status: 200,
+      } as FetchResponse;
+
+      const mockedFetch = global.fetch as MockedFunction<typeof fetch>;
+      mockedFetch.mockResolvedValueOnce(successResponse);
+
+      const client = new FetchClient('https://api.example.com', {});
+
+      expect(() => {
+        client.dispose();
+        client.dispose();
+      }).not.toThrow();
+
+      const [err, response] = await client.get('/data', {});
+      expect(err).toBeNull();
+      expect(response).toEqual(successResponse);
+      expect(mockedFetch).toHaveBeenCalledTimes(1);
+    });
+  });
   describe('GET', () => {
     it('should make a get request with JSON body', async () => {
       const responseBody = { id: 123 };

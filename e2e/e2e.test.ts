@@ -109,6 +109,9 @@ beforeAll(async () => {
     endpoints,
     validation: true,
     sseProvider: EventSource,
+    fetchOpts: {
+      headers: new Headers([['x-type', 'e2e-global']]),
+    },
   });
 });
 
@@ -123,24 +126,42 @@ afterAll(async () => {
 
 describe('wiretyped e2e', () => {
   test('GET /ok returns data and no error', async () => {
-    const [err, data] = await client.get('/ok/{integration}', {
-      $path: { integration: 'slack' },
-      $search: { q: 'test' },
-    });
+    const [err, data] = await client.get(
+      '/ok/{integration}',
+      {
+        $path: { integration: 'slack' },
+        $search: { q: 'test' },
+      },
+      {
+        headers: new Headers([['x-client', 'e2e-scoped']]),
+      },
+    );
     expect(err).toBeNull();
     expect(data?.success).toBe(true);
   });
 
   test('caching reduces server hits (if enabled)', async () => {
     // If cache is per-request, pass options here.
-    await client.get('/ok/{integration}', {
-      $path: { integration: 'slack' },
-      $search: { q: 'test' },
-    });
-    await client.get('/ok/{integration}', {
-      $path: { integration: 'slack' },
-      $search: { q: 'test' },
-    });
+    await client.get(
+      '/ok/{integration}',
+      {
+        $path: { integration: 'slack' },
+        $search: { q: 'test' },
+      },
+      {
+        headers: new Headers([['x-client', 'e2e-scoped']]),
+      },
+    );
+    await client.get(
+      '/ok/{integration}',
+      {
+        $path: { integration: 'slack' },
+        $search: { q: 'test' },
+      },
+      {
+        headers: new Headers([['x-client', 'e2e-scoped']]),
+      },
+    );
 
     const counts = server.getCounts();
     expect(counts['GET /ok/slack']).toBeLessThanOrEqual(2);
@@ -151,6 +172,9 @@ describe('wiretyped e2e', () => {
       '/ok/{integration}',
       { $path: { integration: 'github' }, $search: { q: 'test' } },
       { test: 'yes' },
+      {
+        headers: new Headers([['x-client', 'e2e-scoped']]),
+      },
     );
 
     expect(err).toBeNull();
@@ -163,6 +187,9 @@ describe('wiretyped e2e', () => {
       '/ok/{integration}',
       { $path: { integration: 'github' }, $search: { q: 'test' } },
       { test: 'yes' },
+      {
+        headers: new Headers([['x-client', 'e2e-scoped']]),
+      },
     );
 
     expect(err).toBeNull();
@@ -175,6 +202,9 @@ describe('wiretyped e2e', () => {
       '/ok/{integration}',
       { $path: { integration: 'github' }, $search: { q: 'test' } },
       { test: 'yes' },
+      {
+        headers: new Headers([['x-client', 'e2e-scoped']]),
+      },
     );
 
     expect(err).toBeNull();
@@ -183,10 +213,16 @@ describe('wiretyped e2e', () => {
   });
 
   test('DOWNLOAD /ok returns blob payload', async () => {
-    const [err, blob] = await client.download('/ok/{integration}', {
-      $path: { integration: 'github' },
-      $search: { q: 'file' },
-    });
+    const [err, blob] = await client.download(
+      '/ok/{integration}',
+      {
+        $path: { integration: 'github' },
+        $search: { q: 'file' },
+      },
+      {
+        headers: new Headers([['x-client', 'e2e-scoped']]),
+      },
+    );
 
     expect(err).toBeNull();
     expect(blob).toBeInstanceOf(Blob);
@@ -198,7 +234,7 @@ describe('wiretyped e2e', () => {
       '/ok/{integration}',
       // @ts-expect-error
       { $path: { integration: 'not-allowed' }, $search: { q: 'bad' } },
-      { validate: false },
+      { validate: false, headers: new Headers([['x-client', 'e2e-scoped']]) },
     );
 
     expect(isHttpError(err)).toBe(true);

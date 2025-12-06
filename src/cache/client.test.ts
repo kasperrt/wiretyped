@@ -258,6 +258,29 @@ describe('CacheClient', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
+  it('dispose clears cleanup interval and cache state', async () => {
+    const client = new CacheClient({ ttl: 1_000, cleanupInterval: 500 });
+
+    const fetchFn = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
+    // @ts-expect-error
+    const [err1, res1] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
+    expect(err1).toBeNull();
+    expect(res1).toBe('first');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(1);
+
+    client.dispose();
+
+    expect(vi.getTimerCount()).toBe(0);
+
+    // After dispose, cache should be cleared and resolver should run again
+    // @ts-expect-error
+    const [err2, res2] = await client.get('key', () => fetchFn().then((d) => [null, d] as const));
+    expect(err2).toBeNull();
+    expect(res2).toBe('second');
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
   it('allows updating ttl and cleanupInterval via config', async () => {
     const client = new CacheClient({ ttl: 500, cleanupInterval: 30_000 });
 

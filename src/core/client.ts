@@ -13,7 +13,7 @@ import type {
   RequestOptions,
   StatusCode,
 } from '../types/request';
-import type { SSEClientProvider } from '../types/sse';
+import type { SSEClientProvider, SSEClientProviderDefinition } from '../types/sse';
 import { constructUrl } from '../utils/constructUrl';
 import { getResponseData } from '../utils/getResponseData';
 import { retry } from '../utils/retry';
@@ -71,7 +71,7 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
    *
    * When `true`, request and response payloads are validated with the
    * configured schemas by default. Per-request options can override this.
-   * @default false
+   * @default true
    */
   validation?: boolean;
   /**
@@ -217,6 +217,15 @@ export class RequestClient<Schema extends RequestDefinitions> {
   }
 
   /**
+   * Disposes resources held by this client (cache timers, pending cache entries).
+   * Invoke when tearing down short-lived clients to avoid leaking intervals.
+   */
+  dispose() {
+    this.#cacheClient.dispose();
+    this.#fetchClient.dispose?.();
+  }
+
+  /**
    * Performs a typed GET request against a configured endpoint.
    *
    * - Builds the URL from endpoint definitions and params.
@@ -342,7 +351,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       {
         ...opts,
         body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json', ...opts.headers },
+        headers: mergeHeaderOptions({ 'Content-Type': 'application/json' }, opts.headers),
       },
       getResponseData,
     );
@@ -409,7 +418,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       {
         ...opts,
         body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json', ...opts.headers },
+        headers: mergeHeaderOptions({ 'Content-Type': 'application/json' }, opts.headers),
       },
       getResponseData,
     );
@@ -476,7 +485,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       {
         ...opts,
         body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json', ...opts.headers },
+        headers: mergeHeaderOptions({ 'Content-Type': 'application/json' }, opts.headers),
       },
       getResponseData,
     );
@@ -644,7 +653,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     ...args: SSEArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, SSEReturn> {
     const [endpoint, params, handler, { validate, ...options } = {}] = args;
-    const opts = { withCredentials: this.#credentials !== 'omit', ...options };
+    const opts = { withCredentials: options?.withCredentials ?? this.#credentials === 'include', ...options };
 
     this.#log(`SSE OPTIONS: ${JSON.stringify(opts, null, 4)}`);
 
@@ -667,6 +676,15 @@ export class RequestClient<Schema extends RequestDefinitions> {
     const opener = new Promise<SafeWrap<Error, SSEReturn>>((resolve) => {
       let resolved = false;
       let timeoutId: Timeout;
+      let connection: SSEClientProviderDefinition | null = null;
+
+      const closeConnection = () => {
+        if (!connection || connection.readyState === connection.CLOSED) {
+          return;
+        }
+
+        connection.close();
+      };
 
       const done = (res: SafeWrap<Error, VoidFunction>) => {
         if (resolved) {
@@ -680,15 +698,18 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       if (opts.timeout) {
         timeoutId = setTimeout(() => {
+          closeConnection();
           done([new TimeoutError(`error timed out opening connection to SSE endpoint: ${url}`), null]);
         }, opts.timeout);
       }
 
-      const [errConnection, connection] = safeWrap(() => new provider(`${this.#baseUrl}/${url}`, opts));
-      if (errConnection) {
+      const [errConnection, createdConnection] = safeWrap(() => new provider(`${this.#baseUrl}/${url}`, opts));
+      if (errConnection || !createdConnection) {
         done([new Error(`error creating new connection for SSE on ${url}`, { cause: errConnection }), null]);
         return;
       }
+
+      connection = createdConnection;
 
       const close = (): void => {
         this.#log(`SSE CLOSE: ${url}`);
@@ -707,6 +728,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       connection.onerror = (event: Event) => {
         if (!resolved) {
+          closeConnection();
           done([new Error(`error opening SSE connection`, { cause: event }), null]);
           return;
         }
@@ -819,12 +841,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
       timeout: retryTimeout,
       log: this.#debug,
       errFn: (err) => {
-        if (isAbortError(err)) {
-          return true;
-        }
-
         if (isTimeoutError(err)) {
           return false;
+        }
+
+        if (isAbortError(err)) {
+          return true;
         }
 
         if (isErrorType(TypeError, err)) {
@@ -840,7 +862,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
           return true;
         }
 
-        if (retryStatusCodes.includes(httpError.response.status) || retryIgnoreStatusCodes.length > 0) {
+        if (retryStatusCodes.includes(httpError.response.status)) {
           return false;
         }
 

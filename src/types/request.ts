@@ -165,6 +165,8 @@ export interface FetchClientProviderDefinition {
   delete: (url: string, options: Omit<FetchOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
   /** Updates default options for the provider. */
   config: (opts: FetchClientOptions) => void;
+  /** Optional lifecycle hook to dispose resources (e.g., keep-alive agents). */
+  dispose?: () => void;
 }
 
 /** Factory signature for constructing HTTP providers. */

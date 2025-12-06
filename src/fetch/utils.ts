@@ -22,7 +22,7 @@ function headerOptionsToObject(h?: HeaderOptions): Record<string, string | undef
 
   const result: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(h)) {
-    if (value === null || value === null) {
+    if (value === undefined || value === null) {
       result[key.toLowerCase()] = undefined;
       continue;
     }

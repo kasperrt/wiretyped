@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Typed HTTP client with error-first ergonomics, caching, retries, SSE, and runtime validation powered by @standard-schema/spec.",
   "type": "module",
   "keywords": [

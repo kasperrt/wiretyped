@@ -1,6 +1,6 @@
 {
   "name": "@kasperrt/wiretyped",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "exports": {
     ".": "./src/index.ts",
     "./core": "./src/core/index.ts",
@@ -12,5 +12,7 @@
     "browser": true,
     "bun": true
   },
-  "exclude": ["scripts/**", "**/*.test.*", "**/*.spec.*", "coverage/**"]
+  "publish": {
+    "include": ["LICENSE", "CONTRIBUTING.md", "README.md", "src/**/*.ts", "package.json"]
+  }
 }
