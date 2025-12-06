@@ -1,7 +1,9 @@
 import { resolve } from 'node:path';
+import { codecovVitePlugin } from '@codecov/vite-plugin';
 import { defineConfig } from 'vite';
 
 const isProd = process.env.NODE_ENV === 'production';
+const enableBundle = process.env.CODECOV_BUNDLE_ANALYSIS === 'true';
 
 export default defineConfig({
   build: {
@@ -33,4 +35,13 @@ export default defineConfig({
     },
     sourcemap: !isProd,
   },
+  plugins: [
+    codecovVitePlugin({
+      enableBundleAnalysis: enableBundle,
+      bundleName: 'wiretyped',
+      oidc: {
+        useGitHubOIDC: true,
+      },
+    }),
+  ],
 });
