@@ -6,7 +6,10 @@ export interface RetryOptions<R> {
   name: string;
   /** Function to execute; must return a tuple-style result. */
   fn: () => SafeWrapAsync<Error, R>;
-  /** Maximum number of attempts before giving up. */
+  /**
+   * Maximum number of retries after the initial attempt (total tries = attempts + 1).
+   * Passing 0 means "try once, then stop."
+   */
   attempts?: number;
   /** Milliseconds to wait between attempts. */
   timeout?: number;

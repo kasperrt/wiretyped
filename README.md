@@ -36,6 +36,7 @@ Typed HTTP client utilities for defining endpoints with [@standard-schema](https
   - [Client options](#client-options)
   - [Request options](#request-options)
   - [Runtime config (optional)](#runtime-config-optional)
+  - [Disposal](#disposal)
   - [Methods](#methods)
     - [GET](#get)
     - [POST](#post)
@@ -186,6 +187,16 @@ client.config({
 ```
 
 The method forwards fetch-related updates to the underlying fetch provider and cache-related updates to the cache client without recreating them, so connections and caches stay intact while defaults change.
+
+## Disposal
+
+`RequestClient` runs a small cleanup interval for the in-memory cache. For short-lived clients (scripts, tests), call `client.dispose()` to clear timers and drop cached entries. If your custom fetch provider exposes `dispose`, it will be called too (useful for cleaning up agents, sockets, etc.).
+
+```ts
+const client = new RequestClient({ /* ... */ });
+// ...use the client...
+client.dispose(); // clears cache timers/state and invokes provider dispose if present
+```
 
 ## Methods
 

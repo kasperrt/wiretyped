@@ -50,6 +50,14 @@ export class FetchClient {
   }
 
   /**
+   * Optional lifecycle hook for parity with FetchClientProviderDefinition.
+   * Included for consumers that expect a dispose method.
+   */
+  public dispose(): void {
+    // No resources to clean up in the default implementation.
+  }
+
+  /**
    * Executes a GET request against the given endpoint.
    *
    * @param endpoint - Relative endpoint path (e.g. `users/123`).

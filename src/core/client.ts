@@ -217,6 +217,15 @@ export class RequestClient<Schema extends RequestDefinitions> {
   }
 
   /**
+   * Disposes resources held by this client (cache timers, pending cache entries).
+   * Invoke when tearing down short-lived clients to avoid leaking intervals.
+   */
+  dispose() {
+    this.#cacheClient.dispose();
+    this.#fetchClient.dispose?.();
+  }
+
+  /**
    * Performs a typed GET request against a configured endpoint.
    *
    * - Builds the URL from endpoint definitions and params.

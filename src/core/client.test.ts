@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
 import { z } from 'zod';
+import { CacheClient } from '../cache/client';
 import { AbortError } from '../error/abortError';
 import { HTTPError } from '../error/httpError';
 import { isErrorType } from '../error/isErrorType';
@@ -33,6 +34,7 @@ MOCK_FETCH_PROVIDER.prototype.put = vi.fn();
 MOCK_FETCH_PROVIDER.prototype.patch = vi.fn();
 MOCK_FETCH_PROVIDER.prototype.delete = vi.fn();
 MOCK_FETCH_PROVIDER.prototype.config = vi.fn();
+MOCK_FETCH_PROVIDER.prototype.dispose = vi.fn();
 
 type MockedSSEClientProvider = MockedFunction<SSEClientProvider>;
 
@@ -179,6 +181,30 @@ describe('RequestClient', () => {
       consoleLogSpy.mockRestore();
       consoleDebugSpy.mockRestore();
       consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe('Lifecycle', () => {
+    test('dispose delegates to cache client and fetch provider if available', () => {
+      const disposeSpy = vi.spyOn(CacheClient.prototype, 'dispose');
+      const fetchDisposeSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'dispose');
+
+      const requestClient = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: defaultEndpoints,
+        validation: true,
+      });
+
+      requestClient.dispose();
+
+      expect(disposeSpy).toHaveBeenCalledTimes(1);
+      expect(fetchDisposeSpy).toHaveBeenCalledTimes(1);
+      disposeSpy.mockRestore();
+      fetchDisposeSpy.mockRestore();
     });
   });
 

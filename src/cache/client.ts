@@ -70,6 +70,17 @@ export class CacheClient {
   }
 
   /**
+   * Disposes the cache client by clearing timers and cached entries.
+   * Useful for short-lived clients to avoid leaking intervals.
+   */
+  public dispose() {
+    clearInterval(this.#intervalId);
+    this.#intervalId = undefined;
+    this.#cache = {};
+    this.#pending = {};
+  }
+
+  /**
    * Add item to cache by provided key
    * @param {string} key - cache key
    * @param {Object} data - cache data
