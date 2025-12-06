@@ -679,11 +679,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       let connection: SSEClientProviderDefinition | null = null;
 
       const closeConnection = () => {
-        if (!connection) {
-          return;
-        }
-
-        if (connection.readyState === connection.CLOSED) {
+        if (!connection || connection.readyState === connection.CLOSED) {
           return;
         }
 

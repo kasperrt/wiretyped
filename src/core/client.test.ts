@@ -3422,6 +3422,73 @@ describe('RequestClient', () => {
       vi.useRealTimers();
     });
 
+    test('sse opener timeout does not attempt to close an already closed connection', async () => {
+      vi.useFakeTimers();
+
+      const LOCAL_SSE_PROVIDER = vi.fn(function (
+        this: SSEClientProviderDefinition,
+        url: string | URL,
+        init?: SSEClientSourceInit,
+      ) {
+        Object.defineProperties(this, {
+          url: {
+            value: typeof url === 'string' ? url : url.toString(),
+            writable: false,
+          },
+          withCredentials: {
+            value: init?.withCredentials ?? true,
+            writable: false,
+          },
+          readyState: { value: 2, writable: true }, // CLOSED
+          CLOSED: { value: 2, writable: false },
+          CONNECTING: { value: 0, writable: false },
+          OPEN: { value: 1, writable: false },
+        });
+
+        this.onopen = null;
+        this.onmessage = null;
+        this.onerror = null;
+
+        this.close = vi.fn();
+        this.addEventListener = vi.fn();
+        this.removeEventListener = vi.fn();
+        this.dispatchEvent = vi.fn().mockReturnValue(true);
+      }) as unknown as MockedSSEClientProvider;
+
+      const handler = vi.fn();
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        sseProvider: LOCAL_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: false,
+      });
+
+      const ssePromise = client.sse('/api/my-sse', null, handler, { timeout: 1000 });
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await vi.waitFor(() => {
+        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
+      });
+
+      const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
+      expect(instance.readyState).toBe(instance.CLOSED);
+
+      const [err, close] = await ssePromise;
+
+      expect(isTimeoutError(err)).toBe(true);
+      expect(close).toBeNull();
+      expect(instance.close).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+
+
     test('sse() returns error when new is run', async () => {
       vi.useFakeTimers();
       const LOCAL_SSE_PROVIDER = vi.fn(function (
