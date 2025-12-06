@@ -67,7 +67,8 @@
     "smoke:node": "node scripts/smoke-node.mjs",
     "smoke:types": "pnpm exec tsc -p scripts/types-smoke/tsconfig.json",
     "smoke:worker": "node scripts/smoke-worker.mjs",
-    "test": "vitest run --no-isolate --no-file-parallelism",
+    "test": "pnpm test:integrations && pnpm test:e2e",
+    "test:integrations": "vitest run --no-isolate --no-file-parallelism",
     "test:e2e": "vitest run --config ./e2e/vitest.e2e.config.ts --no-isolate --no-file-parallelism",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"
