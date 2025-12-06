@@ -102,13 +102,13 @@ console.log(user.name);
 Prefer a single import? The root export works too:
 
 ```ts
-import { RequestClient, type RequestDefinitions, z } from 'wiretyped';
+import { RequestClient, type RequestDefinitions } from 'wiretyped';
 ```
 
 ## Imports
 
-- Root: `import { RequestClient, z, ...errors } from 'wiretyped'`
-- Subpath: `import { RequestClient, z } from 'wiretyped/core'`
+- Root: `import { RequestClient,  ...errors } from 'wiretyped'`
+- Subpath: `import { RequestClient } from 'wiretyped/core'`
 - Errors-only: `import { HTTPError, unwrapErrorType, ... } from 'wiretyped/error'`
 
 ## Client options
