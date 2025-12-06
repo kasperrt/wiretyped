@@ -1,4 +1,4 @@
-import { CacheClient, type CacheClientOptions } from '../cache/client';
+import { CacheClient } from '../cache/client';
 import { getHttpError, HTTPError, isAbortError, isErrorType, isTimeoutError, TimeoutError } from '../error';
 import { FetchClient } from '../fetch/client';
 import { mergeHeaderOptions } from '../fetch/utils';
@@ -9,7 +9,6 @@ import type {
   FetchOptions,
   FetchResponse,
   HeaderOptions,
-  Options,
   RequestOptions,
   StatusCode,
 } from '../types/request';
@@ -47,8 +46,8 @@ import type {
   UrlEndpoint,
 } from './types';
 
-/** Configuration for constructing a typed {@link RequestClient}. */
-export interface RequestClientProps<Schema extends RequestDefinitions> {
+/** Configuration for constructing a typed {@link RequestClient}, extends {@link Config}. */
+export interface RequestClientProps<Schema extends RequestDefinitions> extends Config {
   /** HTTP client implementation used for regular requests. Defaults to {@link FetchClient}. */
   fetchProvider?: FetchClientProvider;
   /** SSE client implementation used for server-sent events. Defaults to {@link EventSource}. */
@@ -57,10 +56,6 @@ export interface RequestClientProps<Schema extends RequestDefinitions> {
   baseUrl: string;
   /** Absolute hostname used to build urls (e.g. `https://api.example.com`) */
   hostname: string;
-  /** Optional cache configuration for GET requests. {@link CacheClientOptions} */
-  cacheOpts?: CacheClientOptions;
-  /** Optional fetch configuration, including request-level defaults (timeouts, retry). */
-  fetchOpts?: Omit<Options, 'signal' | 'cacheRequest' | 'cacheTimeToLive'>;
   /**
    * Whether to log debug information to the console.
    * @default false

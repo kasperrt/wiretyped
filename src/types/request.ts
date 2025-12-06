@@ -147,7 +147,9 @@ export type Options = Pick<FetchOptions, 'credentials' | 'headers' | 'mode' | 's
  * - `cacheOpts`: cache defaults for GET requests.
  */
 export interface Config {
+  /** Optional fetch configuration, including request-level defaults (timeouts, retry). */
   fetchOpts?: Omit<Options, 'signal' | 'cacheRequest' | 'cacheTimeToLive'>;
+  /** Optional cache configuration for GET requests. {@link CacheClientOptions} */
   cacheOpts?: CacheClientOptions;
 }
 
