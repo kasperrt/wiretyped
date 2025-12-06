@@ -13,6 +13,6 @@
     "bun": true
   },
   "publish": {
-    "include": ["LICENSE", "README.md", "src/**/*.ts"]
+    "include": ["LICENSE", "README.md", "src/**/*.ts", "package.json"]
   }
 }
