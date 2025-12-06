@@ -12,5 +12,5 @@
     "browser": true,
     "bun": true
   },
-  "exclude": ["scripts/**", "**/*.test.*", "**/*.spec.*", "coverage/**"]
+  "exclude": ["scripts/**", "**/*.test.*", "**/*.spec.*", "coverage/**", "e2e/**"]
 }
