@@ -3,7 +3,7 @@ import { codecovVitePlugin } from '@codecov/vite-plugin';
 import { defineConfig } from 'vite';
 
 const isProd = process.env.NODE_ENV === 'production';
-const isGitHubActions = process.env.GITHUB_ACTIONS === "true";
+const isGitHubActions = process.env.GITHUB_ACTIONS === 'true';
 
 export default defineConfig({
   build: {
@@ -42,6 +42,6 @@ export default defineConfig({
       oidc: {
         useGitHubOIDC: true,
       },
-    })
+    }),
   ],
 });
