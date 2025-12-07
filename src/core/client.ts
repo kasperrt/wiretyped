@@ -46,15 +46,25 @@ import type {
   UrlEndpoint,
 } from './types';
 
-/** Configuration for constructing a typed {@link RequestClient}, extends {@link Config}. */
+/**
+ * Configuration for constructing a typed {@link RequestClient}, extends {@link Config}.
+ */
 export interface RequestClientProps<Schema extends RequestDefinitions> extends Config {
-  /** HTTP client implementation used for regular requests. Defaults to {@link FetchClient}. */
+  /**
+   * HTTP client implementation used for regular requests. Defaults to {@link FetchClient}.
+   */
   fetchProvider?: FetchClientProvider;
-  /** SSE client implementation used for server-sent events. Defaults to {@link EventSource}. */
+  /**
+   * SSE client implementation used for server-sent events. Defaults to {@link EventSource}.
+   */
   sseProvider?: SSEClientProvider;
-  /** Base URL used when constructing request URLs (e.g. `https://api.example.com/`). */
+  /**
+   * Base URL used when constructing request URLs (e.g. `https://api.example.com/`).
+   */
   baseUrl: string;
-  /** Absolute hostname used to build urls (e.g. `https://api.example.com`) */
+  /**
+   * Absolute hostname used to build urls (e.g. `https://api.example.com`)
+   */
   hostname: string;
   /**
    * Whether to log debug information to the console.
@@ -88,31 +98,57 @@ export interface RequestClientProps<Schema extends RequestDefinitions> extends C
  * @typeParam Schema - The map of endpoint definitions available to the client.
  */
 export class RequestClient<Schema extends RequestDefinitions> {
-  /** Underlying fetch-capable HTTP provider instance. */
+  /**
+   * Underlying fetch-capable HTTP provider instance.
+   */
   #fetchClient: FetchClientProviderDefinition;
-  /** SSE client provider instance used for streaming endpoints. */
+  /**
+   * SSE client provider instance used for streaming endpoints.
+   */
   #sseClient?: SSEClientProvider | null;
-  /** In-memory cache for GET requests. */
+  /**
+   * In-memory cache for GET requests.
+   */
   #cacheClient: CacheClient;
-  /** Default request-level options (timeout, retry). */
+  /**
+   * Default request-level options (timeout, retry).
+   */
   #requestOpts: RequestOptions;
-  /** Default HTTP status codes to retry on when unspecified. */
+  /**
+   * Default HTTP status codes to retry on when unspecified.
+   */
   #defaultRetryCodes: StatusCode[] = [408, 429, 500, 501, 502, 503, 504];
-  /** Default request timeout in milliseconds. */
+  /**
+   * Default request timeout in milliseconds.
+   */
   #defaultTimeout = 60_000;
-  /** When true, emits debug logging. */
+  /**
+   * When true, emits debug logging.
+   */
   #debug = false;
-  /** Base URL prefix applied to all endpoints. */
+  /**
+   * Base URL prefix applied to all endpoints.
+   */
   #baseUrl: string;
-  /** Absolute hostname used to build URLs. */
+  /**
+   * Absolute hostname used to build URLs.
+   */
   #hostname: string;
-  /** Endpoint schema definitions for this client. */
+  /**
+   * Endpoint schema definitions for this client.
+   */
   #endpoints: Schema;
-  /** Global validation flag controlling request/response validation. */
+  /**
+   * Global validation flag controlling request/response validation.
+   */
   #validation: boolean;
-  /** Credentials policy passed through to requests/SSE where applicable. */
+  /**
+   * Credentials policy passed through to requests/SSE where applicable.
+   */
   #credentials?: RequestCredentials;
-  /** Default headers applied to every request (merged with per-call headers). */
+  /**
+   * Default headers applied to every request (merged with per-call headers).
+   */
   #defaultHeaders: HeaderOptions;
 
   /**

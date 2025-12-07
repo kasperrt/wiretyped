@@ -1,9 +1,13 @@
-/** Tuple-based result used throughout the client, `[error, data]`. */
+/**
+ * Tuple-based result used throughout the client, `[error, data]`.
+ */
 export type SafeWrap<ErrorType = Error, DataType = unknown> =
   | [error: ErrorType, data: null]
   | [error: null, data: DataType];
 
-/** Async variant of {@link SafeWrap}. */
+/**
+ * Async variant of {@link SafeWrap}.
+ */
 export type SafeWrapAsync<ErrorType = Error, DataType = unknown> = Promise<SafeWrap<ErrorType, DataType>>;
 
 /**
@@ -22,7 +26,9 @@ export async function safeWrapAsync<ErrorType = Error, DataType = unknown>(
   }
 }
 
-/** Wrap a synchronous function in a tuple-style result. */
+/**
+ * Wrap a synchronous function in a tuple-style result.
+ */
 export function safeWrap<ErrorType = Error, DataType = unknown>(fn: () => DataType): SafeWrap<ErrorType, DataType> {
   try {
     const data = fn();

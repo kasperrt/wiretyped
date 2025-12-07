@@ -3,7 +3,9 @@ import type { FetchOptions, FetchResponse } from '../types/request';
 import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap';
 import { mergeHeaderOptions } from './utils';
 
-/** Options to configure the {@link FetchClient} wrapper. */
+/**
+ * Options to configure the {@link FetchClient} wrapper.
+ */
 export interface FetchClientOptions extends Pick<FetchOptions, 'headers'> {
   /**
    * Fetch credentials mode.
@@ -23,12 +25,18 @@ export interface FetchClientOptions extends Pick<FetchOptions, 'headers'> {
  * - returns error-first tuples via {@link SafeWrapAsync}.
  */
 export class FetchClient {
-  /** Base URL prepended to all request paths. */
+  /**
+   * Base URL prepended to all request paths.
+   */
   #baseUrl: string;
-  /** Default fetch options (headers, credentials, mode). */
+  /**
+   * Default fetch options (headers, credentials, mode).
+   */
   #opts: FetchClientOptions;
 
-  /** Creates a new instance of the fetch-client, with a base-url + options */
+  /**
+   * Creates a new instance of the fetch-client, with a base-url + options
+   */
   constructor(baseUrl: string, opts?: FetchClientOptions) {
     if (!baseUrl.endsWith('/')) {
       baseUrl += '/';

@@ -4,7 +4,9 @@
  * @module
  */
 
-/** Configuration for constructing a typed {@link RequestClient}, extends {@link Config}. */
+/**
+ * Configuration for constructing a typed {@link RequestClient}, extends {@link Config}.
+ */
 export type { RequestClientProps } from './client';
 
 /**

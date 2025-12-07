@@ -1,7 +1,9 @@
 import type { Interval } from '../utils/timeout';
 import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap';
 
-/** Options for cache-client */
+/**
+ * Options for cache-client
+ */
 export interface CacheClientOptions {
   /**
    * Cache time to live.
@@ -15,7 +17,9 @@ export interface CacheClientOptions {
   cleanupInterval?: number;
 }
 
-/** Internal cache entry tracking data and expiration. */
+/**
+ * Internal cache entry tracking data and expiration.
+ */
 interface CacheItem<T = unknown> {
   key: string;
   data: T;

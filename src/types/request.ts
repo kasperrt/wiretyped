@@ -2,10 +2,14 @@ import type { CacheClientOptions } from '../cache/client';
 import type { FetchClientOptions } from '../fetch/client';
 import type { SafeWrapAsync } from '../utils/wrap';
 
-/** Header options accepted by the fetch wrapper. */
+/**
+ * Header options accepted by the fetch wrapper.
+ */
 export type HeaderOptions = NonNullable<RequestInit['headers']> | Record<string, string | null>;
 
-/** Subset of HTTP status codes used for retry logic. */
+/**
+ * Subset of HTTP status codes used for retry logic.
+ */
 export type StatusCode =
   | 100
   | 101
@@ -71,21 +75,33 @@ export type StatusCode =
   | 510
   | 511;
 
-/** Options to pass in for each fetch request */
+/**
+ * Options to pass in for each fetch request
+ */
 export interface FetchOptions extends Omit<RequestInit, 'headers'> {
-  /** Headers merged with provider defaults. */
+  /**
+   * Headers merged with provider defaults.
+   */
   headers?: HeaderOptions;
-  /** Abort signal to cancel the request. */
+  /**
+   * Abort signal to cancel the request.
+   */
   signal?: AbortSignal;
 }
 
-/** Fetch response with a narrowed status code union. */
+/**
+ * Fetch response with a narrowed status code union.
+ */
 export interface FetchResponse extends Response {
-  /** "Strong" type of status-codes {@link StatusCode} */
+  /**
+   * "Strong" type of status-codes {@link StatusCode}
+   */
   status: StatusCode;
 }
 
-/** Options for retry logic and standard */
+/**
+ * Options for retry logic and standard
+ */
 export type RetryOptions = {
   /**
    * The number of times to retry failed requests.
@@ -114,7 +130,9 @@ export type RetryOptions = {
     }
 );
 
-/** Request-level options that sit above the raw fetch options. */
+/**
+ * Request-level options that sit above the raw fetch options.
+ */
 export interface RequestOptions {
   /**
    * Whether request should be cached or not internally
@@ -134,11 +152,15 @@ export interface RequestOptions {
    * @default 60000
    */
   timeout?: number | false;
-  /** Retry behavior (object for fine-grained control or number for attempt count). */
+  /**
+   * Retry behavior (object for fine-grained control or number for attempt count).
+   */
   retry?: RetryOptions | number;
 }
 
-/** Common request options including cache and validation controls. */
+/**
+ * Common request options including cache and validation controls.
+ */
 export type Options = Pick<FetchOptions, 'credentials' | 'headers' | 'mode' | 'signal'> & RequestOptions;
 
 /**
@@ -147,32 +169,56 @@ export type Options = Pick<FetchOptions, 'credentials' | 'headers' | 'mode' | 's
  * - `cacheOpts`: cache defaults for GET requests.
  */
 export interface Config {
-  /** Optional fetch configuration, including request-level defaults (timeouts, retry). */
+  /**
+   * Optional fetch configuration, including request-level defaults (timeouts, retry).
+   */
   fetchOpts?: Omit<Options, 'signal' | 'cacheRequest' | 'cacheTimeToLive'>;
-  /** Optional cache configuration for GET requests. {@link CacheClientOptions} */
+  /**
+   * Optional cache configuration for GET requests. {@link CacheClientOptions}
+   */
   cacheOpts?: CacheClientOptions;
 }
 
-/** Contract for HTTP client implementations used by RequestClient. */
+/**
+ * Contract for HTTP client implementations used by RequestClient.
+ */
 export interface FetchClientProviderDefinition {
-  /** Executes a GET request. */
+  /**
+   * Executes a GET request.
+   */
   get: (url: string, options: Omit<FetchOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
-  /** Executes a PUT request. */
+  /**
+   * Executes a PUT request.
+   */
   put: (url: string, options: Omit<FetchOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
-  /** Executes a PATCH request. */
+  /**
+   * Executes a PATCH request.
+   */
   patch: (url: string, options: Omit<FetchOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
-  /** Executes a POST request. */
+  /**
+   * Executes a POST request.
+   */
   post: (url: string, options: Omit<FetchOptions, 'method'>) => SafeWrapAsync<Error, FetchResponse>;
-  /** Executes a DELETE request. */
+  /**
+   * Executes a DELETE request.
+   */
   delete: (url: string, options: Omit<FetchOptions, 'method' | 'body'>) => SafeWrapAsync<Error, FetchResponse>;
-  /** Updates default options for the provider. */
+  /**
+   * Updates default options for the provider.
+   */
   config: (opts: FetchClientOptions) => void;
-  /** Optional lifecycle hook to dispose resources (e.g., keep-alive agents). */
+  /**
+   * Optional lifecycle hook to dispose resources (e.g., keep-alive agents).
+   */
   dispose?: () => void;
 }
 
-/** Factory signature for constructing HTTP providers. */
+/**
+ * Factory signature for constructing HTTP providers.
+ */
 export interface FetchClientProvider {
-  /** Creates a new instance of the fetch-client, with a base-url + options */
+  /**
+   * Creates a new instance of the fetch-client, with a base-url + options
+   */
   new (baseUrl: string, opts: FetchClientOptions): FetchClientProviderDefinition;
 }

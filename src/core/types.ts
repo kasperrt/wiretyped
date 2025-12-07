@@ -3,18 +3,28 @@ import type { Options } from '../types/request';
 import type { SSEClientSourceInit } from '../types/sse';
 import type { SafeWrap } from '../utils/wrap';
 
-/** Schema for unknown input, any output, used to easier infer data */
+/**
+ * Schema for unknown input, any output, used to easier infer data
+ */
 // biome-ignore lint/suspicious/noExplicitAny: This is used for inferrence, and requires any so inference works as it should
 export type SchemaType = StandardSchemaV1<unknown, any>;
-/** Schema representing string */
+/**
+ * Schema representing string
+ */
 export type SchemaString = StandardSchemaV1<string, string>;
-/** Empty object definition */
+/**
+ * Empty object definition
+ */
 export type EmptyObject = Record<never, never>;
 
-/** Make a subset of keys required while keeping the rest intact. */
+/**
+ * Make a subset of keys required while keeping the rest intact.
+ */
 export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
 
-/** Enforce at least one property to be present on a type. */
+/**
+ * Enforce at least one property to be present on a type.
+ */
 export type RequireAtLeastOne<T> = {
   [K in keyof T]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<keyof T, K>>>;
 }[keyof T];
@@ -24,7 +34,9 @@ export type RequireAtLeastOne<T> = {
  */
 export type EmptyishObject<T> = [keyof T] extends [never] ? null : T;
 
-/** Allowed HTTP methods supported by the client. */
+/**
+ * Allowed HTTP methods supported by the client.
+ */
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'download' | 'url' | 'sse';
 
 /**
@@ -46,12 +58,16 @@ export type RequestDefinitions = {
   }>;
 };
 
-/** Parse `{param}` segments from a path template into a typed object. */
+/**
+ * Parse `{param}` segments from a path template into a typed object.
+ */
 export type ParsePathParams<Path extends string | number> = Path extends `${infer _Start}{${infer Param}}${infer Rest}`
   ? { [K in Param]: string | number } & ParsePathParams<Rest>
   : EmptyObject;
 
-/** Extract endpoints that support a given HTTP method. */
+/**
+ * Extract endpoints that support a given HTTP method.
+ */
 export type EndpointsWithMethod<Method extends HttpMethod, Schema extends RequestDefinitions> = {
   [K in keyof Schema]: Schema[K] extends Record<Method, unknown> ? K : never;
 }[keyof Schema];
@@ -66,7 +82,9 @@ export type ResponseType<
   Method extends keyof Schema[Endpoint],
 > = Schema[Endpoint][Method] extends { response: infer S extends SchemaType } ? StandardSchemaV1.InferOutput<S> : never;
 
-/** Typed request body for an endpoint/method (falls back to record for non-schematized). */
+/**
+ * Typed request body for an endpoint/method (falls back to record for non-schematized).
+ */
 export type RequestType<
   Schema,
   Endpoint extends keyof Schema,
@@ -75,7 +93,9 @@ export type RequestType<
   ? StandardSchemaV1.InferOutput<S>
   : Record<string, string>;
 
-/** Typed query params via `$search` if present. */
+/**
+ * Typed query params via `$search` if present.
+ */
 export type SearchType<
   Schema,
   Endpoint extends keyof Schema,
@@ -84,7 +104,9 @@ export type SearchType<
   ? { $search: StandardSchemaV1.InferOutput<Schema[Endpoint][Method]['$search']> }
   : EmptyObject;
 
-/** Typed path params via `$path` if present */
+/**
+ * Typed path params via `$path` if present
+ */
 export type PathParametersType<
   Schema,
   Endpoint extends keyof Schema,
@@ -93,7 +115,9 @@ export type PathParametersType<
   ? { $path: StandardSchemaV1.InferOutput<S> }
   : Record<never, never>;
 
-/** Extract `$path` keys from schema for substitution. */
+/**
+ * Extract `$path` keys from schema for substitution.
+ */
 export type PathKeys<
   Schema,
   Endpoint extends keyof Schema,
@@ -102,7 +126,9 @@ export type PathKeys<
   ? keyof StandardSchemaV1.InferOutput<S>
   : never;
 
-/** Combined params object (path + query) expected by client methods. */
+/**
+ * Combined params object (path + query) expected by client methods.
+ */
 export type Params<
   Schema extends RequestDefinitions,
   Endpoint extends keyof RequestDefinitions & string,
@@ -114,21 +140,37 @@ export type Params<
     PathParametersType<Schema, Endpoint, Method>
 >;
 
-/** Endpoint keys that expose an SSE handler. */
+/**
+ * Endpoint keys that expose an SSE handler.
+ */
 export type SSEEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'sse', Schema>;
-/** Explicitly typed GET endpoints. */
+/**
+ * Explicitly typed GET endpoints.
+ */
 export type GetEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'get', Schema>;
-/** Explicitly typed POST endpoints. */
+/**
+ * Explicitly typed POST endpoints.
+ */
 export type PostEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'post', Schema>;
-/** Explicitly typed PUT endpoints. */
+/**
+ * Explicitly typed PUT endpoints.
+ */
 export type PutEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'put', Schema>;
-/** Explicitly typed PATCH endpoints. */
+/**
+ * Explicitly typed PATCH endpoints.
+ */
 export type PatchEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'patch', Schema>;
-/** Explicitly typed DELETE endpoints. */
+/**
+ * Explicitly typed DELETE endpoints.
+ */
 export type DeleteEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'delete', Schema>;
-/** Explicitly typed DOWNLOAD endpoints. */
+/**
+ * Explicitly typed DOWNLOAD endpoints.
+ */
 export type DownloadEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'download', Schema>;
-/** Explicitly typed URL builder endpoints. */
+/**
+ * Explicitly typed URL builder endpoints.
+ */
 export type UrlEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'url', Schema>;
 
 /**
@@ -207,42 +249,54 @@ export type UrlArgs<Schema extends RequestDefinitions, Endpoint extends UrlEndpo
   options?: Pick<Options, 'validate'>,
 ];
 
-/** Typed return-type for get function */
+/**
+ * Typed return-type for get function
+ */
 export type GetReturn<Schema extends RequestDefinitions, T extends GetEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'get'
 >;
 
-/** Typed return-type for post function */
+/**
+ * Typed return-type for post function
+ */
 export type PostReturn<Schema extends RequestDefinitions, T extends PostEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'post'
 >;
 
-/** Typed return-type for put function */
+/**
+ * Typed return-type for put function
+ */
 export type PutReturn<Schema extends RequestDefinitions, T extends PutEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'put'
 >;
 
-/** Typed return-type for patch function */
+/**
+ * Typed return-type for patch function
+ */
 export type PatchReturn<Schema extends RequestDefinitions, T extends PatchEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'patch'
 >;
 
-/** Typed return-type for delete function */
+/**
+ * Typed return-type for delete function
+ */
 export type DeleteReturn<Schema extends RequestDefinitions, T extends DeleteEndpoint<Schema>> = ResponseType<
   Schema,
   T,
   'delete'
 >;
 
-/** Typed return-type for URL builder */
+/**
+ * Typed return-type for URL builder
+ */
 export type UrlReturn<Schema extends RequestDefinitions, T extends UrlEndpoint<Schema>> = ResponseType<
   Schema,
   T,
@@ -258,5 +312,7 @@ export type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoi
   'sse'
 >;
 
-/** Function returned from `sse` requests that closes the stream. */
+/**
+ * Function returned from `sse` requests that closes the stream.
+ */
 export type SSEReturn = () => void;
