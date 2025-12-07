@@ -14,9 +14,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  ci:
+    if: github.repository == 'kasperrt/wiretyped'
+    uses: ./.github/workflows/ci.yml
+
   publish:
     # Extra belt-and-suspenders guard
     if: github.repository == 'kasperrt/wiretyped'
+    needs: [ci]
     runs-on: ubuntu-latest
 
     steps:
