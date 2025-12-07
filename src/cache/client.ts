@@ -15,6 +15,7 @@ export interface CacheClientOptions {
   cleanupInterval?: number;
 }
 
+/** Internal cache entry tracking data and expiration. */
 interface CacheItem<T = unknown> {
   key: string;
   data: T;
