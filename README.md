@@ -504,7 +504,7 @@ Publishing is automated via GitHub Actions on tags (`v*`). Keep versions in sync
 - JSR: `jsr.json` `version`
 - Trigger: push a tag `vX.Y.Z` matching `package.json` `version`
 
-CI will build, smoke-test, and publish to npm and JSR if the version isn’t already published.
+CI will build, smoke-test, and publish to npm and JSR if the version isn’t already published. Auto-tagging should happen on new versions pushed to main.
 
 ## Scripts
 
