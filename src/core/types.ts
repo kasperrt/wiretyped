@@ -3,6 +3,7 @@ import type { Options } from '../types/request';
 import type { SSEClientSourceInit } from '../types/sse';
 import type { SafeWrap } from '../utils/wrap';
 
+// biome-ignore lint/suspicious/noExplicitAny: This is used for inferrence, and requires any so inference works as it should
 /**
  * Schema for unknown input, any output, used to easier infer data
  */
