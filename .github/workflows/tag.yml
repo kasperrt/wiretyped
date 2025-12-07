@@ -1,0 +1,74 @@
+name: Auto tag on version bump
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "jsr.json"
+      - "package.json"
+
+permissions:
+  contents: write
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  tag:
+    if: github.repository == 'kasperrt/wiretyped'
+    needs: [ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read and validate versions
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          JSR_VERSION="$(jq -r '.version // empty' jsr.json)"
+          PKG_VERSION="$(jq -r '.version // empty' package.json)"
+
+          if [ -z "$JSR_VERSION" ] || [ -z "$PKG_VERSION" ]; then
+            echo "ERROR: Missing version in jsr.json or package.json"
+            exit 1
+          fi
+
+          if [ "$JSR_VERSION" != "$PKG_VERSION" ]; then
+            echo "ERROR: Version mismatch!"
+            echo "  jsr.json     : $JSR_VERSION"
+            echo "  package.json : $PKG_VERSION"
+            exit 1
+          fi
+
+          echo "tag=v$JSR_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag exists
+        id: exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+          git fetch --tags
+
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.exists.outputs.exists == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
