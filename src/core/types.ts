@@ -5,8 +5,8 @@ import type { SafeWrap } from '../utils/wrap';
 
 /**
  * Schema for unknown input, any output, used to easier infer data
- */
-export type SchemaType = StandardSchemaV1<unknown, any>; // biome-ignore lint/suspicious/noExplicitAny: This is used for inferrence, and requires any so inference works as it should
+ */ // biome-ignore lint/suspicious/noExplicitAny: This is used for inferrence, and requires any so inference works as it should
+export type SchemaType = StandardSchemaV1<unknown, any>; 
 
 /**
  * Schema representing string
