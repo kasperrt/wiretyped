@@ -1,5 +1,5 @@
 {
-  "name": "@kasperrt/wiretyped",
+  "name": "@kasperrt/wiretyped-canary",
   "version": "0.2.1",
   "exports": {
     ".": "./src/index.ts",

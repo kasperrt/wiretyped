@@ -4,21 +4,38 @@
  * @module
  */
 
-/** Error thrown when a request is aborted via AbortController. */
-/** Type guard that checks if an error is an {@link AbortError}. */
-export { AbortError, isAbortError } from './abortError';
-/** Error representing a non-2xx HTTP response. */
-/** Extracts an {@link HTTPError} from an unknown error value. */
-/** Type guard that checks if an error is an {@link HTTPError}. */
-export { getHttpError, HTTPError, isHttpError } from './httpError';
-/** Generic type guard that matches an error constructor against an unknown error. */
+/** Error raised when a request is intentionally aborted (e.g., via AbortController). */
+export { AbortError } from './abortError';
+
+/** Type guard for {@link AbortError}. */
+export { isAbortError } from './abortError';
+
+/** Error representing an HTTP response with a non-2xx status code. */
+export { HTTPError } from './httpError';
+
+/** Extract an {@link HTTPError} from an unknown error value, following nested causes. */
+export { getHttpError } from './httpError';
+
+/** Type guard for {@link HTTPError}. */
+export { isHttpError } from './httpError';
+
+/** Generic type guard to check if an unknown error matches a specific error class. */
 export { isErrorType } from './isErrorType';
-/** Error thrown when a request exceeds the configured timeout. */
-/** Type guard that checks if an error is a {@link TimeoutError}. */
-export { isTimeoutError, TimeoutError } from './timeoutError';
-/** Recursively unwraps nested causes to find a specific error class. */
+
+/** Error raised when a request exceeds the configured timeout threshold. */
+export { TimeoutError } from './timeoutError';
+
+/** Type guard for {@link TimeoutError}. */
+export { isTimeoutError } from './timeoutError';
+
+/** Extract a specific error type from an unknown error value, following nested causes. */
 export { unwrapErrorType } from './unwrapErrorType';
-/** Error thrown when validation of payloads fails. */
-/** Type guard that checks if an error is a {@link ValidationError}. */
-/** Extracts a {@link ValidationError} from an unknown error value. */
-export { getValidationError, isValidationError, ValidationError } from './validationError';
+
+/** Error representing a validation error when validating with @standard-schema */
+export { ValidationError } from './validationError';
+
+/** Type guard for {@link ValidationError}. */
+export { isValidationError } from './validationError';
+
+/** Extract an {@link ValidationError} from an unknown error value, following nested causes. */
+export { getValidationError } from './validationError';

@@ -1,5 +1,5 @@
-#!/bin/sh
-set -euo pipefail
+#!/usr/bin/env bash
+set -e
 
 pnpm exec biome lint --write &
 lint_pid=$!
