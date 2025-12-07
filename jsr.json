@@ -12,8 +12,9 @@
     "browser": true,
     "bun": true
   },
+  "license": "MIT",
   "publish": {
-    "include": ["LICENSE", "CONTRIBUTING.md", "README.md", "src/**/*.ts", "package.json"],
+    "include": ["src/**/*.ts"],
     "exclude": ["**/*.test.ts"]
   }
 }
