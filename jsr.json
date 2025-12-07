@@ -1,6 +1,6 @@
 {
   "name": "@kasperrt/wiretyped-canary",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "exports": {
     ".": "./src/index.ts",
     "./core": "./src/core/index.ts",
@@ -14,7 +14,7 @@
   },
   "license": "MIT",
   "publish": {
-    "include": ["src/**/*.ts"],
+    "include": ["README.md", "src/**/*.ts", "package.json"],
     "exclude": ["**/*.test.ts"]
   }
 }
