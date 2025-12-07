@@ -28,8 +28,16 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Check doc coverage (exports are documented)
+        run: bash scripts/check-doc-coverage.sh
 
       - name: Lint
         run: pnpm run check:lint

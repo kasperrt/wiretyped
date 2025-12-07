@@ -4,7 +4,6 @@
  * @module
  */
 
-
 /**
  * Constructor options accepted by {@link RequestClient}.
  */
