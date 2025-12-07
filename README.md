@@ -108,9 +108,8 @@ import { RequestClient, type RequestDefinitions } from 'wiretyped';
 
 ## Imports
 
-- Root: `import { RequestClient,  ...errors } from 'wiretyped'`
-- Subpath: `import { RequestClient } from 'wiretyped/core'`
-- Errors-only: `import { HTTPError, unwrapErrorType, ... } from 'wiretyped/error'`
+- Single entrypoint: `import { RequestClient, ...errors } from 'wiretyped'`
+- For Deno/JSR: use only the root (`import { RequestClient } from "jsr:@kasperrt/wiretyped"`); subpaths are npm-only and no longer exported.
 
 ## Client options
 
@@ -421,8 +420,8 @@ if (err) {
 ## Exposed entrypoints
 
 - Root import (client, types, errors): `wiretyped`
-- Core client and types: `wiretyped/core`
-- Error helpers: `wiretyped/error`
+- Core client and types: `wiretyped/core` *(npm only; use the root export on JSR)*
+- Error helpers: `wiretyped/error` *(npm only; use the root export on JSR)*
 
 ## Providers
 

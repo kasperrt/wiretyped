@@ -4,6 +4,10 @@
  * @module
  */
 
+
+/**
+ * Constructor options accepted by {@link RequestClient}.
+ */
 export type { RequestClientProps } from './client';
 
 /**
