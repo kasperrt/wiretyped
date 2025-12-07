@@ -4,7 +4,6 @@
  * @module
  */
 
-
 export type { RequestClientProps } from './client';
 
 /**

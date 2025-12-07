@@ -13,6 +13,6 @@
   "license": "MIT",
   "publish": {
     "include": ["README.md", "src/**/*.ts", "package.json"],
-    "exclude": ["**/*.test.ts", "src/error/index.ts", "src/core/index.ts"]
+    "exclude": ["**/*.test.ts"]
   }
 }
