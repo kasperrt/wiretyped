@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.2.2",
+  "version": "0.2.3-rc-1",
   "description": "Typed HTTP client with error-first ergonomics, caching, retries, SSE, and runtime validation powered by @standard-schema/spec.",
   "type": "module",
   "keywords": [
@@ -19,28 +19,46 @@
   ],
   "author": "Kasper Rynning-Tønnesen <kasperrt@users.noreply.github.com> (https://github.com/kasperrt)",
   "license": "MIT",
-  "repository": "https://github.com/kasperrt/wiretyped",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kasperrt/wiretyped"
+  },
   "packageManager": "pnpm@10.20.0",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
-  "types": "./dist/types/index.d.ts",
+  "types": "./dist/types/index.d.mts",
   "sideEffects": false,
   "files": ["dist"],
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/types/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./core": {
-      "types": "./dist/types/core/index.d.ts",
-      "import": "./dist/core.mjs",
-      "require": "./dist/core.cjs"
+      "import": {
+        "types": "./dist/types/core/index.d.mts",
+        "default": "./dist/core.mjs"
+      },
+      "require": {
+        "types": "./dist/types/core/index.d.cts",
+        "default": "./dist/core.cjs"
+      }
     },
     "./error": {
-      "types": "./dist/types/error/index.d.ts",
-      "import": "./dist/error.mjs",
-      "require": "./dist/error.cjs"
+      "import": {
+        "types": "./dist/types/error/index.d.mts",
+        "default": "./dist/error.mjs"
+      },
+      "require": {
+        "types": "./dist/types/error/index.d.cts",
+        "default": "./dist/error.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
@@ -49,7 +67,7 @@
   },
   "scripts": {
     "build": "vite build && pnpm run build:types",
-    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
+    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly && node scripts/generate-cts-types.mjs",
     "check": "pnpm check:lint && pnpm check:format && pnpm check:ts",
     "check:format": "pnpm exec biome format --error-on-warnings",
     "check:lint": "pnpm exec biome lint --error-on-warnings",
@@ -60,10 +78,13 @@
     "fix:lint": "pnpm exec biome lint --write",
     "prepare": "pnpm exec simple-git-hooks",
     "prepublishOnly": "pnpm check && pnpm run test && pnpm run build",
-    "smoke:build": "pnpm run build && pnpm run smoke",
     "smoke:bun": "bun run scripts/smoke-bun.ts",
     "smoke:deno": "deno run --allow-read scripts/smoke-deno.ts",
     "smoke:browser": "node scripts/smoke-browser.mjs",
+    "smoke:entrypoints": "node scripts/smoke-entrypoints.mjs",
+    "smoke:dts": "node scripts/smoke-dts.mjs",
+    "smoke:resolve": "node scripts/smoke-resolve.mjs",
+    "smoke:pack": "node scripts/smoke-pack.mjs",
     "smoke:node": "node scripts/smoke-node.mjs",
     "smoke:types": "pnpm exec tsc -p scripts/types-smoke/tsconfig.json",
     "smoke:worker": "node scripts/smoke-worker.mjs",
@@ -87,7 +108,7 @@
     "hono": "^4.6.12",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5.9.3",
-    "vite": "^7.2.6",
+    "vite": "^8.0.0-beta.0",
     "vitest": "^4.0.15",
     "zod": "^4.1.13"
   },

@@ -54,6 +54,12 @@ jobs:
           CODECOV_BUNDLE_ANALYSIS: "true"
         run: pnpm run build
 
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-build
+          path: dist
+
       - name: Test with coverage
         run: pnpm run test:coverage
 
@@ -68,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [bun, deno, worker, types, browser]
+        runtime: [bun, deno, worker, types, browser, entrypoints, resolve, pack, dts]
         include:
           - runtime: node
             node-version: 18
@@ -94,12 +100,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-build
+          path: dist
+
       - name: Install Playwright (Chromium only)
         if: matrix.runtime == 'browser'
         run: pnpm exec playwright install --with-deps chromium
-
-      - name: Build
-        run: pnpm run build
 
       - name: Setup Bun
         if: matrix.runtime == 'bun'
@@ -120,6 +129,10 @@ jobs:
             worker) pnpm run smoke:worker ;;
             types) pnpm run smoke:types ;;
             browser) pnpm run smoke:browser ;;
+            entrypoints) pnpm run smoke:entrypoints ;;
+            resolve) pnpm run smoke:resolve ;;
+            pack) pnpm run smoke:pack ;;
+            dts) pnpm run smoke:dts ;;
             *) echo "Unknown runtime"; exit 1 ;;
           esac
 
