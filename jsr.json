@@ -1,6 +1,6 @@
 {
   "name": "@kasperrt/wiretyped",
-  "version": "0.2.4-rc-3",
+  "version": "0.2.4-rc-4",
   "exports": {
     ".": "./src/index.ts"
   },
