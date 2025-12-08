@@ -8,7 +8,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
 const toFileUrl = (relative) => pathToFileURL(path.join(repoRoot, relative)).href;
 
-const importExpectations = [{ spec: 'wiretyped', expected: toFileUrl('dist/index.mjs') }, { spec: 'wiretyped/package.json', expected: toFileUrl('package.json') }];
+const importExpectations = [
+  { spec: 'wiretyped', expected: toFileUrl('dist/index.mjs') },
+  { spec: 'wiretyped/package.json', expected: toFileUrl('package.json') },
+];
 
 const requireExpectations = [
   { spec: 'wiretyped', expected: path.join(repoRoot, 'dist/index.cjs') },
