@@ -188,8 +188,8 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Publish to JSR
-        run: npx jsr publish
-
       - name: Publish to npm
         run: npm publish
+
+      - name: Publish to JSR
+        run: npx jsr publish
