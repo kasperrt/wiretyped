@@ -18,8 +18,8 @@ export default defineConfig({
           format: 'es',
           preserveModules: true,
           preserveModulesRoot: 'src',
-          entryFileNames: '[name].js',
-          chunkFileNames: '[name]-[hash].js',
+          entryFileNames: '[name].mjs',
+          chunkFileNames: '[name]-[hash].mjs',
           exports: 'named',
         },
         {
