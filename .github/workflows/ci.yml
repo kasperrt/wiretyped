@@ -54,6 +54,12 @@ jobs:
           CODECOV_BUNDLE_ANALYSIS: "true"
         run: pnpm run build
 
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-build
+          path: dist
+
       - name: Test with coverage
         run: pnpm run test:coverage
 
@@ -94,12 +100,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download dist artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: dist-build
+          path: .
+
       - name: Install Playwright (Chromium only)
         if: matrix.runtime == 'browser'
         run: pnpm exec playwright install --with-deps chromium
-
-      - name: Build
-        run: pnpm run build
 
       - name: Setup Bun
         if: matrix.runtime == 'bun'
