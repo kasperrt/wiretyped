@@ -210,15 +210,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          PACKAGE_NAME="${{ steps.npm_tag.outputs.name }}"
           VERSION="${{ steps.npm_tag.outputs.version }}"
           
-          npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version &> /dev/null
+          npm view "wiretyped@$VERSION" version &> /dev/null
 
           if [ $? -eq 0 ]; then
-            echo "Package $PACKAGE_NAME@$PACKAGE_VERSION already exists in the registry. Skipping publish."
+            echo "Package wiretyped@$VERSION already exists in the registry. Skipping publish."
           else
-            echo "Publishing $PACKAGE_NAME@$PACKAGE_VERSION..."
+            echo "Publishing wiretyped@$VERSION..."
             npm publish --tag "$NPM_TAG"
           fi
 
