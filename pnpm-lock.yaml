@@ -17,7 +17,7 @@ importers:
         version: 2.3.8
       '@codecov/vite-plugin':
         specifier: 1.9.1
-        version: 1.9.1(vite@8.0.0-beta.0(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1))
+        version: 1.9.1(vite@8.0.0-beta.1(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1))
       '@hono/node-server':
         specifier: ^1.13.0
         version: 1.19.6(hono@4.10.7)
@@ -44,7 +44,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^8.0.0-beta.0
-        version: 8.0.0-beta.0(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1)
+        version: 8.0.0-beta.1(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1)
       vitest:
         specifier: ^4.0.15
         version: 4.0.15(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1)
@@ -983,8 +983,8 @@ packages:
     resolution: {integrity: sha512-4/u/j4FrCKdi17jaxuJA0jClGxB1AvU2hw/IuayPc4ay1XGaJs/rbb4v5WKwAjNifjmXK9PIFyuPiaK8azyR9w==}
     engines: {node: '>=14.0.0'}
 
-  vite@7.2.6:
-    resolution: {integrity: sha512-tI2l/nFHC5rLh7+5+o7QjKjSR04ivXDF4jcgV0f/bTQ+OJiITy5S6gaynVsEM+7RqzufMnVbIon6Sr5x1SDYaQ==}
+  vite@7.2.7:
+    resolution: {integrity: sha512-ITcnkFeR3+fI8P1wMgItjGrR10170d8auB4EpMLPqmx6uxElH3a/hHGQabSHKdqd4FXWO1nFIp9rRn7JQ34ACQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -1023,8 +1023,8 @@ packages:
       yaml:
         optional: true
 
-  vite@8.0.0-beta.0:
-    resolution: {integrity: sha512-bXHWmtg5hUxn/MB5zJ8qhBLphnsNmO1EYOFmBO/fVCBJekTdWDuqJ/GmUMLgrC0QUCCrxhw3JLgteWdiyqaVSQ==}
+  vite@8.0.0-beta.1:
+    resolution: {integrity: sha512-wWdn95sweG8/AEklHTAwZ9rwxZn77jQ72Flj2004oWpFBao9sTRXAntWEKKyp1qZXXLxNFRhr5Mp5tQIeR0SXA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -1201,11 +1201,11 @@ snapshots:
       unplugin: 1.16.1
       zod: 3.25.76
 
-  '@codecov/vite-plugin@1.9.1(vite@8.0.0-beta.0(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1))':
+  '@codecov/vite-plugin@1.9.1(vite@8.0.0-beta.1(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1))':
     dependencies:
       '@codecov/bundler-plugin-core': 1.9.1
       unplugin: 1.16.1
-      vite: 8.0.0-beta.0(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1)
+      vite: 8.0.0-beta.1(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1)
 
   '@emnapi/core@1.7.1':
     dependencies:
@@ -1552,13 +1552,13 @@ snapshots:
       chai: 6.2.1
       tinyrainbow: 3.0.3
 
-  '@vitest/mocker@4.0.15(vite@7.2.6(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1))':
+  '@vitest/mocker@4.0.15(vite@7.2.7(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1))':
     dependencies:
       '@vitest/spy': 4.0.15
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.2.6(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1)
+      vite: 7.2.7(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1)
 
   '@vitest/pretty-format@4.0.15':
     dependencies:
@@ -1911,7 +1911,7 @@ snapshots:
       acorn: 8.15.0
       webpack-virtual-modules: 0.6.2
 
-  vite@7.2.6(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1):
+  vite@7.2.7(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.3)
@@ -1925,7 +1925,7 @@ snapshots:
       lightningcss: 1.30.2
       terser: 5.44.1
 
-  vite@8.0.0-beta.0(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1):
+  vite@8.0.0-beta.1(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1):
     dependencies:
       '@oxc-project/runtime': 0.101.0
       fdir: 6.5.0(picomatch@4.0.3)
@@ -1943,7 +1943,7 @@ snapshots:
   vitest@4.0.15(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1):
     dependencies:
       '@vitest/expect': 4.0.15
-      '@vitest/mocker': 4.0.15(vite@7.2.6(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1))
+      '@vitest/mocker': 4.0.15(vite@7.2.7(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1))
       '@vitest/pretty-format': 4.0.15
       '@vitest/runner': 4.0.15
       '@vitest/snapshot': 4.0.15
@@ -1960,7 +1960,7 @@ snapshots:
       tinyexec: 1.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vite: 7.2.6(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1)
+      vite: 7.2.7(@types/node@24.10.1)(lightningcss@1.30.2)(terser@5.44.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.10.1
