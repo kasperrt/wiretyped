@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.2.3",
+  "version": "0.2.4-rc-1",
   "description": "Typed HTTP client with error-first ergonomics, caching, retries, SSE, and runtime validation powered by @standard-schema/spec.",
   "type": "module",
   "keywords": [
@@ -24,41 +24,16 @@
     "url": "git+https://github.com/kasperrt/wiretyped.git"
   },
   "packageManager": "pnpm@10.20.0",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/types/index.d.mts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/types/index.d.ts",
   "files": ["dist"],
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/types/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/types/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
-    },
-    "./core": {
-      "import": {
-        "types": "./dist/types/core/index.d.mts",
-        "default": "./dist/core.mjs"
-      },
-      "require": {
-        "types": "./dist/types/core/index.d.cts",
-        "default": "./dist/core.cjs"
-      }
-    },
-    "./error": {
-      "import": {
-        "types": "./dist/types/error/index.d.mts",
-        "default": "./dist/error.mjs"
-      },
-      "require": {
-        "types": "./dist/types/error/index.d.cts",
-        "default": "./dist/error.cjs"
-      }
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -67,7 +42,7 @@
   },
   "scripts": {
     "build": "vite build && pnpm run build:types",
-    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly && node scripts/generate-cts-types.mjs",
+    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
     "check": "pnpm check:lint && pnpm check:format && pnpm check:ts",
     "check:format": "pnpm exec biome format --error-on-warnings",
     "check:lint": "pnpm exec biome lint --error-on-warnings",
@@ -98,14 +73,14 @@
     "@standard-schema/spec": "^1.0.0"
   },
   "devDependencies": {
-    "@hono/node-server": "1.19.7",
+    "@hono/node-server": "^1.13.0",
     "@biomejs/biome": "^2.3.8",
     "@codecov/vite-plugin": "^1.9.1",
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.0.15",
     "eventsource": "^4.1.0",
     "playwright": "^1.57.0",
-    "hono": "^4.10.7",
+    "hono": "^4.6.12",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5.9.3",
     "vite": "^8.0.0-beta.1",

@@ -4,30 +4,49 @@
  * @module
  */
 
-/** Constructor options accepted by {@link RequestClient}. */
-/** Shape of endpoint definition maps consumed by {@link RequestClient}. */
-export type { RequestClientProps, RequestDefinitions } from './core/index.js';
-/** Typed HTTP client for performing validated REST and SSE calls. */
-export { RequestClient } from './core/index.js';
-/** Error thrown when a request is aborted via AbortController. */
-/** Error representing a non-2xx HTTP response. */
-/** Error thrown when a request exceeds the configured timeout. */
-/** Error thrown when validation of payloads fails. */
-/** Extracts an {@link HTTPError} from an unknown error value. */
-/** Extracts a {@link ValidationError} from an unknown error value. */
-/** Type guard that checks if an error is an {@link AbortError}. */
-/** Type guard that checks if an error is an {@link HTTPError}. */
-/** Type guard that checks if an error is a {@link TimeoutError}. */
-/** Type guard that checks if an error is a {@link ValidationError}. */
-export {
-  AbortError,
-  getHttpError,
-  getValidationError,
-  HTTPError,
-  isAbortError,
-  isHttpError,
-  isTimeoutError,
-  isValidationError,
-  TimeoutError,
-  ValidationError,
-} from './error/index.js';
+/**
+ * Constructor options accepted by {@link RequestClient}.
+ */
+export type { RequestClientProps } from './core/client';
+/**
+ * Typed HTTP client for performing validated REST and SSE calls.
+ */
+export { RequestClient } from './core/client';
+/**
+ * Shape of endpoint definition maps consumed by {@link RequestClient}.
+ */
+export type { RequestDefinitions } from './core/types';
+/**
+ * Error thrown when a request is aborted via AbortController.
+ */
+/**
+ * Type guard that checks if an error is an {@link AbortError}.
+ */
+export { AbortError, isAbortError } from './error/abortError';
+/**
+ * Error representing a non-2xx HTTP response.
+ */
+/**
+ * Extracts an {@link HTTPError} from an unknown error value.
+ */
+/**
+ * Type guard that checks if an error is an {@link HTTPError}.
+ */
+export { getHttpError, HTTPError, isHttpError } from './error/httpError';
+/**
+ * Error thrown when a request exceeds the configured timeout.
+ */
+/**
+ * Type guard that checks if an error is a {@link TimeoutError}.
+ */
+export { isTimeoutError, TimeoutError } from './error/timeoutError';
+/**
+ * Error thrown when validation of payloads fails.
+ */
+/**
+ * Extracts a {@link ValidationError} from an unknown error value.
+ */
+/**
+ * Type guard that checks if an error is a {@link ValidationError}.
+ */
+export { getValidationError, isValidationError, ValidationError } from './error/validationError';

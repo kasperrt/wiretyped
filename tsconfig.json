@@ -8,28 +8,19 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
 
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "allowJs": true,
     "esModuleInterop": true,
 
-    "composite": true,
-    "incremental": true,
-    "declaration": true,
-    "declarationMap": true,
     "verbatimModuleSyntax": true,
 
-    // basics
-    "moduleDetection": "force",
     "types": ["vitest/globals", "node"]
   },
   "exclude": ["node_modules", "**/*.spec.ts", "scripts/types-smoke/**/*.ts", "**/*.test.ts"]

@@ -33,14 +33,10 @@ for (const file of files) {
     await fs.access(mapPath);
   }
 
-  // Ensure dual declaration outputs exist (d.mts/d.cts) next to the DTS
-  const mts = path.join(dir, `${base}.d.mts`);
-  const cts = path.join(dir, `${base}.d.cts`);
-  await fs.access(mts).catch(() => {
-    throw new Error(`Missing ${mts} for ${file}`);
-  });
-  await fs.access(cts).catch(() => {
-    throw new Error(`Missing ${cts} for ${file}`);
+  // Ensure dual declaration outputs exist (d.ts/d.cts) next to the DTS
+  const ts = path.join(dir, `${base}.d.ts`);
+  await fs.access(ts).catch(() => {
+    throw new Error(`Missing ${ts} for ${file}`);
   });
 }
 
