@@ -1,7 +1,7 @@
 # WireTyped Releases
 
 ## Contents
-- [v0.2.3-rc-1](#v023-rc-1)
+- [v0.2.3](#v023-rc-1)
 - [v0.2.2](#v022)
 - [v0.2.1](#v021)
 - [v0.2.0](#v020)
@@ -10,7 +10,7 @@
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
 
-## v0.2.3-rc-1
+## v0.2.3
 
 - Update to vite@8
 - Fix type imports/requires referenced in package.json for esm/cjs to correctly target file-types
