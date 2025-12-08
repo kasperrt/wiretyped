@@ -24,14 +24,14 @@
     "url": "git+https://github.com/kasperrt/wiretyped.git"
   },
   "packageManager": "pnpm@10.20.0",
-  "main": "./dist/index.js",
+  "main": "./dist/index.mjs",
   "types": "./dist/types/index.d.ts",
   "files": ["dist"],
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/index.js",
+      "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
     "./package.json": "./package.json"
@@ -72,14 +72,14 @@
     "@standard-schema/spec": "^1.0.0"
   },
   "devDependencies": {
-    "@hono/node-server": "1.19.7",
+    "@hono/node-server": "^1.13.0",
     "@biomejs/biome": "^2.3.8",
-    "@codecov/vite-plugin": "^1.9.1",
+    "@codecov/vite-plugin": "1.9.1",
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.0.15",
     "eventsource": "^4.1.0",
     "playwright": "^1.57.0",
-    "hono": "^4.10.7",
+    "hono": "^4.6.12",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5.9.3",
     "vite": "^8.0.0-beta.1",

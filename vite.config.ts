@@ -16,8 +16,8 @@ export default defineConfig({
       output: [
         {
           format: 'esm',
-          entryFileNames: '[name].js',
-          chunkFileNames: '[name]-[hash].js',
+          entryFileNames: '[name].mjs',
+          chunkFileNames: '[name]-[hash].mjs',
           exports: 'named',
         },
         {
