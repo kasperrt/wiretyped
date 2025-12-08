@@ -58,6 +58,8 @@ const page = await browser.newPage();
 try {
   const result = await page.evaluate(async (baseUrl) => {
     const root = await import(`${baseUrl}/index.mjs`);
+    const core = await import(`${baseUrl}/core.mjs`);
+    const error = await import(`${baseUrl}/error.mjs`);
 
     return {
       root: {
@@ -69,9 +71,20 @@ try {
         isAbortError: typeof root.isAbortError === 'function',
         isHttpError: typeof root.isHttpError === 'function',
         isTimeoutError: typeof root.isTimeoutError === 'function',
-        validationError: typeof root.ValidationError === 'function',
-        getValidationError: typeof root.getValidationError === 'function',
-        isValidationError: typeof root.isValidationError === 'function',
+      },
+      core: {
+        requestClient: typeof core.RequestClient === 'function',
+      },
+      error: {
+        abortError: typeof error.AbortError === 'function',
+        httpError: typeof error.HTTPError === 'function',
+        timeoutError: typeof error.TimeoutError === 'function',
+        getHttpError: typeof error.getHttpError === 'function',
+        isAbortError: typeof error.isAbortError === 'function',
+        isHttpError: typeof error.isHttpError === 'function',
+        isTimeoutError: typeof error.isTimeoutError === 'function',
+        unwrapErrorType: typeof error.unwrapErrorType === 'function',
+        isErrorType: typeof error.isErrorType === 'function',
       },
     };
   }, base);
@@ -85,9 +98,18 @@ try {
     isAbortError: true,
     isHttpError: true,
     isTimeoutError: true,
-    validationError: true,
-    getValidationError: true,
-    isValidationError: true,
+  });
+  assert.deepStrictEqual(result.core, { requestClient: true });
+  assert.deepStrictEqual(result.error, {
+    abortError: true,
+    httpError: true,
+    timeoutError: true,
+    getHttpError: true,
+    isAbortError: true,
+    isHttpError: true,
+    isTimeoutError: true,
+    unwrapErrorType: true,
+    isErrorType: true,
   });
 
   console.log('Browser smoke passed');

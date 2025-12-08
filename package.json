@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.2.4-rc-5",
+  "version": "0.2.4-rc-6",
   "description": "Typed HTTP client with error-first ergonomics, caching, retries, SSE, and runtime validation powered by @standard-schema/spec.",
   "type": "module",
   "keywords": [
@@ -39,6 +39,28 @@
         "default": "./dist/index.cjs"
       },
       "default": "./dist/index.mjs"
+    },
+    "./core": {
+      "import": {
+        "types": "./dist/types/core/index.d.mts",
+        "default": "./dist/core.mjs"
+      },
+      "require": {
+        "types": "./dist/types/core/index.d.cts",
+        "default": "./dist/core.cjs"
+      },
+      "default": "./dist/core.mjs"
+    },
+    "./error": {
+      "import": {
+        "types": "./dist/types/error/index.d.mts",
+        "default": "./dist/error.mjs"
+      },
+      "require": {
+        "types": "./dist/types/error/index.d.cts",
+        "default": "./dist/error.cjs"
+      },
+      "default": "./dist/error.mjs"
     },
     "./package.json": "./package.json"
   },

@@ -8,7 +8,11 @@ const enableBundle = process.env.CODECOV_BUNDLE_ANALYSIS === 'true';
 export default defineConfig({
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: {
+        index: resolve(__dirname, 'src/index.ts'),
+        core: resolve(__dirname, 'src/core/index.ts'),
+        error: resolve(__dirname, 'src/error/index.ts'),
+      },
     },
     outDir: 'dist',
     rolldownOptions: {

@@ -10,11 +10,15 @@ const toFileUrl = (relative) => pathToFileURL(path.join(repoRoot, relative)).hre
 
 const importExpectations = [
   { spec: 'wiretyped', expected: toFileUrl('dist/index.mjs') },
+  { spec: 'wiretyped/core', expected: toFileUrl('dist/core.mjs') },
+  { spec: 'wiretyped/error', expected: toFileUrl('dist/error.mjs') },
   { spec: 'wiretyped/package.json', expected: toFileUrl('package.json') },
 ];
 
 const requireExpectations = [
   { spec: 'wiretyped', expected: path.join(repoRoot, 'dist/index.cjs') },
+  { spec: 'wiretyped/core', expected: path.join(repoRoot, 'dist/core.cjs') },
+  { spec: 'wiretyped/error', expected: path.join(repoRoot, 'dist/error.cjs') },
   { spec: 'wiretyped/package.json', expected: path.join(repoRoot, 'package.json') },
 ];
 
@@ -29,4 +33,4 @@ for (const { spec, expected } of requireExpectations) {
   assert.strictEqual(resolved, expected, `require.resolve(${spec}) -> ${resolved}`);
 }
 
-console.log('Conditional export resolution passed (import/require for root + package.json).');
+console.log('Conditional export resolution passed (import/require for root, core, error).');
