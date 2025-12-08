@@ -71,6 +71,9 @@ try {
         isAbortError: typeof root.isAbortError === 'function',
         isHttpError: typeof root.isHttpError === 'function',
         isTimeoutError: typeof root.isTimeoutError === 'function',
+        validationError: typeof root.ValidationError === 'function',
+        getValidationError: typeof root.getValidationError === 'function',
+        isValidationError: typeof root.isValidationError === 'function',
       },
       core: {
         requestClient: typeof core.RequestClient === 'function',
@@ -98,6 +101,9 @@ try {
     isAbortError: true,
     isHttpError: true,
     isTimeoutError: true,
+    validationError: true,
+    getValidationError: true,
+    isValidationError: true,
   });
   assert.deepStrictEqual(result.core, { requestClient: true });
   assert.deepStrictEqual(result.error, {
