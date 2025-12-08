@@ -21,11 +21,13 @@ export default defineConfig({
         {
           format: 'es',
           entryFileNames: '[name].mjs',
+          chunkFileNames: '[name]-[hash].mjs',
           exports: 'named',
         },
         {
           format: 'cjs',
           entryFileNames: '[name].cjs',
+          chunkFileNames: '[name]-[hash].cjs',
           exports: 'named',
         },
       ],
