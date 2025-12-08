@@ -8,6 +8,7 @@ on:
       - "package.json"
 
 permissions:
+  id-token: write
   contents: write
 
 jobs:
