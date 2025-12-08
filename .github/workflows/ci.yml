@@ -74,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [bun, deno, worker, types, browser]
+        runtime: [bun, deno, worker, types, browser, entrypoints, resolve, pack, dts]
         include:
           - runtime: node
             node-version: 18
@@ -129,6 +129,10 @@ jobs:
             worker) pnpm run smoke:worker ;;
             types) pnpm run smoke:types ;;
             browser) pnpm run smoke:browser ;;
+            entrypoints) pnpm run smoke:entrypoints ;;
+            resolve) pnpm run smoke:resolve ;;
+            pack) pnpm run smoke:pack ;;
+            dts) pnpm run smoke:dts ;;
             *) echo "Unknown runtime"; exit 1 ;;
           esac
 

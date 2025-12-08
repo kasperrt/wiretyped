@@ -25,6 +25,15 @@ export type _AssertPing = Ping;
 type RootPing = Awaited<ReturnType<RootRequestClient<typeof rootEndpoints>['get']>>;
 export type _AssertRootPing = RootPing;
 
+type Assert<T extends true> = T;
+
+// Ensure error-first tuple shape stays intact
+type _AssertGetTupleShape = Assert<
+  Awaited<ReturnType<RequestClient<typeof endpoints>['get']>> extends [Error, null] | [null, { ok: boolean }]
+    ? true
+    : false
+>;
+
 // Error entrypoint should expose error helpers
 const httpError = new HTTPError(new Response(null, { status: 500 }));
 export const _assertIsHttpError: boolean = isHttpError(httpError);
