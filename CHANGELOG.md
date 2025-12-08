@@ -1,7 +1,7 @@
 # WireTyped Releases
 
 ## Contents
-- [v0.2.4-rc-5](#v024-rc-5)
+- [v0.2.4-rc-6](#v024-rc-6)
 - [v0.2.3](#v023)
 - [v0.2.2](#v022)
 - [v0.2.1](#v021)
@@ -11,16 +11,15 @@
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
 
-## v0.2.4-rc-5
+## v0.2.4-rc-6
 
-- Omit multi entrypoints
-- Simplify builds
+- Simplify and correct build outputs.
 
 ## v0.2.3
 
 - Update to vite@8
-- Fix type imports/requires referenced in package.json for esm/cjs to correctly target file-types
-- Repository referencing in package.json
+- Fix type imports/requires referenced in package.json for esm/cjs to correctly target file-types.
+- Repository referencing in package.json.
 
 ## v0.2.2
 
@@ -48,15 +47,15 @@
 
 ## v0.1.0
 
-- Rewrite zod -> @standard-schema/spec to allow users to decide their own schema and keep things as lightweight as possible
-- Make constructUrl async to handle standard-schema/spec potential validation asynchronouseness
-- Make url async due to the above
+- Rewrite zod -> @standard-schema/spec to allow users to decide their own schema and keep things as lightweight as possible.
+- Make constructUrl async to handle standard-schema/spec potential validation asynchronouseness.
+- Make url async due to the above.
 
 Patch non-minor updates:
-- Update to add some more potential (outlier) runtime errors catch
-- Smokescreen type-test
-- Actually export types to finished build so the package isn't untyped
+- Update to add some more potential (outlier) runtime errors catch.
+- Smokescreen type-test.
+- Actually export types to finished build so the package isn't untyped.
 
 ## v0.0.8
 
-- Smokescreen tests + readme updates
+- Smokescreen tests + readme updates.

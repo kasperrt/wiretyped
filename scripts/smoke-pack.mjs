@@ -37,7 +37,16 @@ try {
     'package/package.json',
     'package/dist/index.mjs',
     'package/dist/index.cjs',
-    'package/dist/types/index.d.ts',
+    'package/dist/core.mjs',
+    'package/dist/core.cjs',
+    'package/dist/error.mjs',
+    'package/dist/error.cjs',
+    'package/dist/types/index.d.mts',
+    'package/dist/types/index.d.cts',
+    'package/dist/types/core/index.d.mts',
+    'package/dist/types/core/index.d.cts',
+    'package/dist/types/error/index.d.mts',
+    'package/dist/types/error/index.d.cts',
   ];
 
   requiredEntries.forEach((entry) => {
