@@ -12,8 +12,8 @@ function findTypeFiles(dir) {
     const entryPath = resolve(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...findTypeFiles(entryPath));
-      continue
-    } 
+      continue;
+    }
     if (entry.isFile() && entry.name.endsWith('.d.ts')) {
       files.push(entryPath);
     }
