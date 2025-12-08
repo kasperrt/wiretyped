@@ -1,7 +1,5 @@
 // Bun smoke: load ESM bundles and assert key exports
 const distIndex = new URL('../dist/index.mjs', import.meta.url);
-const distCore = new URL('../dist/core.mjs', import.meta.url);
-const distError = new URL('../dist/error.mjs', import.meta.url);
 
 const rootErrors = [
   'AbortError',
@@ -11,9 +9,10 @@ const rootErrors = [
   'isAbortError',
   'isHttpError',
   'isTimeoutError',
+  'ValidationError',
+  'getValidationError',
+  'isValidationError',
 ];
-
-const requiredErrors = [...rootErrors, 'unwrapErrorType', 'isErrorType'];
 
 const checkRoot = (mod: Record<string, unknown>, label: string) => {
   if (typeof mod.RequestClient !== 'function') throw new Error(`${label} RequestClient missing`);
@@ -22,23 +21,7 @@ const checkRoot = (mod: Record<string, unknown>, label: string) => {
   }
 };
 
-const checkCore = (mod: Record<string, unknown>, label: string) => {
-  if (typeof mod.RequestClient !== 'function') throw new Error(`${label} RequestClient missing`);
-};
-
-const checkError = (mod: Record<string, unknown>, label: string) => {
-  for (const key of requiredErrors) {
-    if (!(key in mod)) throw new Error(`${label} ${key} missing`);
-  }
-};
-
 const root = await import(distIndex.href);
 checkRoot(root, 'root');
-
-const core = await import(distCore.href);
-checkCore(core, 'core');
-
-const error = await import(distError.href);
-checkError(error, 'error');
 
 console.log('Bun smoke passed');

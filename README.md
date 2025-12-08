@@ -67,14 +67,15 @@ pnpm add wiretyped
 
 ## Quick start
 
-Define your endpoints with the schema of your choice (re-exported for convenience) and create a `RequestClient`.
+Define your endpoints with the schema library of your choice and create a `RequestClient`.
 
 Notes on path params:
 - Use `$path` when you want constrained values (e.g., enums for `/integrations/{provider}` and want said providers to be from a given set like `slack`, `salesforce`, etc.).
 - For dynamic segments that accept generic strings/numbers, you can omit `$path`—the URL template (e.g., `/users/{id}`) already infers string/number.
 
 ```ts
-import { RequestClient, type RequestDefinitions, z } from 'wiretyped';
+import { z } from 'zod'; // or your validator of choice
+import { RequestClient, type RequestDefinitions } from 'wiretyped';
 
 const endpoints = {
   '/users/{id}': {
@@ -98,7 +99,7 @@ if (err) {
 console.log(user.name);
 ```
 
-Prefer a single import? The root export works too:
+All exports come from the package root:
 
 ```ts
 import { RequestClient, type RequestDefinitions } from 'wiretyped';
