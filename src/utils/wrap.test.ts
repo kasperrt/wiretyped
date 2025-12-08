@@ -1,6 +1,6 @@
 // safeWrap.test.ts
 import { describe, expect, it } from 'vitest';
-import { safeWrap, safeWrapAsync } from './wrap';
+import { safeWrap, safeWrapAsync } from './wrap.js';
 
 class CustomError extends Error {
   constructor(message: string) {

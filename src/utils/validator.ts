@@ -1,6 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import { ValidationError } from '../error/validationError';
-import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap';
+import { ValidationError } from '../error/validationError.js';
+import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap.js';
 
 /**
  * Validates an input value against a StandardSchemaV1 schema and wraps the result

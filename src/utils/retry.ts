@@ -1,4 +1,4 @@
-import type { SafeWrapAsync } from './wrap';
+import type { SafeWrapAsync } from './wrap.js';
 
 /** Options for retry-function */
 export interface RetryOptions<R> {

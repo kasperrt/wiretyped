@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { mergeHeaderOptions } from './utils';
+import { mergeHeaderOptions } from './utils.js';
 
 describe('mergeHeaderOptions', () => {
   test('merge two-dimensional arrays', () => {

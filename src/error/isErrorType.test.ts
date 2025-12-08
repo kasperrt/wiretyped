@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isErrorType } from './isErrorType';
+import { isErrorType } from './isErrorType.js';
 
 class CustomError extends Error {}
 

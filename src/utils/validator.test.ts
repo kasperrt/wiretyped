@@ -1,7 +1,7 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import z from 'zod';
-import { ValidationError } from '../error/validationError';
-import { validator } from './validator';
+import { ValidationError } from '../error/validationError.js';
+import { validator } from './validator.js';
 
 describe('validate', () => {
   it('correct schema validates to correct', async () => {

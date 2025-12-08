@@ -1,6 +1,6 @@
-import { isErrorType } from '../error';
-import type { FetchResponse } from '../types/request';
-import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap';
+import { isErrorType } from '../error/index.js';
+import type { FetchResponse } from '../types/request.js';
+import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap.js';
 
 /**
  * Safely extracts and parses the response body into a tuple-style result.

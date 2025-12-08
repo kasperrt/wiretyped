@@ -1,7 +1,7 @@
-import { HTTPError } from '../error/httpError';
-import type { FetchOptions, FetchResponse } from '../types/request';
-import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap';
-import { mergeHeaderOptions } from './utils';
+import { HTTPError } from '../error/httpError.js';
+import type { FetchOptions, FetchResponse } from '../types/request.js';
+import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap.js';
+import { mergeHeaderOptions } from './utils.js';
 
 /** Options to configure the {@link FetchClient} wrapper. */
 export interface FetchClientOptions extends Pick<FetchOptions, 'headers'> {

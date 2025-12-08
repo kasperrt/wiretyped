@@ -1,4 +1,4 @@
-import { isErrorType } from './isErrorType';
+import { isErrorType } from './isErrorType.js';
 
 /**
  * Error raised when a request is intentionally aborted (e.g., via AbortController).

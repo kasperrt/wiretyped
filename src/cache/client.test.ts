@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CacheClient } from './client';
+import { CacheClient } from './client.js';
 
 describe('CacheClient', () => {
   beforeEach(() => {

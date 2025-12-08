@@ -1,4 +1,4 @@
-import type { HeaderOptions } from '../types/request';
+import type { HeaderOptions } from '../types/request.js';
 
 /**
  * Normalizes various header representations into a lowercase string map.

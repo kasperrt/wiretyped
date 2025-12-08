@@ -1,6 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import { isErrorType } from './isErrorType';
-import { unwrapErrorType } from './unwrapErrorType';
+import { isErrorType } from './isErrorType.js';
+import { unwrapErrorType } from './unwrapErrorType.js';
 
 /**
  * Error representing a validation error when validating with @standard-schema

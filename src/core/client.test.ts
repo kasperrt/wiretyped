@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
 import { z } from 'zod';
-import { CacheClient } from '../cache/client';
-import { AbortError } from '../error/abortError';
-import { HTTPError } from '../error/httpError';
-import { isErrorType } from '../error/isErrorType';
-import { isTimeoutError, TimeoutError } from '../error/timeoutError';
-import { ValidationError } from '../error/validationError';
-import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request';
-import type { SSEClientProvider, SSEClientProviderDefinition, SSEClientSourceInit } from '../types/sse';
-import * as signals from '../utils/signals';
-import { RequestClient } from './client';
-import type { RequestDefinitions } from './types';
+import { CacheClient } from '../cache/client.js';
+import { AbortError } from '../error/abortError.js';
+import { HTTPError } from '../error/httpError.js';
+import { isErrorType } from '../error/isErrorType.js';
+import { isTimeoutError, TimeoutError } from '../error/timeoutError.js';
+import { ValidationError } from '../error/validationError.js';
+import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request.js';
+import type { SSEClientProvider, SSEClientProviderDefinition, SSEClientSourceInit } from '../types/sse.js';
+import * as signals from '../utils/signals.js';
+import { RequestClient } from './client.js';
+import type { RequestDefinitions } from './types.js';
 
 type MockedFetchClientProvider = MockedFunction<FetchClientProvider>;
 
