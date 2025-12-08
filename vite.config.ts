@@ -17,7 +17,7 @@ export default defineConfig({
         {
           format: 'es',
           preserveModules: true,
-          preserveModulesRoot: "src",
+          preserveModulesRoot: 'src',
           entryFileNames: '[name].js',
           chunkFileNames: '[name]-[hash].js',
           exports: 'named',
@@ -25,7 +25,7 @@ export default defineConfig({
         {
           format: 'cjs',
           preserveModules: true,
-          preserveModulesRoot: "src",
+          preserveModulesRoot: 'src',
           entryFileNames: '[name].cjs',
           chunkFileNames: '[name]-[hash].cjs',
           exports: 'named',
