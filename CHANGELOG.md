@@ -1,7 +1,7 @@
 # WireTyped Releases
 
 ## Contents
-- [v0.2.4-rc-7](#v024-rc-6)
+- [v0.2.4-rc-7](#v024-rc-7)
 - [v0.2.3](#v023)
 - [v0.2.2](#v022)
 - [v0.2.1](#v021)
