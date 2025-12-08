@@ -24,15 +24,14 @@
     "url": "git+https://github.com/kasperrt/wiretyped.git"
   },
   "packageManager": "pnpm@10.20.0",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
+  "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
   "files": ["dist"],
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/index.mjs",
+      "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
     "./package.json": "./package.json"

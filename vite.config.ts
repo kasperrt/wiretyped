@@ -15,9 +15,9 @@ export default defineConfig({
       treeshake: true,
       output: [
         {
-          format: 'es',
-          entryFileNames: '[name].mjs',
-          chunkFileNames: '[name]-[hash].mjs',
+          format: 'esm',
+          entryFileNames: '[name].js',
+          chunkFileNames: '[name]-[hash].js',
           exports: 'named',
         },
         {
