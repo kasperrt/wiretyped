@@ -4,9 +4,26 @@
  * @module
  */
 
-/** Constructor options accepted by {@link RequestClient}. */
+/**
+ * Constructor options accepted by {@link RequestClient}.
+ */
 export type { RequestClientProps } from './client';
-/** Typed HTTP client for constructing validated REST/SSE calls. */
+
+/**
+ * Typed HTTP client that:
+ * - constructs URLs based on endpoint definitions,
+ * - performs HTTP (and SSE) requests via a pluggable provider,
+ * - optionally validates request/response payloads via schemas,
+ * - optionally caches GET responses.
+ *
+ * All methods return error-first tuples via {@link SafeWrapAsync} or {@link SafeWrap}.
+ *
+ * @typeParam Schema - The map of endpoint definitions available to the client.
+ */
 export { RequestClient } from './client';
-/** Endpoint definition map consumed by {@link RequestClient}. */
+
+/**
+ * RequestDefinitions types up the possible variations of
+ * the endpoints we create
+ */
 export type { RequestDefinitions } from './types';
