@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.2.3-rc-1",
+  "version": "0.2.3-rc-2",
   "description": "Typed HTTP client with error-first ergonomics, caching, retries, SSE, and runtime validation powered by @standard-schema/spec.",
   "type": "module",
   "keywords": [
@@ -21,7 +21,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kasperrt/wiretyped"
+    "url": "git+https://github.com/kasperrt/wiretyped"
   },
   "packageManager": "pnpm@10.20.0",
   "main": "./dist/index.cjs",

@@ -6,9 +6,9 @@
 
 /** Constructor options accepted by {@link RequestClient}. */
 /** Shape of endpoint definition maps consumed by {@link RequestClient}. */
-export type { RequestClientProps, RequestDefinitions } from './core';
+export type { RequestClientProps, RequestDefinitions } from './core/index.js';
 /** Typed HTTP client for performing validated REST and SSE calls. */
-export { RequestClient } from './core';
+export { RequestClient } from './core/index.js';
 /** Error thrown when a request is aborted via AbortController. */
 /** Error representing a non-2xx HTTP response. */
 /** Error thrown when a request exceeds the configured timeout. */
@@ -30,4 +30,4 @@ export {
   isValidationError,
   TimeoutError,
   ValidationError,
-} from './error';
+} from './error/index.js';
