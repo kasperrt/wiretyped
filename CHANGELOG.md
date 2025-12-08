@@ -1,7 +1,8 @@
 # WireTyped Releases
 
 ## Contents
-- [v0.2.3](#v023-rc-1)
+- [v0.2.4-rc-1](#v024-rc-4)
+- [v0.2.3](#v023)
 - [v0.2.2](#v022)
 - [v0.2.1](#v021)
 - [v0.2.0](#v020)
@@ -9,6 +10,10 @@
 - [v0.1.1](#v011)
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
+
+## v0.2.4-rc-1
+
+- Build for targets without private support on classes for broader target support
 
 ## v0.2.3
 

@@ -15,6 +15,8 @@ export default defineConfig({
       },
     },
     outDir: 'dist',
+    // Downlevel to a syntax Bundlephobia's webpack/terser pipeline understands
+    target: 'es2019',
     rolldownOptions: {
       treeshake: true,
       output: [
