@@ -7,7 +7,7 @@
 /**
  * Constructor options accepted by {@link RequestClient}.
  */
-export type { RequestClientProps } from './client';
+export type { RequestClientProps } from './client.js';
 
 /**
  * Typed HTTP client that:
@@ -20,10 +20,10 @@ export type { RequestClientProps } from './client';
  *
  * @typeParam Schema - The map of endpoint definitions available to the client.
  */
-export { RequestClient } from './client';
+export { RequestClient } from './client.js';
 
 /**
  * RequestDefinitions types up the possible variations of
  * the endpoints we create
  */
-export type { RequestDefinitions } from './types';
+export type { RequestDefinitions } from './types.js';
