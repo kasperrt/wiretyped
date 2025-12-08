@@ -14,22 +14,19 @@ export default defineConfig({
         error: resolve(__dirname, 'src/error/index.ts'),
       },
     },
-    minify: 'esbuild',
     outDir: 'dist',
-    rollupOptions: {
+    rolldownOptions: {
+      treeshake: true,
       output: [
         {
           format: 'es',
           entryFileNames: '[name].mjs',
-          chunkFileNames: 'chunks/[name]-[hash].js',
-          compact: true,
+          exports: 'named',
         },
         {
           format: 'cjs',
           entryFileNames: '[name].cjs',
-          chunkFileNames: 'chunks/[name]-[hash].cjs',
           exports: 'named',
-          compact: true,
         },
       ],
     },
