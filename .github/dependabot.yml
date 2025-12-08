@@ -1,6 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: "pnpm" # See documentation for possible values
+  - package-ecosystem: "npm" # Dependabot will use pnpm-lock.yaml when present
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
