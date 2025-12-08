@@ -204,10 +204,40 @@ jobs:
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
+      - name: Check if version exists on npm
+        id: npm_exists
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          NAME="${{ steps.npm_tag.outputs.name }}"
+          VERSION="${{ steps.npm_tag.outputs.version }}"
+
+          if npm view "${NAME}@${VERSION}" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "npm version ${NAME}@${VERSION} already exists; skipping npm publish."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm
+        if: steps.npm_exists.outputs.exists == 'false'
         env:
           NPM_TAG: ${{ steps.npm_tag.outputs.tag }}
-        run: npm publish --tag "$NPM_TAG"
+        run: |
+          set -euo pipefail
+
+          PACKAGE_NAME="${{ steps.npm_tag.outputs.name }}"
+          VERSION="${{ steps.npm_tag.outputs.version }}"
+          
+          npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version &> /dev/null
+
+          if [ $? -eq 0 ]; then
+            echo "Package $PACKAGE_NAME@$PACKAGE_VERSION already exists in the registry. Skipping publish."
+          else
+            echo "Publishing $PACKAGE_NAME@$PACKAGE_VERSION..."
+            npm publish --tag "$NPM_TAG"
+          fi
 
       - name: Publish to JSR
         run: npx jsr publish
