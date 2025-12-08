@@ -1,0 +1,49 @@
+# WireTyped Releases
+
+## Contents
+- [v0.2.2](#v022)
+- [v0.2.1](#v021)
+- [v0.2.0](#v020)
+- [v0.1.2](#v012)
+- [v0.1.1](#v011)
+- [v0.1.0](#v010)
+- [v0.0.8](#v008)
+
+## v0.2.2
+
+- Fix Deno exports so the root entrypoint resolves correctly.
+
+## v0.2.1
+
+- Fix missing validation in `constructUrl` when no params are provided.
+
+
+## v0.2.0
+
+- Move retrying from fetch-client into request-client for broader coverage.
+
+
+## v0.1.2
+
+- Fix query parameters being double-encoded as search params.
+
+
+## v0.1.1
+
+- Make `EventSource` optional to reduce bundle size when browsers already provide it.
+
+
+## v0.1.0
+
+- Rewrite zod -> @standard-schema/spec to allow users to decide their own schema and keep things as lightweight as possible
+- Make constructUrl async to handle standard-schema/spec potential validation asynchronouseness
+- Make url async due to the above
+
+Patch non-minor updates:
+- Update to add some more potential (outlier) runtime errors catch
+- Smokescreen type-test
+- Actually export types to finished build so the package isn't untyped
+
+## v0.0.8
+
+- Smokescreen tests + readme updates
