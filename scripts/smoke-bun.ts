@@ -11,6 +11,9 @@ const rootErrors = [
   'isAbortError',
   'isHttpError',
   'isTimeoutError',
+  'ValidationError',
+  'getValidationError',
+  'isValidationError',
 ];
 
 const requiredErrors = [...rootErrors, 'unwrapErrorType', 'isErrorType'];

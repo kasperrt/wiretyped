@@ -22,6 +22,9 @@ const expectedRootErrorExports = [
   'isAbortError',
   'isHttpError',
   'isTimeoutError',
+  'ValidationError',
+  'getValidationError',
+  'isValidationError',
 ];
 
 const expectedErrorExports = [...expectedRootErrorExports, 'unwrapErrorType', 'isErrorType'];
