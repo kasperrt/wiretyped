@@ -190,9 +190,11 @@ jobs:
 
       - name: Determine npm dist-tag
         id: npm_tag
+        env:
+          VERSION: ${{ needs.tag.outputs.version }}
+        shell: bash
         run: |
           set -euo pipefail
-          VERSION="${{ needs.tag.outputs.version }}"
 
           if [[ "$VERSION" == *-* ]]; then
             TAG="next"
@@ -203,23 +205,25 @@ jobs:
           fi
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Publish to npm
         env:
-          NPM_TAG: ${{ steps.npm_tag.outputs.tag }}
+          VERSION: ${{ steps.npm_tag.outputs.version }}
+          TAG: ${{ steps.npm_tag.outputs.tag }}
+        shell: bash
         run: |
           set -euo pipefail
 
-          VERSION="${{ steps.npm_tag.outputs.version }}"
-          
-          npm view "wiretyped@$VERSION" version &> /dev/null
+          PACKAGE="wiretyped"
 
-          if [ $? -eq 0 ]; then
-            echo "Package wiretyped@$VERSION already exists in the registry. Skipping publish."
+          if npm view "${PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
+            echo "Package ${PACKAGE}@${VERSION} already exists in the registry. Skipping publish."
           else
-            echo "Publishing wiretyped@$VERSION..."
-            npm publish --tag "$NPM_TAG"
+            echo "Publishing ${PACKAGE}@${VERSION}..."
+            npm publish --tag "$TAG"
           fi
+
 
       - name: Publish to JSR
         run: npx jsr publish
