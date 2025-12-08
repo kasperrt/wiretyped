@@ -32,7 +32,6 @@ Typed HTTP client utilities for defining endpoints with [@standard-schema](https
   - [Contents](#contents)
   - [Installation](#installation)
   - [Quick start](#quick-start)
-  - [Imports](#imports)
   - [Client options](#client-options)
   - [Request options](#request-options)
   - [Runtime config (optional)](#runtime-config-optional)
@@ -49,7 +48,6 @@ Typed HTTP client utilities for defining endpoints with [@standard-schema](https
   - [Caching](#caching)
   - [Retries](#retries)
   - [Error handling](#error-handling)
-  - [Exposed entrypoints](#exposed-entrypoints)
   - [Providers](#providers)
     - [HTTP provider shape](#http-provider-shape)
     - [SSE provider shape](#sse-provider-shape)
@@ -76,7 +74,7 @@ Notes on path params:
 - For dynamic segments that accept generic strings/numbers, you can omit `$path`—the URL template (e.g., `/users/{id}`) already infers string/number.
 
 ```ts
-import { RequestClient, type RequestDefinitions, z } from 'wiretyped/core';
+import { RequestClient, type RequestDefinitions, z } from 'wiretyped';
 
 const endpoints = {
   '/users/{id}': {
@@ -105,12 +103,6 @@ Prefer a single import? The root export works too:
 ```ts
 import { RequestClient, type RequestDefinitions } from 'wiretyped';
 ```
-
-## Imports
-
-- Root: `import { RequestClient,  ...errors } from 'wiretyped'`
-- Subpath: `import { RequestClient } from 'wiretyped/core'`
-- Errors-only: `import { HTTPError, unwrapErrorType, ... } from 'wiretyped/error'`
 
 ## Client options
 
@@ -396,10 +388,10 @@ const [err, _] = await client.post('/users', null, body, {
 
 ## Error handling
 
-`wiretyped/error` exports helpers for richer error handling:
+`wiretyped` exports helpers for richer error handling:
 
 ```ts
-import { HTTPError, getHttpError, isHttpError, isTimeoutError, unwrapErrorType } from 'wiretyped/error';
+import { HTTPError, getHttpError, isHttpError, isTimeoutError, unwrapErrorType } from 'wiretyped';
 
 const [err, user] = await client.get('/users/{id}', { $path: { id: '123' } });
 if (err) {
@@ -417,12 +409,6 @@ if (err) {
   return _something_here_general_error_;
 }
 ```
-
-## Exposed entrypoints
-
-- Root import (client, types, errors): `wiretyped`
-- Core client and types: `wiretyped/core`
-- Error helpers: `wiretyped/error`
 
 ## Providers
 

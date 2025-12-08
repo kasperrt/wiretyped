@@ -1,5 +1,8 @@
 import { CacheClient } from '../cache/client.js';
-import { getHttpError, HTTPError, isAbortError, isErrorType, isTimeoutError, TimeoutError } from '../error/index.js';
+import { isAbortError } from '../error/abortError.js';
+import { getHttpError, HTTPError } from '../error/httpError.js';
+import { isErrorType } from '../error/isErrorType.js';
+import { isTimeoutError, TimeoutError } from '../error/timeoutError.js';
 import { FetchClient } from '../fetch/client.js';
 import { mergeHeaderOptions } from '../fetch/utils.js';
 import type {

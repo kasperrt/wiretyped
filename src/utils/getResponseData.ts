@@ -1,4 +1,4 @@
-import { isErrorType } from '../error/index.js';
+import { isErrorType } from '../error/isErrorType.js';
 import type { FetchResponse } from '../types/request.js';
 import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap.js';
 

@@ -1,6 +1,7 @@
 # WireTyped Releases
 
 ## Contents
+- [v0.2.4](#v024-rc-1)
 - [v0.2.3](#v023)
 - [v0.2.2](#v022)
 - [v0.2.1](#v021)
@@ -9,6 +10,11 @@
 - [v0.1.1](#v011)
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
+
+## v0.2.4-rc-1
+
+- Omit multi entrypoints
+- Simplify builds
 
 ## v0.2.3
 
