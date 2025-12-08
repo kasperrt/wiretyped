@@ -21,6 +21,7 @@ export default defineConfig({
           entryFileNames: '[name].mjs',
           chunkFileNames: '[name]-[hash].mjs',
           exports: 'named',
+          minify: true,
         },
         {
           format: 'cjs',
