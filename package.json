@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.2.4-rc-2",
+  "version": "0.2.4-rc-3",
   "description": "Typed HTTP client with error-first ergonomics, caching, retries, SSE, and runtime validation powered by @standard-schema/spec.",
   "type": "module",
   "keywords": [
@@ -32,7 +32,10 @@
     ".": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs",
+      "require": {
+        "types": "./dist/types/index.d.cts",
+        "default": "./dist/index.cjs"
+      },
       "default": "./dist/index.mjs"
     },
     "./package.json": "./package.json"
@@ -42,7 +45,7 @@
   },
   "scripts": {
     "build": "vite build && pnpm run build:types",
-    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
+    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly && node scripts/generate-cts-types.mjs",
     "check": "pnpm check:lint && pnpm check:format && pnpm check:ts",
     "check:format": "pnpm exec biome format --error-on-warnings",
     "check:lint": "pnpm exec biome lint --error-on-warnings",

@@ -35,8 +35,12 @@ for (const file of files) {
 
   // Ensure dual declaration outputs exist (d.ts/d.cts) next to the DTS
   const ts = path.join(dir, `${base}.d.ts`);
+  const cts = path.join(dir, `${base}.d.cts`);
   await fs.access(ts).catch(() => {
     throw new Error(`Missing ${ts} for ${file}`);
+  });
+  await fs.access(cts).catch(() => {
+    throw new Error(`Missing ${cts} for ${file}`);
   });
 }
 
