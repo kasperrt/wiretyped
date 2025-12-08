@@ -15,16 +15,22 @@ export default defineConfig({
       treeshake: true,
       output: [
         {
-          format: 'esm',
+          format: 'es',
+          preserveModules: true,
+          preserveModulesRoot: 'src',
           entryFileNames: '[name].mjs',
           chunkFileNames: '[name]-[hash].mjs',
           exports: 'named',
+          minify: true,
         },
         {
           format: 'cjs',
+          preserveModules: true,
+          preserveModulesRoot: 'src',
           entryFileNames: '[name].cjs',
           chunkFileNames: '[name]-[hash].cjs',
           exports: 'named',
+          minify: true,
         },
       ],
     },
