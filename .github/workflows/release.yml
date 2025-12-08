@@ -188,8 +188,26 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Determine npm dist-tag
+        id: npm_tag
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.tag.outputs.version }}"
+
+          if [[ "$VERSION" == *-* ]]; then
+            TAG="next"
+            echo "Detected prerelease version ($VERSION); using dist-tag '$TAG'"
+          else
+            TAG="latest"
+            echo "Detected stable version ($VERSION); using dist-tag '$TAG'"
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Publish to npm
-        run: npm publish
+        env:
+          NPM_TAG: ${{ steps.npm_tag.outputs.tag }}
+        run: npm publish --tag "$NPM_TAG"
 
       - name: Publish to JSR
         run: npx jsr publish
