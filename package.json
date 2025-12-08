@@ -24,10 +24,10 @@
     "url": "git+https://github.com/kasperrt/wiretyped.git"
   },
   "packageManager": "pnpm@10.20.0",
+  "sideEffects": false,
   "main": "./dist/index.mjs",
   "types": "./dist/types/index.d.ts",
   "files": ["dist"],
-  "sideEffects": false,
   "exports": {
     ".": {
       "import": {
