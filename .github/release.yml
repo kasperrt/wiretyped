@@ -1,0 +1,195 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "jsr.json"
+      - "package.json"
+
+permissions:
+  id-token: write
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    if: github.repository == 'kasperrt/wiretyped'
+    uses: ./.github/workflows/ci.yml
+
+  tag:
+    if: github.repository == 'kasperrt/wiretyped'
+    needs: [ci]
+    runs-on: ubuntu-latest
+
+    outputs:
+      tag: ${{ steps.out.outputs.tag }}
+      version: ${{ steps.out.outputs.version }}
+      created: ${{ steps.out.outputs.created }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read and validate versions
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f "jsr.json" ]; then
+            echo "ERROR: jsr.json not found"
+            exit 1
+          fi
+
+          if [ ! -f "package.json" ]; then
+            echo "ERROR: package.json not found"
+            exit 1
+          fi
+
+          JSR_VERSION="$(jq -r '.version // empty' jsr.json)"
+          PKG_VERSION="$(jq -r '.version // empty' package.json)"
+
+          if [ -z "$JSR_VERSION" ] || [ -z "$PKG_VERSION" ]; then
+            echo "ERROR: Missing version in jsr.json or package.json"
+            exit 1
+          fi
+
+          if [ "$JSR_VERSION" != "$PKG_VERSION" ]; then
+            echo "ERROR: Version mismatch!"
+            echo "  jsr.json     : $JSR_VERSION"
+            echo "  package.json : $PKG_VERSION"
+            exit 1
+          fi
+
+          echo "version=$JSR_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$JSR_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag exists
+        id: exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+          git fetch --tags
+
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.exists.outputs.exists == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Export job outputs
+        id: out
+        shell: bash
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          EXISTS: ${{ steps.exists.outputs.exists }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EXISTS" = "false" ]; then
+            CREATED="true"
+          else
+            CREATED="false"
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "created=$CREATED" >> "$GITHUB_OUTPUT"
+
+  release:
+    if: github.repository == 'kasperrt/wiretyped' && needs.tag.outputs.created == 'true'
+    needs: [tag]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.tag.outputs.tag }}"
+          git fetch --tags
+          git checkout "$TAG"
+
+      - name: Validate versions match tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          JSR_VERSION="$(jq -r '.version // empty' jsr.json)"
+          PKG_VERSION="$(jq -r '.version // empty' package.json)"
+
+          if [ -z "$JSR_VERSION" ] || [ -z "$PKG_VERSION" ]; then
+            echo "ERROR: Missing version in jsr.json or package.json"
+            exit 1
+          fi
+
+          if [ "$JSR_VERSION" != "$PKG_VERSION" ]; then
+            echo "ERROR: Version mismatch!"
+            echo "  jsr.json     : $JSR_VERSION"
+            echo "  package.json : $PKG_VERSION"
+            exit 1
+          fi
+
+          EXPECTED="v$JSR_VERSION"
+          TAG="${{ needs.tag.outputs.tag }}"
+
+          if [ "$TAG" != "$EXPECTED" ]; then
+            echo "ERROR: Tag does not match versions!"
+            echo "  tag          : $TAG"
+            echo "  expected tag : $EXPECTED"
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: "pnpm"
+
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (if present)
+        run: npm run build --if-present
+
+      - name: Test
+        run: npm test
+
+      - name: Publish to JSR
+        run: npx jsr publish
+
+      - name: Publish to npm
+        run: npm publish
