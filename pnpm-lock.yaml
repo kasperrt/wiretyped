@@ -19,7 +19,7 @@ importers:
         specifier: ^1.9.1
         version: 1.9.1(vite@8.0.0-beta.1(@types/node@24.10.1)(esbuild@0.25.12)(terser@5.44.1))
       '@hono/node-server':
-        specifier: 1.19.7
+        specifier: ^1.13.0
         version: 1.19.7(hono@4.10.7)
       '@types/node':
         specifier: ^24.10.1
@@ -31,7 +31,7 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0
       hono:
-        specifier: ^4.10.7
+        specifier: ^4.6.12
         version: 4.10.7
       playwright:
         specifier: ^1.57.0
