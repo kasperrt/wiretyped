@@ -1,6 +1,6 @@
-import type { CacheClientOptions } from '../cache/client';
-import type { FetchClientOptions } from '../fetch/client';
-import type { SafeWrapAsync } from '../utils/wrap';
+import type { CacheClientOptions } from '../cache/client.js';
+import type { FetchClientOptions } from '../fetch/client.js';
+import type { SafeWrapAsync } from '../utils/wrap.js';
 
 /** Header options accepted by the fetch wrapper. */
 export type HeaderOptions = NonNullable<RequestInit['headers']> | Record<string, string | null>;

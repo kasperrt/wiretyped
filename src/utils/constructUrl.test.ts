@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import z from 'zod';
-import type { RequestDefinitions } from '../core/types';
-import { constructUrl } from './constructUrl';
+import type { RequestDefinitions } from '../core/types.js';
+import { constructUrl } from './constructUrl.js';
 
 describe('constructUrl', () => {
   it('URI-encodes $path params, inline params, and $search params', async () => {

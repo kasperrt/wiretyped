@@ -1,5 +1,5 @@
-import type { Interval } from '../utils/timeout';
-import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap';
+import type { Interval } from '../utils/timeout.js';
+import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap.js';
 
 /** Options for cache-client */
 export interface CacheClientOptions {

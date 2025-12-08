@@ -1,7 +1,7 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import type { Options } from '../types/request';
-import type { SSEClientSourceInit } from '../types/sse';
-import type { SafeWrap } from '../utils/wrap';
+import type { Options } from '../types/request.js';
+import type { SSEClientSourceInit } from '../types/sse.js';
+import type { SafeWrap } from '../utils/wrap.js';
 
 /** Schema for unknown input, any output, used to easier infer data */
 // biome-ignore lint/suspicious/noExplicitAny: This is used for inferrence, and requires any so inference works as it should

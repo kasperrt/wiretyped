@@ -1,6 +1,6 @@
-import type { FetchResponse } from '../types/request';
-import { isErrorType } from './isErrorType';
-import { unwrapErrorType } from './unwrapErrorType';
+import type { FetchResponse } from '../types/request.js';
+import { isErrorType } from './isErrorType.js';
+import { unwrapErrorType } from './unwrapErrorType.js';
 
 /**
  * Error representing an HTTP response with a non-2xx status code.

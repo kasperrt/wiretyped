@@ -1,6 +1,6 @@
-import type { EndpointsWithMethod, HttpMethod, Params, RequestDefinitions } from '../core/types';
-import { validator } from './validator';
-import type { SafeWrapAsync } from './wrap';
+import type { EndpointsWithMethod, HttpMethod, Params, RequestDefinitions } from '../core/types.js';
+import { validator } from './validator.js';
+import type { SafeWrapAsync } from './wrap.js';
 
 /**
  * Constructs a relative URL by replacing path parameters and appending query parameters.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AbortError, isAbortError } from './abortError';
+import { AbortError, isAbortError } from './abortError.js';
 
 describe('isAbortError', () => {
   it('returns true for instances of AbortError', () => {

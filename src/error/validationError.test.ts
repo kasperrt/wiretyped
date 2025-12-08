@@ -1,4 +1,4 @@
-import { getValidationError, isValidationError, ValidationError } from './validationError';
+import { getValidationError, isValidationError, ValidationError } from './validationError.js';
 
 describe('isErrorType', () => {
   it('expect shallow to correctly return true', () => {

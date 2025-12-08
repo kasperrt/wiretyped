@@ -1,7 +1,7 @@
-import { CacheClient } from '../cache/client';
-import { getHttpError, HTTPError, isAbortError, isErrorType, isTimeoutError, TimeoutError } from '../error';
-import { FetchClient } from '../fetch/client';
-import { mergeHeaderOptions } from '../fetch/utils';
+import { CacheClient } from '../cache/client.js';
+import { getHttpError, HTTPError, isAbortError, isErrorType, isTimeoutError, TimeoutError } from '../error/index.js';
+import { FetchClient } from '../fetch/client.js';
+import { mergeHeaderOptions } from '../fetch/utils.js';
 import type {
   Config,
   FetchClientProvider,
@@ -11,15 +11,15 @@ import type {
   HeaderOptions,
   RequestOptions,
   StatusCode,
-} from '../types/request';
-import type { SSEClientProvider, SSEClientProviderDefinition } from '../types/sse';
-import { constructUrl } from '../utils/constructUrl';
-import { getResponseData } from '../utils/getResponseData';
-import { retry } from '../utils/retry';
-import { createTimeoutSignal, mergeSignals } from '../utils/signals';
-import type { Timeout } from '../utils/timeout';
-import { validator } from '../utils/validator';
-import { type SafeWrap, type SafeWrapAsync, safeWrap, safeWrapAsync } from '../utils/wrap';
+} from '../types/request.js';
+import type { SSEClientProvider, SSEClientProviderDefinition } from '../types/sse.js';
+import { constructUrl } from '../utils/constructUrl.js';
+import { getResponseData } from '../utils/getResponseData.js';
+import { retry } from '../utils/retry.js';
+import { createTimeoutSignal, mergeSignals } from '../utils/signals.js';
+import type { Timeout } from '../utils/timeout.js';
+import { validator } from '../utils/validator.js';
+import { type SafeWrap, type SafeWrapAsync, safeWrap, safeWrapAsync } from '../utils/wrap.js';
 import type {
   DeleteArgs,
   DeleteEndpoint,
@@ -44,7 +44,7 @@ import type {
   SSEReturn,
   UrlArgs,
   UrlEndpoint,
-} from './types';
+} from './types.js';
 
 /** Configuration for constructing a typed {@link RequestClient}, extends {@link Config}. */
 export interface RequestClientProps<Schema extends RequestDefinitions> extends Config {

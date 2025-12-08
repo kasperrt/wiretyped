@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { unwrapErrorType } from './unwrapErrorType';
+import { unwrapErrorType } from './unwrapErrorType.js';
 
 class CustomError extends Error {}
 

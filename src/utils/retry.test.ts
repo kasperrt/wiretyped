@@ -1,7 +1,7 @@
 // retry.test.ts
 import { afterEach, beforeEach, describe, expect, it, type MockedFunction, vi } from 'vitest';
-import { retry } from './retry';
-import type { SafeWrapAsync } from './wrap';
+import { retry } from './retry.js';
+import type { SafeWrapAsync } from './wrap.js';
 
 describe('retry', () => {
   let consoleDebugSpy: MockedFunction<typeof console.debug>;

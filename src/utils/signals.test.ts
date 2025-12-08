@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AbortError } from '../error/abortError';
-import { TimeoutError } from '../error/timeoutError';
-import { createTimeoutSignal, mergeSignals } from './signals';
+import { AbortError } from '../error/abortError.js';
+import { TimeoutError } from '../error/timeoutError.js';
+import { createTimeoutSignal, mergeSignals } from './signals.js';
 
 afterEach(() => {
   vi.restoreAllMocks();

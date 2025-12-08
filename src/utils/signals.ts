@@ -1,5 +1,5 @@
-import { AbortError } from '../error/abortError';
-import { TimeoutError } from '../error/timeoutError';
+import { AbortError } from '../error/abortError.js';
+import { TimeoutError } from '../error/timeoutError.js';
 
 /**
  * Creates an {@link AbortSignal} that will automatically abort after

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HTTPError, isHttpError } from './httpError';
+import { HTTPError, isHttpError } from './httpError.js';
 
 describe('isErrorType', () => {
   it('expect shallow to correctly return true', () => {
