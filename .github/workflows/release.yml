@@ -226,4 +226,4 @@ jobs:
 
 
       - name: Publish to JSR
-        run: npx jsr publish
+        run: pnpx jsr publish

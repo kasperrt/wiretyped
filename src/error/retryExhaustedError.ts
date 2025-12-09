@@ -17,7 +17,7 @@ export class RetryExhaustedError extends Error {
   }
 
   /** Attempts tried before retry was suppressed */
-  get attempts() {
+  get attempts(): number {
     return this.#attempts;
   }
 }
