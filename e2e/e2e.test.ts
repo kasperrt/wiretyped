@@ -1,6 +1,14 @@
 import { EventSource } from 'eventsource';
 import { afterAll, assert, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
-import { getHttpError, isHttpError, RequestClient, type RequestDefinitions } from 'wiretyped';
+import {
+  getHttpError,
+  getRetryExhaustedError,
+  getRetrySuppressedError,
+  isHttpError,
+  isValidationError,
+  RequestClient,
+  type RequestDefinitions,
+} from 'wiretyped';
 import { z } from 'zod';
 import { type E2EServer, startE2EServer } from './server.ts';
 
@@ -81,7 +89,14 @@ const endpoints = {
   },
   '/flaky': {
     get: {
+      $search: z.object({ failTimes: z.number() }),
       response: z.object({ ok: z.boolean(), attempt: z.number() }),
+    },
+  },
+  '/bad': {
+    get: {
+      // Backend will not respond with string here
+      response: z.string(),
     },
   },
   '/sse': {
@@ -138,6 +153,26 @@ describe('wiretyped e2e', () => {
     );
     expect(err).toBeNull();
     expect(data?.success).toBe(true);
+  });
+
+  test('GET /bad returns data, but errors on validation', async () => {
+    const [err, data] = await client.get('/bad', null);
+
+    expect(data).toBeNull();
+    expect(isValidationError(err)).toBe(true);
+  });
+
+  test('GET /bad returns data, but errors on validation', async () => {
+    const [err, data] = await client.get('/bad', null, { validate: false });
+
+    expect(err).toBeNull();
+    expect(isValidationError(err)).toBe(false);
+
+    // If we turn off validation, we still get the data
+    expect(data).toStrictEqual({
+      data: 'wrong-format',
+      etc: 'test',
+    });
   });
 
   test('caching reduces server hits (if enabled)', async () => {
@@ -238,7 +273,74 @@ describe('wiretyped e2e', () => {
     );
 
     expect(isHttpError(err)).toBe(true);
+    expect(isValidationError(err)).toBe(false);
     expect(getHttpError(err)?.response?.status).toBe(400);
+  });
+
+  test('GET /flaky ok after 5 retries (supplied)', async () => {
+    const [err, data] = await client.get(
+      '/flaky',
+      { $search: { failTimes: 4 } },
+      { retry: { limit: 4, timeout: 1 }, headers: new Headers([['x-client', 'e2e-scoped']]) },
+    );
+
+    expect(err).toBeNull();
+    expect(data).toStrictEqual({
+      ok: true,
+      attempt: 5,
+    });
+
+    const counts = server.getCounts();
+    expect(counts['GET /flaky']).toBe(5);
+  });
+
+  test('GET /flaky error after 5 retries (supplied 5)', async () => {
+    const [err, data] = await client.get(
+      '/flaky',
+      { $search: { failTimes: 5 } },
+      {
+        retry: { limit: 4, timeout: 1, statusCodes: [500, 501, 502, 503, 504, 505] },
+        headers: new Headers([['x-client', 'e2e-scoped']]),
+      },
+    );
+
+    console.log(getHttpError(err)?.response.status);
+    expect(getRetryExhaustedError(err)?.attempts).toBe(5);
+    expect(data).toBeNull();
+
+    const counts = server.getCounts();
+    expect(counts['GET /flaky']).toBe(5);
+  });
+
+  test('GET /flaky error after 1 retries with suppressed due to ignored statuscode', async () => {
+    const [err, data] = await client.get(
+      '/flaky',
+      { $search: { failTimes: 5 } },
+      { retry: { limit: 4, timeout: 1, ignoreStatusCodes: [500] }, headers: new Headers([['x-client', 'e2e-scoped']]) },
+    );
+
+    expect(getRetrySuppressedError(err)?.attempts).toBe(1);
+    expect(data).toBeNull();
+
+    const counts = server.getCounts();
+    expect(counts['GET /flaky']).toBe(1);
+  });
+
+  test('GET /flaky error with suppress after 3 attempts as hitting non approved status-code', async () => {
+    const [err, data] = await client.get(
+      '/flaky',
+      { $search: { failTimes: 5 } },
+      {
+        retry: { limit: 4, timeout: 1, statusCodes: [500, 501, 503, 504] },
+        headers: new Headers([['x-client', 'e2e-scoped']]),
+      },
+    );
+
+    expect(getRetrySuppressedError(err)?.attempts).toBe(3);
+    expect(data).toBeNull();
+
+    const counts = server.getCounts();
+    expect(counts['GET /flaky']).toBe(3);
   });
 
   test('SSE /sse streams messages', async () => {
