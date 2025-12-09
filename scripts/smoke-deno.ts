@@ -12,6 +12,12 @@ const rootErrors = [
   'ValidationError',
   'getValidationError',
   'isValidationError',
+  'RetrySuppressedError',
+  'RetryExhaustedError',
+  'isRetrySuppressedError',
+  'getRetrySuppressedError',
+  'isRetryExhaustedError',
+  'getRetryExhaustedError',
 ];
 
 const checkRoot = (mod: Record<string, unknown>, label: string) => {

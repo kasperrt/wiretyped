@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi 
 import { z } from 'zod';
 import { CacheClient } from '../cache/client.js';
 import { AbortError } from '../error/abortError.js';
-import { HTTPError } from '../error/httpError.js';
+import { isHttpError } from '../error/httpError.js';
 import { isErrorType } from '../error/isErrorType.js';
+import { getRetryExhaustedError, RetryExhaustedError } from '../error/retryExhaustedError.js';
+import { getRetrySuppressedError, RetrySuppressedError } from '../error/retrySuppressedError.js';
 import { isTimeoutError, TimeoutError } from '../error/timeoutError.js';
 import { ValidationError } from '../error/validationError.js';
 import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request.js';
@@ -418,7 +420,9 @@ describe('RequestClient', () => {
       expect(err).toBeInstanceOf(Error);
       expect(err).toStrictEqual(
         new Error('error doing request in get', {
-          cause: new Error('error request GET in request', { cause: abortErr }),
+          cause: new RetrySuppressedError('error further retries suppressed', 1, {
+            cause: new Error('error request GET in request', { cause: abortErr }),
+          }),
         }),
       );
       expect(getSpy).toHaveBeenCalledTimes(1);
@@ -552,6 +556,7 @@ describe('RequestClient', () => {
         json: () => ({ message: 'too many requests' }),
         text: () => '{ "message": "too many requests" }',
         headers: { get: () => 'application/json' },
+        clone: () => ({ ...httpResponse }),
       };
 
       const getSpy = vi
@@ -588,6 +593,7 @@ describe('RequestClient', () => {
         json: () => ({ message: 'teapot' }),
         text: () => '{ "message": "teapot" }',
         headers: { get: () => 'application/json' },
+        clone: () => ({ ...httpResponse }),
       };
 
       const getSpy = vi
@@ -609,7 +615,9 @@ describe('RequestClient', () => {
 
       expect(res).toBeNull();
       expect(err).toBeInstanceOf(Error);
-      expect((err as Error).cause).toBeInstanceOf(HTTPError);
+      expect((err as Error).cause).toBeInstanceOf(RetrySuppressedError);
+      expect(isHttpError(err)).toBe(true);
+      expect(getRetrySuppressedError(err)?.attempts).toBe(1);
       expect(getSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -626,6 +634,7 @@ describe('RequestClient', () => {
         json: () => ({ message: 'server error' }),
         text: () => '{ "message": "server error" }',
         headers: { get: () => 'application/json' },
+        clone: () => ({ ...errorResponse }),
       };
 
       const successResponse = {
@@ -671,6 +680,7 @@ describe('RequestClient', () => {
         json: () => ({ message: 'teapot' }),
         text: () => '{ "message": "teapot" }',
         headers: { get: () => 'application/json' },
+        clone: () => ({ ...httpResponse }),
       };
 
       const getSpy = vi
@@ -691,7 +701,9 @@ describe('RequestClient', () => {
 
       expect(res).toBeNull();
       expect(err).toBeInstanceOf(Error);
-      expect((err as Error).cause).toBeInstanceOf(HTTPError);
+      expect((err as Error).cause).toBeInstanceOf(RetrySuppressedError);
+      expect(getRetrySuppressedError(err)?.attempts).toBe(1);
+      expect(isHttpError(err)).toBe(true);
       expect(getSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -724,7 +736,9 @@ describe('RequestClient', () => {
       expect(err?.message).toContain('error doing request in get');
       expect(err).toStrictEqual(
         new Error('error doing request in get', {
-          cause: new Error('error calling request GET in request', { cause: thrown }),
+          cause: new RetryExhaustedError('error retries exhausted', 1, {
+            cause: new Error('error calling request GET in request', { cause: thrown }),
+          }),
         }),
       );
       expect(getSpy).toHaveBeenCalledOnce();
@@ -772,10 +786,13 @@ describe('RequestClient', () => {
       await vi.advanceTimersByTimeAsync(9 * 1000);
       const [err, res] = await request;
 
+      expect(getRetryExhaustedError(err)?.attempts).toBe(10);
       expect(err).toStrictEqual(
         new Error('error doing request in get', {
-          cause: new Error('error getting response in GET', {
-            cause: new Error('error parsing json in getResponseData', { cause: new Error('test') }),
+          cause: new RetryExhaustedError('error retries exhausted', 10, {
+            cause: new Error('error getting response in GET', {
+              cause: new Error('error parsing json in getResponseData', { cause: new Error('test') }),
+            }),
           }),
         }),
       );
@@ -1152,7 +1169,9 @@ describe('RequestClient', () => {
       expect(err).toBeInstanceOf(Error);
       expect(err).toStrictEqual(
         new Error('error doing request in download', {
-          cause: new Error('error request GET in request', { cause: underlyingError }),
+          cause: new RetryExhaustedError('error retries exhausted', 1, {
+            cause: new Error('error request GET in request', { cause: underlyingError }),
+          }),
         }),
       );
     });
@@ -1536,7 +1555,9 @@ describe('RequestClient', () => {
         expect(err).toBeInstanceOf(Error);
         expect(err?.message).toBe('error doing request in get');
         expect((err as Error).cause).toStrictEqual(
-          new Error('error request GET in request', { cause: underlyingError }),
+          new RetryExhaustedError('error retries exhausted', 1, {
+            cause: new Error('error request GET in request', { cause: underlyingError }),
+          }),
         );
       });
 
@@ -1719,7 +1740,9 @@ describe('RequestClient', () => {
             cause: new Error('error getting cached request', {
               cause: new Error('error getting request uncached after cache attempt', {
                 cause: new Error('error doing request in get', {
-                  cause: new Error('error request GET in request', { cause: underlyingError }),
+                  cause: new RetryExhaustedError('error retries exhausted', 1, {
+                    cause: new Error('error request GET in request', { cause: underlyingError }),
+                  }),
                 }),
               }),
             }),
@@ -2032,7 +2055,9 @@ describe('RequestClient', () => {
       expect(err).toBeInstanceOf(Error);
       expect(err).toStrictEqual(
         new Error('error doing request in post', {
-          cause: new Error('error request POST in request', { cause: underlyingError }),
+          cause: new RetryExhaustedError('error retries exhausted', 1, {
+            cause: new Error('error request POST in request', { cause: underlyingError }),
+          }),
         }),
       );
     });
@@ -2356,7 +2381,9 @@ describe('RequestClient', () => {
       expect(err).toBeInstanceOf(Error);
       expect(err).toStrictEqual(
         new Error('error doing request in put', {
-          cause: new Error('error request PUT in request', { cause: underlyingError }),
+          cause: new RetryExhaustedError('error retries exhausted', 1, {
+            cause: new Error('error request PUT in request', { cause: underlyingError }),
+          }),
         }),
       );
     });
@@ -2691,7 +2718,9 @@ describe('RequestClient', () => {
       expect(err).toBeInstanceOf(Error);
       expect(err).toStrictEqual(
         new Error('error doing request in patch', {
-          cause: new Error('error request PATCH in request', { cause: underlyingError }),
+          cause: new RetryExhaustedError('error retries exhausted', 1, {
+            cause: new Error('error request PATCH in request', { cause: underlyingError }),
+          }),
         }),
       );
     });
@@ -2940,9 +2969,12 @@ describe('RequestClient', () => {
       expect(deleteSpy).toHaveBeenCalledOnce();
       expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
       expect(err).toBeInstanceOf(Error);
+      expect(getRetryExhaustedError(err)?.attempts).toBe(1);
       expect(err).toStrictEqual(
         new Error('error doing request in delete', {
-          cause: new Error('error request DELETE in request', { cause: underlyingError }),
+          cause: new RetryExhaustedError('error retries exhausted', 1, {
+            cause: new Error('error request DELETE in request', { cause: underlyingError }),
+          }),
         }),
       );
     });

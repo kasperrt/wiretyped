@@ -14,6 +14,12 @@ const rootErrors = [
   'ValidationError',
   'getValidationError',
   'isValidationError',
+  'RetrySuppressedError',
+  'RetryExhaustedError',
+  'isRetrySuppressedError',
+  'getRetrySuppressedError',
+  'isRetryExhaustedError',
+  'getRetryExhaustedError',
 ];
 
 const requiredErrors = [...rootErrors, 'unwrapErrorType', 'isErrorType'];

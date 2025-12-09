@@ -4,9 +4,12 @@
 
 <img src="./public/wiretyped.png" alt="Wiretyped logo" width="400" />
 
-Typed HTTP client utilities for defining endpoints with [@standard-schema](https://standardschema.dev), issuing requests, and handling errors in an error-first style.
-
 </div>
+
+A universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.
+
+Runs across browser, Node, Bun, and worker runtimes with a small, composable API and predictable failure modes.
+
 
 ## Why
 

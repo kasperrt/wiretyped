@@ -1,4 +1,5 @@
 import type { EndpointsWithMethod, HttpMethod, Params, RequestDefinitions } from '../core/types.js';
+import { ConstructURLError } from '../error/constructUrlError.js';
 import { validator } from './validator.js';
 import type { SafeWrapAsync } from './wrap.js';
 
@@ -26,7 +27,7 @@ export async function constructUrl<
 
     // Check for remaining unreplaced braces
     if (result.includes('{') || result.includes('}')) {
-      return [new Error(`error constructing URL, path contains {} ${result}`), null];
+      return [new ConstructURLError(`error constructing URL, path contains {}`, result), null];
     }
 
     return [null, result];
@@ -39,7 +40,7 @@ export async function constructUrl<
     if (validation) {
       const [errParse, parsed] = await validator(params.$search, schema.$search);
       if (errParse) {
-        return [new Error(`error extracting search params`, { cause: errParse }), null];
+        return [new ConstructURLError(`error extracting search params`, result, { cause: errParse }), null];
       }
       data = parsed;
     }
@@ -60,7 +61,7 @@ export async function constructUrl<
     if (validation) {
       const [errParse, parsed] = await validator(params.$path, schema.$path);
       if (errParse) {
-        return [new Error(`error $path validation failed`, { cause: errParse }), null];
+        return [new ConstructURLError(`error $path validation failed`, result, { cause: errParse }), null];
       }
       data = parsed;
     }
@@ -88,7 +89,7 @@ export async function constructUrl<
 
   // Check for remaining unreplaced braces
   if (result.includes('{') || result.includes('}')) {
-    return [new Error(`error constructing URL, remaining contains {} still ${result}`), null];
+    return [new ConstructURLError(`error constructing URL, remaining contains {}`, result), null];
   }
 
   // Strip leading slash for clean concatenation with baseUrl

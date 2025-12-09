@@ -1,5 +1,11 @@
 // retry.test.ts
 import { afterEach, beforeEach, describe, expect, it, type MockedFunction, vi } from 'vitest';
+import { getRetryExhaustedError, isRetryExhaustedError, RetryExhaustedError } from '../error/retryExhaustedError.js';
+import {
+  getRetrySuppressedError,
+  isRetrySuppressedError,
+  RetrySuppressedError,
+} from '../error/retrySuppressedError.js';
 import { retry } from './retry.js';
 import type { SafeWrapAsync } from './wrap.js';
 
@@ -94,7 +100,9 @@ describe('retry', () => {
     expect(errFn).toHaveBeenCalledWith(fatalError);
 
     expect(data).toBeNull();
-    expect(err).toBe(fatalError);
+    expect(isRetrySuppressedError(err)).toBe(true);
+    expect(getRetrySuppressedError(err)?.attempts).toBe(1);
+    expect(err).toStrictEqual(new RetrySuppressedError('error further retries suppressed', 1, { cause: fatalError }));
 
     expect(consoleDebugSpy).toHaveBeenCalledTimes(1);
     expect(consoleDebugSpy.mock.calls[0][0]).toContain("fatalCase retrier: Didn't match error-condition for retrier");
@@ -132,7 +140,9 @@ describe('retry', () => {
     const [err, data] = await promise;
 
     expect(data).toBeNull();
-    expect(err).toBe(error);
+    expect(isRetryExhaustedError(err)).toBe(true);
+    expect(getRetryExhaustedError(err)?.attempts).toBe(3);
+    expect(err).toStrictEqual(new RetryExhaustedError('error retries exhausted', 3, { cause: error }));
 
     expect(consoleDebugSpy).toHaveBeenCalledTimes(1);
     expect(consoleDebugSpy.mock.calls[0][0]).toContain(
@@ -167,7 +177,9 @@ describe('retry', () => {
     const [err, data] = await promise;
 
     expect(data).toBeNull();
-    expect(err).toBe(error);
+    expect(isRetryExhaustedError(err)).toBe(true);
+    expect(getRetryExhaustedError(err)?.attempts).toBe(2);
+    expect(err).toStrictEqual(new RetryExhaustedError('error retries exhausted', 2, { cause: error }));
     expect(consoleDebugSpy).not.toHaveBeenCalled();
   });
 });
