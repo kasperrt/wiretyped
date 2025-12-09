@@ -18,6 +18,9 @@ const rootErrors = [
   'getRetrySuppressedError',
   'isRetryExhaustedError',
   'getRetryExhaustedError',
+  'ConstructURLError',
+  'isConstructURLError',
+  'getConstructURLError',
 ];
 
 const checkRoot = (mod: Record<string, unknown>, label: string) => {

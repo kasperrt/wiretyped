@@ -16,6 +16,7 @@
 
 - Add RetryExhaustError for better traceability of retry stops/exhaust.
 - Add RetrySuppressedError for better traceability of retry stops/suppresses.
+- Add ConstructURLError to allow easier way to spot if it was URL constructing error instead of message parsing.
 - Update description, keywords, and README.md intro for more targetted info and description on package.
 
 ## v0.2.4

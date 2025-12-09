@@ -20,6 +20,9 @@ const rootErrors = [
   'getRetrySuppressedError',
   'isRetryExhaustedError',
   'getRetryExhaustedError',
+  'ConstructURLError',
+  'isConstructURLError',
+  'getConstructURLError',
 ];
 
 const requiredErrors = [...rootErrors, 'unwrapErrorType', 'isErrorType'];

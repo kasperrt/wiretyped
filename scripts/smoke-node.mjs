@@ -31,6 +31,9 @@ const expectedRootErrorExports = [
   'getRetrySuppressedError',
   'isRetryExhaustedError',
   'getRetryExhaustedError',
+  'ConstructURLError',
+  'isConstructURLError',
+  'getConstructURLError',
 ];
 
 const expectedErrorExports = [...expectedRootErrorExports, 'unwrapErrorType', 'isErrorType'];
