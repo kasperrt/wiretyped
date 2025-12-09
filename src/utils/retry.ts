@@ -1,3 +1,5 @@
+import { RetryExhaustedError } from '../error/retryExhaustedError.js';
+import { RetrySuppressedError } from '../error/retrySuppressedError.js';
 import type { SafeWrapAsync } from './wrap.js';
 
 /** Options for retry-function */
@@ -52,13 +54,13 @@ export function retry<R>({
       if (log) {
         console.debug(`${name} retrier: Didn't match error-condition for retrier, aborting subsequent retries.`);
       }
-      return [err, null];
+      return [new RetrySuppressedError('error further retries suppressed', attempt, { cause: err }), null];
     }
     if (attempt > attempts) {
       if (log) {
         console.debug(`${name} retrier: Attempts exceeded allowed number of retries.`);
       }
-      return [err, null];
+      return [new RetryExhaustedError('error retries exhausted', attempt, { cause: err }), null];
     }
     return new Promise((resolve) =>
       setTimeout(() => {

@@ -25,6 +25,15 @@ const expectedRootErrorExports = [
   'ValidationError',
   'getValidationError',
   'isValidationError',
+  'RetrySuppressedError',
+  'RetryExhaustedError',
+  'isRetrySuppressedError',
+  'getRetrySuppressedError',
+  'isRetryExhaustedError',
+  'getRetryExhaustedError',
+  'ConstructURLError',
+  'isConstructURLError',
+  'getConstructURLError',
 ];
 
 const expectedErrorExports = [...expectedRootErrorExports, 'unwrapErrorType', 'isErrorType'];

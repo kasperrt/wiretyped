@@ -1,6 +1,7 @@
 # WireTyped Releases
 
 ## Contents
+- [v0.2.5-rc-1](#v025-rc-1)
 - [v0.2.4](#v024)
 - [v0.2.3](#v023)
 - [v0.2.2](#v022)
@@ -10,6 +11,13 @@
 - [v0.1.1](#v011)
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
+
+## v0.2.5-rc-1
+
+- Add RetryExhaustError for better traceability of retry stops/exhaust.
+- Add RetrySuppressedError for better traceability of retry stops/suppresses.
+- Add ConstructURLError to allow easier way to spot if it was URL constructing error instead of message parsing.
+- Update description, keywords, and README.md intro for more targetted info and description on package.
 
 ## v0.2.4
 

@@ -100,6 +100,10 @@ export async function startE2EServer(endpoints: RequestDefinitions): SafeWrapAsy
     });
   }
 
+  app.get('/bad', (c) => {
+    return c.json({ data: 'wrong-format', etc: 'test' }, 200);
+  });
+
   app.get('/flaky', async (c) => {
     const schemas = flakySchemas.get;
     if (!schemas) {
@@ -126,7 +130,8 @@ export async function startE2EServer(endpoints: RequestDefinitions): SafeWrapAsy
       return c.json({ error: 'response failed validation', details: errResponse.message }, 500);
     }
 
-    return c.json(validatedResponse, ok ? 200 : 500);
+    // @ts-expect-error
+    return c.json(validatedResponse, ok ? 200 : 500 + (attempt - 1));
   });
 
   app.get('/sse', (c) => {

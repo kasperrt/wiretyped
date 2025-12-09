@@ -316,6 +316,7 @@ describe('FetchClient', () => {
         ok: false,
         status: 401,
         json: async () => responseBody,
+        clone: () => ({ ...errorResponse }),
       } as FetchResponse;
 
       const mockedFetch = global.fetch as MockedFunction<typeof fetch>;
@@ -436,6 +437,7 @@ describe('FetchClient', () => {
         ok: false,
         status: 500,
         json: async () => ({ message: 'server error' }),
+        clone: () => ({ ...errorResponse }),
       } as FetchResponse;
 
       const mockedFetch = global.fetch as MockedFunction<typeof fetch>;

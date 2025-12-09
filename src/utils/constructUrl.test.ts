@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import z from 'zod';
 import type { RequestDefinitions } from '../core/types.js';
+import { ConstructURLError, getConstructURLError, isConstructURLError } from '../error/constructUrlError.js';
 import { constructUrl } from './constructUrl.js';
 
 describe('constructUrl', () => {
@@ -53,7 +54,9 @@ describe('constructUrl', () => {
     );
 
     expect(url).toBeNull();
-    expect(err).toBeInstanceOf(Error);
-    expect(err?.message).toContain('path contains {} users/{id}');
+    expect(err).toBeInstanceOf(ConstructURLError);
+    expect(getConstructURLError(err)?.url).toBe('users/{id}');
+    expect(isConstructURLError(err)).toBe(true);
+    expect(err?.message).toContain('path contains {}');
   });
 });

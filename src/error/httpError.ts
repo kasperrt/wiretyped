@@ -10,12 +10,24 @@ export class HTTPError extends Error {
   name = 'HTTPError';
 
   /** Response causing the HTTPError */
-  public response: FetchResponse;
+  #response: FetchResponse;
 
   /** Creates a new instance of a HTTPError with defaulting message + response to wrap */
   constructor(response: Response, message: string = `HTTP Error: ${response.status}`, opts?: ErrorOptions) {
     super(message, opts);
-    this.response = response as FetchResponse;
+    this.#response = response as FetchResponse;
+  }
+
+  /**
+   * Response causing the HTTPError
+   */
+  get response(): FetchResponse {
+    // We'd rather not error in case something has happened to response and it doesn't have clone
+    if (typeof this.#response.clone !== 'function') {
+      return this.#response;
+    }
+
+    return this.#response.clone() as FetchResponse;
   }
 }
 

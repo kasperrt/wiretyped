@@ -67,6 +67,12 @@ try {
         requestClient: typeof root.RequestClient === 'function',
         httpError: typeof root.HTTPError === 'function',
         timeoutError: typeof root.TimeoutError === 'function',
+        retrySuppressedError: typeof root.RetrySuppressedError === 'function',
+        isRetrySuppressedError: typeof root.isRetrySuppressedError === 'function',
+        getRetrySuppressedError: typeof root.getRetrySuppressedError === 'function',
+        retryExhaustedError: typeof root.RetryExhaustedError === 'function',
+        isRetryExhaustedError: typeof root.isRetryExhaustedError === 'function',
+        getRetryExhaustedError: typeof root.getRetryExhaustedError === 'function',
         getHttpError: typeof root.getHttpError === 'function',
         isAbortError: typeof root.isAbortError === 'function',
         isHttpError: typeof root.isHttpError === 'function',
@@ -88,6 +94,12 @@ try {
         isTimeoutError: typeof error.isTimeoutError === 'function',
         unwrapErrorType: typeof error.unwrapErrorType === 'function',
         isErrorType: typeof error.isErrorType === 'function',
+        retrySuppressedError: typeof error.RetrySuppressedError === 'function',
+        isRetrySuppressedError: typeof error.isRetrySuppressedError === 'function',
+        getRetrySuppressedError: typeof error.getRetrySuppressedError === 'function',
+        retryExhaustedError: typeof error.RetryExhaustedError === 'function',
+        isRetryExhaustedError: typeof error.isRetryExhaustedError === 'function',
+        getRetryExhaustedError: typeof error.getRetryExhaustedError === 'function',
       },
     };
   }, base);
@@ -104,6 +116,12 @@ try {
     validationError: true,
     getValidationError: true,
     isValidationError: true,
+    retryExhaustedError: true,
+    retrySuppressedError: true,
+    isRetryExhaustedError: true,
+    getRetryExhaustedError: true,
+    isRetrySuppressedError: true,
+    getRetrySuppressedError: true,
   });
   assert.deepStrictEqual(result.core, { requestClient: true });
   assert.deepStrictEqual(result.error, {
@@ -116,6 +134,12 @@ try {
     isTimeoutError: true,
     unwrapErrorType: true,
     isErrorType: true,
+    retryExhaustedError: true,
+    retrySuppressedError: true,
+    isRetryExhaustedError: true,
+    getRetryExhaustedError: true,
+    isRetrySuppressedError: true,
+    getRetrySuppressedError: true,
   });
 
   console.log('Browser smoke passed');
