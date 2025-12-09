@@ -17,7 +17,7 @@ export class ConstructURLError extends Error {
   }
 
   /** Attempts tried before retry was suppressed */
-  get url() {
+  get url(): string {
     return this.#url;
   }
 }

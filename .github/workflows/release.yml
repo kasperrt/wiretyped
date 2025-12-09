@@ -6,6 +6,7 @@ on:
     paths:
       - "jsr.json"
       - "package.json"
+      - "CHANGELOG.md"
 
 permissions:
   id-token: write
@@ -226,4 +227,4 @@ jobs:
 
 
       - name: Publish to JSR
-        run: npx jsr publish
+        run: pnpx jsr publish

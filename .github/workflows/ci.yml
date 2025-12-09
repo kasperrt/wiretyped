@@ -49,6 +49,9 @@ jobs:
       - name: Type check
         run: pnpm run check:ts
 
+      - name: JSR pre-publish checks
+        run: pnpx jsr publish --dry-run
+
       - name: Build
         env:
           CODECOV_BUNDLE_ANALYSIS: "true"
