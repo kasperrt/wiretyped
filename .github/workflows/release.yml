@@ -6,6 +6,7 @@ on:
     paths:
       - "jsr.json"
       - "package.json"
+      - "CHANGELOG.md"
 
 permissions:
   id-token: write
