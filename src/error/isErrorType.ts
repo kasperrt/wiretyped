@@ -12,11 +12,7 @@ export function isErrorType<T extends Error>(
     return true;
   }
 
-  if (!(err instanceof Error)) {
-    return false;
-  }
-
-  if (shallow) {
+  if (!(err instanceof Error) || shallow) {
     return false;
   }
 
@@ -24,11 +20,10 @@ export function isErrorType<T extends Error>(
     return isErrorType(errorClass, err.cause);
   }
 
-  if (err?.name && errorClass?.name && err?.name === errorClass?.name) {
-    return true;
-  }
-
-  if (err?.message && errorClass?.name && err?.message.startsWith(errorClass?.name)) {
+  if (
+    (err?.name && errorClass?.name && err?.name === errorClass?.name) ||
+    (err?.message && errorClass?.name && err?.message.startsWith(errorClass?.name))
+  ) {
     return true;
   }
 

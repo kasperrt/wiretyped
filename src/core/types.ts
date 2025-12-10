@@ -24,8 +24,13 @@ export type RequireAtLeastOne<T> = {
  */
 export type EmptyishObject<T> = [keyof T] extends [never] ? null : T;
 
-/** Allowed HTTP methods supported by the client. */
-export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'download' | 'url' | 'sse';
+/**
+ * HTTPMethods that exists
+ */
+export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
+
+/** Allowed operations supported by the client. */
+export type ClientOperation = HttpMethod | 'download' | 'url' | 'sse';
 
 /**
  * RequestDefinitions types up the possible variations of
@@ -33,7 +38,7 @@ export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'download
  */
 export type RequestDefinitions = {
   [path: string]: RequireAtLeastOne<{
-    [M in HttpMethod]: M extends 'url'
+    [M in ClientOperation]: M extends 'url'
       ? { $search?: SchemaType; $path?: SchemaType; response: SchemaString }
       : M extends 'get' | 'delete' | 'download'
         ? { $search?: SchemaType; $path?: SchemaType; response: SchemaType }
@@ -52,7 +57,7 @@ export type ParsePathParams<Path extends string | number> = Path extends `${infe
   : EmptyObject;
 
 /** Extract endpoints that support a given HTTP method. */
-export type EndpointsWithMethod<Method extends HttpMethod, Schema extends RequestDefinitions> = {
+export type EndpointsWithMethod<Method extends ClientOperation, Schema extends RequestDefinitions> = {
   [K in keyof Schema]: Schema[K] extends Record<Method, unknown> ? K : never;
 }[keyof Schema];
 
@@ -106,7 +111,7 @@ export type PathKeys<
 export type Params<
   Schema extends RequestDefinitions,
   Endpoint extends keyof RequestDefinitions & string,
-  Method extends HttpMethod & keyof RequestDefinitions[Endpoint],
+  Method extends ClientOperation & keyof RequestDefinitions[Endpoint],
 > = EmptyishObject<
   // drop from ParsePathParams any keys that are handled by $path
   Omit<ParsePathParams<Endpoint>, PathKeys<Schema, Endpoint, Method>> &
@@ -195,7 +200,7 @@ export type DeleteArgs<Schema extends RequestDefinitions, Endpoint extends Delet
 export type DownloadArgs<Schema extends RequestDefinitions, Endpoint extends DownloadEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'download'>,
-  options?: Omit<Options, 'cacheRequest' | 'cacheTimeToLive'>,
+  options?: Options,
 ];
 
 /**

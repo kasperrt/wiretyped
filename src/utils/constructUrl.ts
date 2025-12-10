@@ -1,4 +1,4 @@
-import type { EndpointsWithMethod, HttpMethod, Params, RequestDefinitions } from '../core/types.js';
+import type { ClientOperation, EndpointsWithMethod, Params, RequestDefinitions } from '../core/types.js';
 import { ConstructURLError } from '../error/constructUrlError.js';
 import { validator } from './validator.js';
 import type { SafeWrapAsync } from './wrap.js';
@@ -8,7 +8,7 @@ import type { SafeWrapAsync } from './wrap.js';
  * Handles strict validation of $path and $search if enabled.
  */
 export async function constructUrl<
-  Method extends HttpMethod,
+  Method extends ClientOperation,
   Schema extends RequestDefinitions,
   Endpoint extends EndpointsWithMethod<Method, Schema> & string,
 >(

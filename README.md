@@ -52,6 +52,7 @@ Runs across browser, Node, Bun, and worker runtimes with a small, composable API
   - [Caching](#caching)
   - [Retries](#retries)
   - [Error handling](#error-handling)
+    - [Error types](#error-types)
   - [Exposed entrypoints](#exposed-entrypoints)
   - [Providers](#providers)
     - [HTTP provider shape](#http-provider-shape)
@@ -380,10 +381,10 @@ Configure retries via `retry` on request options (or globally in the client cons
 ```ts
 const [err, data] = await client.get('/users', params, {
   retry: {
-    limit: 5,                // max retries (total attempts = limit + 1)
-    statusCodes: [429, 500], // retry only these statuses
+    limit: 5,                 // max retries (total attempts = limit + 1)
+    statusCodes: [429, 500],  // retry only these statuses
     ignoreStatusCodes: [404], // never retry on these (skip retry)
-    timeout: 500,            // wait 500ms between tries
+    timeout: 500,             // wait 500ms between tries
   },
 });
 ```
@@ -391,7 +392,7 @@ const [err, data] = await client.get('/users', params, {
 Example with a timeout focus:
 
 ```ts
-const [err, _] = await client.post('/users', null, body, {
+const [err, res] = await client.post('/users', null, body, {
   timeout: 10_000,
   retry: { limit: 2, statusCodes: [408], timeout: 1000 },
 });
@@ -420,6 +421,20 @@ if (err) {
   return _something_here_general_error_;
 }
 ```
+
+### Error types
+
+`wiretyped` returns `[error, data]` tuples; the `error` half is either `null`, one of the typed errors below, or a plain `Error` if the case is not covered by a custom class.
+
+- `HTTPError`: Non-2xx HTTP response; inspect `.response` (cloned) for status/body.
+- `ValidationError`: Request or response validation failed; `.issues` lists Standard Schema issues and the message includes them for logging.
+- `TimeoutError`: Request exceeded the configured timeout (also used when opening SSE connections takes too long).
+- `AbortError`: The request was deliberately aborted via `AbortController`/signal.
+- `ConstructURLError`: URL building failed (bad/missing `$path` or `$search` values); `.url` holds the failing URL template/result.
+- `RetrySuppressedError`: Retry loop stopped early because it hit a stop/ignore code or state, and told it to stop retrying; `.attempts` shows how many tries happened.
+- `RetryExhaustedError`: Retry loop hit its limit and surfaced the final failure; `.attempts` shows total tries.
+
+Use `isX` or `getX` helpers from `wiretyped/error` (e.g., `isHttpError`, `getValidationError`) to safely narrow or unwrap errors, even when they are nested in `cause`.
 
 ## Exposed entrypoints
 

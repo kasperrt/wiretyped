@@ -24,14 +24,18 @@ import type { Timeout } from '../utils/timeout.js';
 import { validator } from '../utils/validator.js';
 import { type SafeWrap, type SafeWrapAsync, safeWrap, safeWrapAsync } from '../utils/wrap.js';
 import type {
+  ClientOperation,
   DeleteArgs,
   DeleteEndpoint,
   DeleteReturn,
   DownloadArgs,
   DownloadEndpoint,
+  EndpointsWithMethod,
   GetArgs,
   GetEndpoint,
   GetReturn,
+  HttpMethod,
+  Params,
   PatchArgs,
   PatchEndpoint,
   PatchReturn,
@@ -134,12 +138,9 @@ export class RequestClient<Schema extends RequestDefinitions> {
     hostname,
     endpoints,
   }: RequestClientProps<Schema>) {
-    this.#cacheClient = new CacheClient(cacheOpts);
-
-    if (!sseProvider) {
-      this.#log(`potentially missing event-provider polyfill, SSE handlers won't work`);
-    }
     const { timeout, retry, ...fetchClientOpts } = { ...fetchOpts };
+
+    this.#cacheClient = new CacheClient(cacheOpts);
     this.#requestOpts = { timeout, retry };
     this.#endpoints = endpoints;
     this.#baseUrl = baseUrl;
@@ -159,6 +160,10 @@ export class RequestClient<Schema extends RequestDefinitions> {
       ...fetchClientOpts,
       headers: this.#defaultHeaders,
     });
+
+    if (!sseProvider) {
+      this.#log(`potentially missing event-provider polyfill, SSE handlers won't work`);
+    }
 
     this.#log(
       `RequestClient: ${JSON.stringify(
@@ -234,73 +239,17 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, options]`.
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
-  async get<Endpoint extends GetEndpoint<Schema>>(
+  get<Endpoint extends GetEndpoint<Schema>>(
     ...args: GetArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, GetReturn<Schema, Endpoint>> {
-    const [endpoint, params, { validate, ...opts } = {}] = args;
-    const schemas = this.#endpoints[endpoint]?.get;
-    if (!schemas) {
-      return [new Error(`error no schemas found for ${endpoint}`), null];
-    }
-
-    this.#log(`GET OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
-    if (errUrl) {
-      this.#log(`GET ERRURL: ${errUrl}`);
-      return [new Error('error constructing URL in get', { cause: errUrl }), null];
-    }
-
-    this.#log(`GET URL: ${url}`);
-
-    if (opts.cacheRequest) {
-      const cacheKey = await this.#cacheClient.key(url, mergeHeaderOptions(this.#defaultHeaders, opts.headers));
-      const [errCacheClient, result] = await this.#cacheClient.get(
-        cacheKey,
-        async () => {
-          const [err, uncached] = await this.get(endpoint, params, {
-            ...opts,
-            cacheRequest: false,
-          });
-
-          if (err) {
-            return [new Error('error getting request uncached after cache attempt', { cause: err }), null];
-          }
-
-          return [null, uncached];
-        },
-        opts.cacheTimeToLive,
-      );
-
-      if (errCacheClient) {
-        return [
-          new Error('error getting cached response in get', {
-            cause: errCacheClient,
-          }),
-          null,
-        ];
-      }
-
-      this.#log('GET CACHE: ', result);
-
-      return [null, result];
-    }
-
-    const [errReq, result] = await this.#request<GetReturn<Schema, Endpoint>>('get', url, opts, getResponseData);
-    if (errReq) {
-      return [new Error('error doing request in get', { cause: errReq }), null];
-    }
-
-    if (validate === false || (this.#validation === false && !validate)) {
-      return [null, result];
-    }
-
-    const [errParse, parsed] = await validator(result, schemas.response);
-    if (errParse) {
-      return [new Error('error parsing response in get', { cause: errParse }), null];
-    }
-
-    return [null, parsed];
+    const [endpoint, params, opts = {}] = args;
+    return this.#execute<'get', Endpoint & string, GetReturn<Schema, Endpoint>>(
+      'get',
+      endpoint,
+      params,
+      opts,
+      getResponseData,
+    );
   }
 
   /**
@@ -314,60 +263,18 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, body, options]`.
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
-  async post<Endpoint extends PostEndpoint<Schema>>(
+  post<Endpoint extends PostEndpoint<Schema>>(
     ...args: PostArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, PostReturn<Schema, Endpoint>> {
-    const [endpoint, params, rawData, { validate, ...opts } = {}] = args;
-    let data = rawData;
-    const schemas = this.#endpoints[endpoint]?.post;
-    if (!schemas) {
-      return [new Error(`error no schemas found for ${endpoint}`), null];
-    }
-
-    this.#log(`POST OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
-    if (errUrl) {
-      this.#log(`POST ERRURL: ${errUrl}`);
-      return [new Error('error constructing url in post', { cause: errUrl }), null];
-    }
-
-    this.#log(`POST URL: ${url}`);
-
-    if (schemas.request && (validate === true || (this.#validation === true && validate !== false))) {
-      const [errParse, parsed] = await validator(data, schemas.request);
-      if (errParse) {
-        return [new Error('error parsing request in post', { cause: errParse }), null];
-      }
-
-      data = parsed;
-    }
-
-    const [errReq, result] = await this.#request<PostReturn<Schema, Endpoint>>(
+    const [endpoint, params, data, opts = {}] = args;
+    return this.#execute<'post', Endpoint & string, PostReturn<Schema, Endpoint>>(
       'post',
-      url,
-      {
-        ...opts,
-        body: JSON.stringify(data),
-        headers: mergeHeaderOptions({ 'Content-Type': 'application/json' }, opts.headers),
-      },
+      endpoint,
+      params,
+      { ...opts, cacheRequest: false },
       getResponseData,
+      data,
     );
-
-    if (errReq) {
-      return [new Error('error doing request in post', { cause: errReq }), null];
-    }
-
-    if (validate === false || (this.#validation === false && !validate)) {
-      return [null, result];
-    }
-
-    const [errParse, parsed] = await validator(result, schemas.response);
-    if (errParse) {
-      return [new Error('error parsing response in post', { cause: errParse }), null];
-    }
-
-    return [null, parsed];
   }
 
   /**
@@ -381,60 +288,18 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, body, options]`.
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
-  async put<Endpoint extends PutEndpoint<Schema>>(
+  put<Endpoint extends PutEndpoint<Schema>>(
     ...args: PutArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, PutReturn<Schema, Endpoint>> {
-    const [endpoint, params, rawData, { validate, ...opts } = {}] = args;
-    let data = rawData;
-    const schemas = this.#endpoints[endpoint]?.put;
-    if (!schemas) {
-      return [new Error(`error no schemas found for ${endpoint}`), null];
-    }
-
-    this.#log(`PUT OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
-    if (errUrl) {
-      this.#log(`PUT ERRURL: ${errUrl}`);
-      return [new Error('error constructing url in put', { cause: errUrl }), null];
-    }
-
-    this.#log(`PUT URL: ${url}`);
-
-    if (schemas.request && (validate === true || (this.#validation === true && validate !== false))) {
-      const [errParse, parsed] = await validator(data, schemas.request);
-      if (errParse) {
-        return [new Error('error parsing request in put', { cause: errParse }), null];
-      }
-
-      data = parsed;
-    }
-
-    const [errReq, result] = await this.#request<PutReturn<Schema, Endpoint>>(
+    const [endpoint, params, data, opts = {}] = args;
+    return this.#execute<'put', Endpoint & string, PutReturn<Schema, Endpoint>>(
       'put',
-      url,
-      {
-        ...opts,
-        body: JSON.stringify(data),
-        headers: mergeHeaderOptions({ 'Content-Type': 'application/json' }, opts.headers),
-      },
+      endpoint,
+      params,
+      { ...opts, cacheRequest: false },
       getResponseData,
+      data,
     );
-
-    if (errReq) {
-      return [new Error('error doing request in put', { cause: errReq }), null];
-    }
-
-    if (validate === false || (this.#validation === false && !validate)) {
-      return [null, result];
-    }
-
-    const [errParse, parsed] = await validator(result, schemas.response);
-    if (errParse) {
-      return [new Error('error parsing response in put', { cause: errParse }), null];
-    }
-
-    return [null, parsed];
   }
 
   /**
@@ -448,60 +313,19 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, body, options]`.
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
-  async patch<Endpoint extends PatchEndpoint<Schema>>(
+  patch<Endpoint extends PatchEndpoint<Schema>>(
     ...args: PatchArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, PatchReturn<Schema, Endpoint>> {
-    const [endpoint, params, rawData, { validate, ...opts } = {}] = args;
-    let data = rawData;
-    const schemas = this.#endpoints[endpoint]?.patch;
-    if (!schemas) {
-      return [new Error(`error no schemas found for ${endpoint}`), null];
-    }
+    const [endpoint, params, data, opts = {}] = args;
 
-    this.#log(`PATCH OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
-    if (errUrl) {
-      this.#log(`PATCH ERRURL: ${errUrl}`);
-      return [new Error('error constructing url in patch', { cause: errUrl }), null];
-    }
-
-    this.#log(`PATCH URL: ${url}`);
-
-    if (schemas.request && (validate === true || (this.#validation === true && validate !== false))) {
-      const [errParse, parsed] = await validator(data, schemas.request);
-      if (errParse) {
-        return [new Error('error parsing request in patch', { cause: errParse }), null];
-      }
-
-      data = parsed;
-    }
-
-    const [errReq, result] = await this.#request<PatchReturn<Schema, Endpoint>>(
+    return this.#execute<'patch', Endpoint & string, PatchReturn<Schema, Endpoint>>(
       'patch',
-      url,
-      {
-        ...opts,
-        body: JSON.stringify(data),
-        headers: mergeHeaderOptions({ 'Content-Type': 'application/json' }, opts.headers),
-      },
+      endpoint,
+      params,
+      { ...opts, cacheRequest: false },
       getResponseData,
+      data,
     );
-
-    if (errReq) {
-      return [new Error('error doing request in patch', { cause: errReq }), null];
-    }
-
-    if (validate === false || (this.#validation === false && !validate)) {
-      return [null, result];
-    }
-
-    const [errParse, parsed] = await validator(result, schemas.response);
-    if (errParse) {
-      return [new Error('error parsing response in patch', { cause: errParse }), null];
-    }
-
-    return [null, parsed];
   }
 
   /**
@@ -514,40 +338,18 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, options]`.
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
-  async delete<Endpoint extends DeleteEndpoint<Schema>>(
+  delete<Endpoint extends DeleteEndpoint<Schema>>(
     ...args: DeleteArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, DeleteReturn<Schema, Endpoint>> {
-    const [endpoint, params, { validate, ...opts } = {}] = args;
-    const schemas = this.#endpoints[endpoint]?.delete;
-    if (!schemas) {
-      return [new Error(`error no schemas found for ${endpoint}`), null];
-    }
+    const [endpoint, params, opts = {}] = args;
 
-    this.#log(`DELETE OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
-    if (errUrl) {
-      this.#log(`DELETE ERRURL: ${errUrl}`);
-      return [new Error('error constructing url in delete', { cause: errUrl }), null];
-    }
-
-    this.#log(`DELETE URL: ${url}`);
-
-    const [errReq, result] = await this.#request<DeleteReturn<Schema, Endpoint>>('delete', url, opts, getResponseData);
-    if (errReq) {
-      return [new Error('error doing request in delete', { cause: errReq }), null];
-    }
-
-    if (validate === false || (this.#validation === false && !validate)) {
-      return [null, result];
-    }
-
-    const [errParse, parsed] = await validator(result, schemas.response);
-    if (errParse) {
-      return [new Error('error parsing response in delete', { cause: errParse }), null];
-    }
-
-    return [null, parsed];
+    return this.#execute<'delete', Endpoint & string, DeleteReturn<Schema, Endpoint>>(
+      'delete',
+      endpoint,
+      params,
+      opts,
+      getResponseData,
+    );
   }
 
   /**
@@ -560,34 +362,14 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, options]`.
    * @returns A promise resolving to `[error, blob]`.
    */
-  async download<Endpoint extends DownloadEndpoint<Schema>>(
+  download<Endpoint extends DownloadEndpoint<Schema>>(
     ...args: DownloadArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, Blob> {
-    const [endpoint, params, { validate, ...opts } = {}] = args;
-    const schemas = this.#endpoints[endpoint]?.download;
-    if (!schemas) {
-      return [new Error(`error no schemas found for ${endpoint}`), null];
-    }
+    const [endpoint, params, opts = {}] = args;
 
-    this.#log(`DOWNLOAD OPTIONS: ${JSON.stringify(opts, null, 4)}`);
-
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
-    if (errUrl) {
-      this.#log(`DOWNLOAD ERRURL: ${errUrl}`);
-      return [new Error('error constructing url in download', { cause: errUrl }), null];
-    }
-
-    this.#log(`DOWNLOAD URL: ${url}`);
-
-    const [errReq, blob] = await this.#request<Blob>('get', url, opts, (response) =>
+    return this.#execute<'download', Endpoint & string, Blob>('download', endpoint, params, opts, (response) =>
       safeWrapAsync(() => response.blob()),
     );
-
-    if (errReq) {
-      return [new Error('error doing request in download', { cause: errReq }), null];
-    }
-
-    return [null, blob];
   }
 
   /**
@@ -781,6 +563,136 @@ export class RequestClient<Schema extends RequestDefinitions> {
   }
 
   /**
+   * Core execution pipeline for typed endpoints (except `url`/`sse`).
+   *
+   * - Builds the URL from schemas and validates the request payload when enabled.
+   * - Handles GET caching (recursing to bypass cache on miss) before issuing the request.
+   * - Invokes the underlying request executor, then parses/validates the response.
+   *
+   * @typeParam Method - Client operation such as `get`, `post`, or `download`.
+   * @typeParam Endpoint - Endpoint key supporting the provided method.
+   * @typeParam ResponseType - Parsed response shape expected from the parser.
+   * @param operation - Client operation identifier (maps `download` to a GET request internally).
+   * @param endpoint - Endpoint key used to resolve schemas and construct the URL.
+   * @param params - Path/query params for the endpoint.
+   * @param opts - Request options including caching, validation, retry, and timeout.
+   * @param parser - Function converting a `FetchResponse` into typed data.
+   * @param rawData - Optional request body before validation/serialization.
+   * @returns A tuple `[error, result]` where `result` is the typed response.
+   */
+  async #execute<
+    Method extends Exclude<ClientOperation, 'url' | 'sse'>,
+    Endpoint extends EndpointsWithMethod<Method, Schema> & string,
+    ResponseType,
+  >(
+    operation: Method,
+    endpoint: Endpoint,
+    params: Params<Schema, Endpoint, Method>,
+    opts: FetchOptions & RequestOptions,
+    parser: (response: FetchResponse) => SafeWrapAsync<Error, ResponseType>,
+    rawData?: unknown,
+  ): SafeWrapAsync<Error, ResponseType> {
+    const op = operation.toUpperCase();
+    const method: HttpMethod = operation === 'download' ? 'get' : operation;
+    const schemas = this.#endpoints[endpoint]?.[operation];
+    if (!schemas) {
+      return [new Error(`error no schemas found for ${endpoint}`), null];
+    }
+
+    this.#log(`${op} OPTIONS: ${JSON.stringify(opts, null, 4)}`);
+
+    let data = rawData;
+    const { validate, cacheRequest, cacheTimeToLive, ...options } = opts;
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
+    if (errUrl) {
+      this.#log(`${op} ERRURL: ${errUrl}`);
+      return [new Error('error constructing URL in get', { cause: errUrl }), null];
+    }
+
+    this.#log(`${op} URL: ${url}`);
+
+    if (
+      'request' in schemas &&
+      schemas.request &&
+      (validate === true || (this.#validation === true && validate !== false))
+    ) {
+      const [errParse, parsed] = await validator(data, schemas.request);
+      if (errParse) {
+        return [new Error('error parsing request in patch', { cause: errParse }), null];
+      }
+
+      data = parsed;
+    }
+
+    if (cacheRequest && method === 'get') {
+      const cacheKey = await this.#cacheClient.key(url, mergeHeaderOptions(this.#defaultHeaders, options.headers));
+      const [errCacheClient, result] = await this.#cacheClient.get<ResponseType>(
+        cacheKey,
+        async () => {
+          const [err, uncached] = await this.#execute(
+            operation,
+            endpoint,
+            params,
+            {
+              ...options,
+              cacheRequest: false,
+            },
+            parser,
+            data,
+          );
+
+          if (err) {
+            return [new Error('error getting request uncached after cache attempt', { cause: err }), null];
+          }
+
+          return [null, uncached];
+        },
+        cacheTimeToLive,
+      );
+
+      if (errCacheClient) {
+        return [
+          new Error(`error getting cached response in ${operation}`, {
+            cause: errCacheClient,
+          }),
+          null,
+        ];
+      }
+
+      this.#log(`${op} CACHE: `, result);
+
+      return [null, result];
+    }
+
+    const requestOptions: FetchOptions & Pick<RequestOptions, 'retry' | 'timeout'> = { ...options };
+
+    // If we have data to send, stringify, and set the appropriate header
+    if (data) {
+      requestOptions.body = JSON.stringify(data);
+      requestOptions.headers = mergeHeaderOptions(
+        new Headers({ 'Content-Type': 'application/json' }),
+        requestOptions.headers,
+      );
+    }
+
+    const [errReq, result] = await this.#request<ResponseType>(method, url, requestOptions, parser);
+    if (errReq) {
+      return [new Error(`error doing request in ${operation}`, { cause: errReq }), null];
+    }
+
+    if (operation === 'download' || validate === false || (this.#validation === false && !validate)) {
+      return [null, result];
+    }
+
+    const [errParse, parsed] = await validator(result, schemas.response);
+    if (errParse) {
+      return [new Error('error parsing response in get', { cause: errParse }), null];
+    }
+
+    return [null, parsed];
+  }
+
+  /**
    * Internal request executor that applies retry/timeout handling and response parsing.
    *
    * - Normalizes retry/timeout options and merges abort signals.
@@ -796,7 +708,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A tuple of `[error, result]`.
    */
   #request<ResponseType>(
-    method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+    method: HttpMethod,
     url: string,
     opts: FetchOptions & Pick<RequestOptions, 'retry' | 'timeout'>,
     parser: (response: FetchResponse) => SafeWrapAsync<Error, ResponseType>,

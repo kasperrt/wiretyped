@@ -304,7 +304,6 @@ describe('wiretyped e2e', () => {
       },
     );
 
-    console.log(getHttpError(err)?.response.status);
     expect(getRetryExhaustedError(err)?.attempts).toBe(5);
     expect(data).toBeNull();
 

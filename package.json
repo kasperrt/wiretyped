@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.2.5-rc-2",
+  "version": "0.2.5-rc-3",
   "description": "Universal fetch-based HTTP client with robust error handling, retries, caching, SSE, and Standard Schema validation.",
   "type": "module",
   "keywords": [
@@ -36,7 +36,7 @@
     "type": "git",
     "url": "git+https://github.com/kasperrt/wiretyped.git"
   },
-  "packageManager": "pnpm@10.20.0",
+  "packageManager": "pnpm@10.25.0",
   "sideEffects": false,
   "main": "./dist/index.mjs",
   "types": "./dist/types/index.d.mts",
@@ -105,7 +105,7 @@
     "smoke:worker": "node scripts/smoke-worker.mjs",
     "test": "pnpm test:integrations && pnpm test:e2e",
     "test:integrations": "vitest run --no-isolate --no-file-parallelism",
-    "test:e2e": "vitest run --config ./e2e/vitest.e2e.config.ts --no-isolate --no-file-parallelism",
+    "test:e2e": "vitest run --config ./vitest.config.e2e.ts --no-isolate --no-file-parallelism",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"
   },
@@ -113,14 +113,14 @@
     "@standard-schema/spec": "^1.0.0"
   },
   "devDependencies": {
-    "@hono/node-server": "^1.13.0",
+    "@hono/node-server": "^1.19.7",
     "@biomejs/biome": "^2.3.8",
     "@codecov/vite-plugin": "^1.9.1",
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.10.2",
     "@vitest/coverage-v8": "^4.0.15",
     "eventsource": "^4.1.0",
     "playwright": "^1.57.0",
-    "hono": "^4.6.12",
+    "hono": "^4.10.8",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5.9.3",
     "vite": "^8.0.0-beta.1",

@@ -1653,7 +1653,7 @@ describe('RequestClient', () => {
 
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', { cacheRequest: false });
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
         expect(res).toStrictEqual({
           data: 'GET request data with cacheRequest',
         });
@@ -1687,7 +1687,7 @@ describe('RequestClient', () => {
           cacheRequest: true,
         });
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', { cacheRequest: false });
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
         expect(err).toBeNull();
         expect(res).toStrictEqual({
           data: 'GET request data with cacheRequest',
@@ -1733,7 +1733,7 @@ describe('RequestClient', () => {
 
         expect(res).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', { cacheRequest: false });
+        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
         expect(err).toBeInstanceOf(Error);
         expect(err).toStrictEqual(
           new Error('error getting cached response in get', {
