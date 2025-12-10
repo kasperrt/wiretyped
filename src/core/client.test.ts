@@ -1600,7 +1600,7 @@ describe('RequestClient', () => {
           $search: { test: 'not-a-number' },
         });
 
-        expect(err).toStrictEqual(new Error('error constructing URL in get'));
+        expect(err).toStrictEqual(new Error('error constructing URL in GET'));
         expect(getSpy).toHaveBeenCalledTimes(0);
         expect(res).toBeNull();
       });

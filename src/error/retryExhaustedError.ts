@@ -2,7 +2,7 @@ import { isErrorType } from './isErrorType.js';
 import { unwrapErrorType } from './unwrapErrorType.js';
 
 /**
- * Error representing a a retry attempts exhausted.
+ * Error representing a retry attempts exhausted.
  */
 export class RetryExhaustedError extends Error {
   /** RetryExhaustedError error-name */
