@@ -139,7 +139,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     endpoints,
   }: RequestClientProps<Schema>) {
     const { timeout, retry, ...fetchClientOpts } = { ...fetchOpts };
-    
+
     this.#cacheClient = new CacheClient(cacheOpts);
     this.#requestOpts = { timeout, retry };
     this.#endpoints = endpoints;
@@ -606,7 +606,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       data = parsed;
     }
 
-    if (cacheRequest) {
+    if (cacheRequest && method === 'get') {
       const cacheKey = await this.#cacheClient.key(url, mergeHeaderOptions(this.#defaultHeaders, options.headers));
       const [errCacheClient, result] = await this.#cacheClient.get<ResponseType>(
         cacheKey,
