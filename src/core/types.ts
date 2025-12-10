@@ -200,7 +200,7 @@ export type DeleteArgs<Schema extends RequestDefinitions, Endpoint extends Delet
 export type DownloadArgs<Schema extends RequestDefinitions, Endpoint extends DownloadEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'download'>,
-  options?: Omit<Options, 'cacheRequest' | 'cacheTimeToLive'>,
+  options?: Options,
 ];
 
 /**
