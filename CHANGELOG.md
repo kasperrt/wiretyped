@@ -18,7 +18,8 @@
 - Add RetrySuppressedError for better traceability of retry stops/suppresses.
 - Add ConstructURLError to allow easier way to spot if it was URL constructing error instead of message parsing.
 - Update description, keywords, and README.md intro for more targetted info and description on package.
-- Reduce bundlesize by combining internals of RequestClients to one method enabling a higher degree of reuse.
+- Internal: Reduce bundlesize by combining internals of RequestClients to one method enabling a higher degree of reuse.
+- Internal: Various dev package updates
 
 ## v0.2.4
 
