@@ -602,7 +602,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#log(`${op} OPTIONS: ${JSON.stringify(opts, null, 4)}`);
 
     let data = rawData;
-    const { validate, cacheRequest, cacheTimeToLive, ...options } = opts ?? {};
+    const { validate, cacheRequest, cacheTimeToLive, ...options } = opts;
     const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       this.#log(`${op} ERRURL: ${errUrl}`);
