@@ -606,7 +606,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       this.#log(`${op} ERRURL: ${errUrl}`);
-      return [new Error('error constructing URL in get', { cause: errUrl }), null];
+      return [new Error(`error constructing URL in ${op}`, { cause: errUrl }), null];
     }
 
     this.#log(`${op} URL: ${url}`);
@@ -618,7 +618,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     ) {
       const [errParse, parsed] = await validator(data, schemas.request);
       if (errParse) {
-        return [new Error('error parsing request in patch', { cause: errParse }), null];
+        return [new Error(`error parsing request in ${op}`, { cause: errParse }), null];
       }
 
       data = parsed;
@@ -686,7 +686,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
     const [errParse, parsed] = await validator(result, schemas.response);
     if (errParse) {
-      return [new Error('error parsing response in get', { cause: errParse }), null];
+      return [new Error(`error parsing response in ${op}`, { cause: errParse }), null];
     }
 
     return [null, parsed];

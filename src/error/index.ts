@@ -19,11 +19,11 @@ export { getHttpError, HTTPError, isHttpError } from './httpError.js';
 export { isErrorType } from './isErrorType.js';
 /** Extract an {@link RetryExhaustedError} from an unknown error value, following nested causes. */
 /** Type guard for {@link RetryExhaustedError}. */
-/** Error representing a a retry attempts exhausted. */
+/** Error representing a retry attempts exhausted. */
 export { getRetryExhaustedError, isRetryExhaustedError, RetryExhaustedError } from './retryExhaustedError.js';
-/** Extract an {@link RetrySuppresedError} from an unknown error value, following nested causes. */
-/** Type guard for {@link RetrySuppresedError}. */
-/** Error representing a a retry attempt suppressed and exited from retrying further. */
+/** Extract an {@link RetrySuppressedError} from an unknown error value, following nested causes. */
+/** Type guard for {@link RetrySuppressedError}. */
+/** Error representing a retry attempt suppressed and exited from retrying further. */
 export { getRetrySuppressedError, isRetrySuppressedError, RetrySuppressedError } from './retrySuppressedError.js';
 /** Type guard that checks if an error is a {@link TimeoutError}. */
 /** Error thrown when a request exceeds the configured timeout. */

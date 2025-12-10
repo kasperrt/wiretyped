@@ -56,18 +56,18 @@ export { getHttpError, HTTPError, isHttpError } from './error/httpError.js';
  * Type guard for {@link RetryExhaustedError}.
  */
 /**
- * Error representing a a retry attempts exhausted.
+ * Error representing a retry attempts exhausted.
  */
 export { getRetryExhaustedError, isRetryExhaustedError, RetryExhaustedError } from './error/retryExhaustedError.js';
 
 /**
- * Extract an {@link RetrySuppresedError} from an unknown error value, following nested causes.
+ * Extract an {@link RetrySuppressedError} from an unknown error value, following nested causes.
  */
 /**
- * Type guard for {@link RetrySuppresedError}.
+ * Type guard for {@link RetrySuppressedError}.
  */
 /**
- * Error representing a a retry attempt suppressed and exited from retrying further.
+ * Error representing a retry attempt suppressed and exited from retrying further.
  */
 export { getRetrySuppressedError, isRetrySuppressedError, RetrySuppressedError } from './error/retrySuppressedError.js';
 
