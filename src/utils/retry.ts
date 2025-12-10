@@ -45,7 +45,6 @@ export function retry<R>({
 }: RetryOptions<R>): SafeWrapAsync<Error, R> {
   const retrier = async (fn: () => SafeWrapAsync<Error, R>, attempt = 1): SafeWrapAsync<Error, R> => {
     const [err, data] = await fn();
-
     if (!err) {
       return [null, data as R];
     }
@@ -56,12 +55,15 @@ export function retry<R>({
       }
       return [new RetrySuppressedError('error further retries suppressed', attempt, { cause: err }), null];
     }
+
     if (attempt > attempts) {
       if (log) {
         console.debug(`${name} retrier: Attempts exceeded allowed number of retries.`);
       }
+
       return [new RetryExhaustedError('error retries exhausted', attempt, { cause: err }), null];
     }
+
     return new Promise((resolve) =>
       setTimeout(() => {
         resolve(retrier(fn, attempt + 1));

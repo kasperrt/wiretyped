@@ -14,16 +14,15 @@ export function unwrapErrorType<T extends Error>(
     return null;
   }
 
+  if (
+    (err?.name && errorClass?.name && err?.name === errorClass?.name) ||
+    (err?.message && errorClass?.name && err?.message.startsWith(errorClass?.name))
+  ) {
+    return err as T;
+  }
+
   if (err?.cause) {
     return unwrapErrorType(errorClass, err.cause as Error);
-  }
-
-  if (err?.name && errorClass?.name && err?.name === errorClass?.name) {
-    return err as T;
-  }
-
-  if (err?.message && errorClass?.name && err?.message.startsWith(errorClass?.name)) {
-    return err as T;
   }
 
   return null;
