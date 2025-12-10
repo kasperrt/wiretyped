@@ -26,7 +26,7 @@ function headerOptionsToObject(h?: HeaderOptions): Record<string, string | undef
       result[key.toLowerCase()] = undefined;
       continue;
     }
-    
+
     if (
       typeof value !== 'string' &&
       typeof value !== 'bigint' &&
