@@ -562,6 +562,24 @@ export class RequestClient<Schema extends RequestDefinitions> {
     return [null, close];
   }
 
+  /**
+   * Core execution pipeline for typed endpoints (except `url`/`sse`).
+   *
+   * - Builds the URL from schemas and validates the request payload when enabled.
+   * - Handles GET caching (recursing to bypass cache on miss) before issuing the request.
+   * - Invokes the underlying request executor, then parses/validates the response.
+   *
+   * @typeParam Method - Client operation such as `get`, `post`, or `download`.
+   * @typeParam Endpoint - Endpoint key supporting the provided method.
+   * @typeParam ResponseType - Parsed response shape expected from the parser.
+   * @param operation - Client operation identifier (maps `download` to a GET request internally).
+   * @param endpoint - Endpoint key used to resolve schemas and construct the URL.
+   * @param params - Path/query params for the endpoint.
+   * @param opts - Request options including caching, validation, retry, and timeout.
+   * @param parser - Function converting a `FetchResponse` into typed data.
+   * @param rawData - Optional request body before validation/serialization.
+   * @returns A tuple `[error, result]` where `result` is the typed response.
+   */
   async #execute<
     Method extends Exclude<ClientOperation, 'url' | 'sse'>,
     Endpoint extends EndpointsWithMethod<Method, Schema> & string,
