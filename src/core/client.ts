@@ -421,8 +421,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
   async sse<Endpoint extends SSEEndpoint<Schema>>(
     ...args: SSEArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, SSEReturn> {
-    const [endpoint, params, handler, options = {}] = args;
-    const { validate, timeout, headers, signal, errorUnknownType, ...rest } = options;
+    const [endpoint, params, handler, opts = {}] = args;
+    const { validate, timeout, headers, signal, errorUnknownType, credentials = this.#credentials, ...options } = opts;
 
     const schemas = this.#endpoints[endpoint]?.sse;
     if (!schemas || !schemas.events) {
@@ -430,7 +430,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     const eventSchemas = schemas.events;
-
     const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
       return [new Error('error constructing url in sse', { cause: errUrl }), null];
@@ -487,13 +486,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         }
       }
 
-      const [errParsed, parsed] = safeWrap(() => JSON.parse(dataLines.join('\n')));
-      if (errParsed) {
-        handler([new Error('error parsing JSON in sse stream', { cause: errParsed }), null]);
-        return;
-      }
-
-      if (!(eventName in eventSchemas)) {
+      if (!(eventName in schemas.events)) {
         if (errorUnknownType) {
           handler([new Error(`error unknown event-type ${eventName} in sse stream`), null]);
         }
@@ -501,28 +494,27 @@ export class RequestClient<Schema extends RequestDefinitions> {
       }
 
       const schema = eventSchemas[eventName];
+      const [errParsed, parsed] = safeWrap(() => JSON.parse(dataLines.join('\n')));
+      if (errParsed) {
+        handler([new Error('error parsing in sse stream', { cause: errParsed }), null]);
+        return;
+      }
+
       if (validate === false || (this.#validation === false && !validate)) {
-        handler([
-          null,
-          {
-            type: eventName,
-            data: parsed,
-          } as SSEDataReturn<Schema, Endpoint>,
-        ]);
+        handler([null, { type: eventName, data: parsed } as SSEDataReturn<Schema, Endpoint>]);
         return;
       }
 
       const [errValidate, validated] = await validator(parsed, schema);
       if (errValidate) {
-        handler([new Error('error parsing response in sse stream', { cause: errValidate }), null]);
-        return;
+        return handler([new Error('error validating response in sse stream', { cause: errValidate }), null]);
       }
 
       handler([null, { type: eventName, data: validated } as SSEDataReturn<Schema, Endpoint>]);
     };
 
     const read = async (response: FetchResponse) => {
-      if (!response.body || !response.ok || typeof response.body.getReader !== 'function') {
+      if (!response?.body || !response.ok || typeof response.body.getReader !== 'function') {
         return;
       }
 
@@ -556,9 +548,9 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       const [errWrapped, wrapped] = await safeWrapAsync(() =>
         this.#fetchClient.get(url, {
-          ...rest,
+          ...options,
           headers: mergeHeaderOptions(baseHeaders, { ...(lastEventId && { 'Last-Event-ID': lastEventId }) }),
-          credentials: rest.credentials ?? this.#credentials,
+          credentials,
           ...(mergedSignal && { signal: mergedSignal }),
         }),
       );
