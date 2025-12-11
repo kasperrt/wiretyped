@@ -440,28 +440,30 @@ export class RequestClient<Schema extends RequestDefinitions> {
     let lastEventId = '';
     let retryDelayMs = this.#defaultSSEReconnectWait;
     const controller = new AbortController();
-    const isAborted = (extra?: AbortSignal | null) =>
-      controller.signal.aborted || signal?.aborted === true || extra?.aborted === true;
+    const isAborted = () => controller.signal.aborted || signal?.aborted === true;
     const close = (): void => controller.abort('closed by user request');
-
-    const writeData = async (block: string) => {
+    const parseBlock = async (block: string) => {
       if (!block) {
         return;
       }
 
-      const lines = block.split(/\r?\n/);
-      const dataLines: string[] = [];
       let eventName = 'message';
-
-      for (const line of lines) {
-        if (line.startsWith('event:')) {
-          const eName = line.slice(6).trim();
-          if (eName) {
-            eventName = eName;
-          }
+      let data = '';
+      for (const line of block.split(/\r?\n/)) {
+        // Safeguard, in reality should never be hit
+        /* v8 ignore next -- @preserve */
+        if (!line) {
           continue;
         }
 
+        if (line.startsWith('event:')) {
+          const name = line.slice(6).trim();
+          if (name) {
+            eventName = name;
+          }
+
+          continue;
+        }
         if (line.startsWith('id:')) {
           const id = line.slice(3).trim();
           if (id) {
@@ -475,24 +477,28 @@ export class RequestClient<Schema extends RequestDefinitions> {
           if (Number.isFinite(delay) && delay > 0) {
             retryDelayMs = delay;
           }
-
           continue;
         }
 
         if (line.startsWith('data:')) {
-          dataLines.push(line.slice(5).trimStart());
+          data += (data ? '\n' : '') + line.slice(5).trim();
         }
       }
 
-      if (!(eventName in schemas.events)) {
+      // Extra safeguard in case the above breaks in some absurd way
+      if (!data) {
+        return;
+      }
+
+      if (!(eventName in eventSchemas)) {
         if (errorUnknownType) {
           return handler([new Error(`error unknown event-type ${eventName} in sse stream`), null]);
         }
+
         return this.#log(`error unknown event-type ${eventName} in sse stream`);
       }
 
-      const schema = eventSchemas[eventName];
-      const [errParsed, parsed] = safeWrap(() => JSON.parse(dataLines.join('\n')));
+      const [errParsed, parsed] = safeWrap(() => JSON.parse(data));
       if (errParsed) {
         handler([new Error('error parsing in sse stream', { cause: errParsed }), null]);
         return;
@@ -503,44 +509,21 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return;
       }
 
-      const [errValidate, validated] = await validator(parsed, schema);
+      const [errValidate, validated] = await validator(parsed, eventSchemas[eventName]);
       if (errValidate) {
-        return handler([new Error('error validating response in sse stream', { cause: errValidate }), null]);
-      }
-
-      handler([null, { type: eventName, data: validated } as SSEDataReturn<Schema, Endpoint>]);
-    };
-
-    const readData = async (response: FetchResponse) => {
-      if (!response?.body || !response.ok || typeof response.body.getReader !== 'function') {
+        handler([new Error('error validating response in sse stream', { cause: errValidate }), null]);
         return;
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const [errRead, chunk] = await safeWrapAsync(() => reader.read());
-        if (errRead) {
-          break;
-        }
-
-        const { value, done } = chunk;
-        if (done) {
-          break;
-        }
-
-        const parts = decoder.decode(value, { stream: true }).split(/\n\n/);
-        for (const part of parts) {
-          await writeData(part.trim());
-        }
-      }
+      handler([null, { type: eventName, data: validated } as SSEDataReturn<Schema, Endpoint>]);
     };
 
     const open = async () => {
       const timeoutSignal = timeout ? createTimeoutSignal(timeout) : null;
       const mergedSignal = mergeSignals([signal, controller.signal, timeoutSignal]);
 
-      if (isAborted(mergedSignal)) {
+      if (mergedSignal?.aborted) {
+        controller.abort(mergedSignal.reason ?? 'aborted');
         return;
       }
 
@@ -563,15 +546,32 @@ export class RequestClient<Schema extends RequestDefinitions> {
       }
 
       const [errResponse, response] = wrapped;
-      if (errResponse) {
+      if (errResponse || !response?.ok || typeof response.body?.getReader !== 'function') {
         return;
       }
 
-      return await readData(response);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const [errRead, chunk] = await safeWrapAsync(() => reader.read());
+        if (errRead) {
+          break;
+        }
+
+        const { value, done } = chunk;
+        if (done) {
+          break;
+        }
+
+        const text = decoder.decode(value, { stream: true });
+        for (const part of text.split(/\n\n/)) {
+          await parseBlock(part.trim());
+        }
+      }
     };
 
     const listen = async () => {
-      while (!isAborted(null)) {
+      while (!isAborted()) {
         await open();
         await sleep(retryDelayMs);
       }

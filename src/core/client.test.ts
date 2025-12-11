@@ -3150,6 +3150,32 @@ describe('RequestClient', () => {
       getSpy.mockRestore();
     });
 
+    test('skips empty lines in SSE blocks', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['id: 1\nevent: message\n\n\ndata: {"foo":"bar"}\n\n'])),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: { foo: 'bar' } }]);
+
+      close?.();
+    });
+
     test('returns when fetch provider yields error response tuple', async () => {
       const handler = vi.fn();
       const getSpy = vi
