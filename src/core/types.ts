@@ -1,6 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import type { Options } from '../types/request.js';
-import type { SSEClientSourceInit } from '../types/sse.js';
+import type { RequestOptions } from 'http';
+import type { FetchOptions, Options } from '../types/request.js';
 import type { SafeWrap } from '../utils/wrap.js';
 
 /** Schema for unknown input, any output, used to easier infer data */
@@ -32,6 +32,9 @@ export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 /** Allowed operations supported by the client. */
 export type ClientOperation = HttpMethod | 'download' | 'url' | 'sse';
 
+/** Events schema mapping with mapping event-type to schema */
+export type SSEEventSchemas = Record<string, SchemaType>;
+
 /**
  * RequestDefinitions types up the possible variations of
  * the endpoints we create
@@ -40,14 +43,16 @@ export type RequestDefinitions = {
   [path: string]: RequireAtLeastOne<{
     [M in ClientOperation]: M extends 'url'
       ? { $search?: SchemaType; $path?: SchemaType; response: SchemaString }
-      : M extends 'get' | 'delete' | 'download'
-        ? { $search?: SchemaType; $path?: SchemaType; response: SchemaType }
-        : {
-            $search?: SchemaType;
-            $path?: SchemaType;
-            request?: SchemaType;
-            response: SchemaType;
-          };
+      : M extends 'sse'
+        ? { $search?: SchemaType; $path?: SchemaType; events: SSEEventSchemas }
+        : M extends 'get' | 'delete' | 'download'
+          ? { $search?: SchemaType; $path?: SchemaType; response: SchemaType }
+          : {
+              $search?: SchemaType;
+              $path?: SchemaType;
+              request?: SchemaType;
+              response: SchemaType;
+            };
   }>;
 };
 
@@ -137,13 +142,25 @@ export type DownloadEndpoint<Schema extends RequestDefinitions> = EndpointsWithM
 export type UrlEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'url', Schema>;
 
 /**
+ * Typed SSE Message envelope returning data
+ */
+export type SSEMessageEnvelope<Data> = {
+  type: string;
+  data: Data;
+};
+
+/** SSE Options */
+export type SSEOptions = Omit<FetchOptions, 'body' | 'method'> &
+  Pick<RequestOptions, 'timeout'> & { validate?: boolean };
+
+/**
  * Typed parameters for get function call parameters
  */
 export type SSEArgs<Schema extends RequestDefinitions, Endpoint extends SSEEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'sse'>,
-  handler: (data: SafeWrap<Error, SSEDataReturn<Schema, Endpoint>>) => void,
-  options?: SSEClientSourceInit & { validate?: boolean; timeout?: number },
+  handler: (data: SafeWrap<Error, SSEMessageEnvelope<SSEDataReturn<Schema, Endpoint>>>) => void,
+  options?: SSEOptions,
 ];
 
 /**
