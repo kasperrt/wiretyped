@@ -32,7 +32,14 @@ export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 export type ClientOperation = HttpMethod | 'download' | 'url' | 'sse';
 
 /** Events schema mapping with mapping event-type to schema */
-export type SSEEventSchemas = Record<string, SchemaType>;
+export type SSEEventSchemas<EventName extends string = string> = Record<EventName, SchemaType>;
+
+/** Definition of an SSE endpoint with typed events map. */
+export type SSEEndpointDefinition<Events extends SSEEventSchemas = SSEEventSchemas> = {
+  $search?: SchemaType;
+  $path?: SchemaType;
+  events: Events;
+};
 
 /**
  * RequestDefinitions types up the possible variations of
@@ -43,7 +50,7 @@ export type RequestDefinitions = {
     [M in ClientOperation]: M extends 'url'
       ? { $search?: SchemaType; $path?: SchemaType; response: SchemaString }
       : M extends 'sse'
-        ? { $search?: SchemaType; $path?: SchemaType; events: SSEEventSchemas }
+        ? SSEEndpointDefinition
         : M extends 'get' | 'delete' | 'download'
           ? { $search?: SchemaType; $path?: SchemaType; response: SchemaType }
           : {
@@ -143,13 +150,14 @@ export type UrlEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod
 /**
  * Typed SSE Message envelope returning data
  */
-export type SSEMessageEnvelope<Data> = {
-  type: string;
+export type SSEMessageEnvelope<EventType extends string, Data> = {
+  type: EventType;
   data: Data;
 };
 
 /** SSE Options */
-export type SSEOptions = Omit<FetchOptions, 'body' | 'method'> & Pick<RequestOptions, 'timeout' | 'validate'>;
+export type SSEOptions = Omit<FetchOptions, 'body' | 'method'> &
+  Pick<RequestOptions, 'timeout' | 'validate'> & { errorUnknownType?: boolean };
 
 /**
  * Typed parameters for get function call parameters
@@ -157,7 +165,7 @@ export type SSEOptions = Omit<FetchOptions, 'body' | 'method'> & Pick<RequestOpt
 export type SSEArgs<Schema extends RequestDefinitions, Endpoint extends SSEEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'sse'>,
-  handler: (data: SafeWrap<Error, SSEMessageEnvelope<SSEDataReturn<Schema, Endpoint>>>) => void,
+  handler: (data: SafeWrap<Error, SSEDataReturn<Schema, Endpoint>>) => void,
   options?: SSEOptions,
 ];
 
@@ -269,14 +277,17 @@ export type UrlReturn<Schema extends RequestDefinitions, T extends UrlEndpoint<S
   'url'
 >;
 
-/**
- * Typed return-type for get function
- */
-export type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = ResponseType<
-  Schema,
-  T,
-  'sse'
->;
+/** Extract typed events map for an SSE endpoint. */
+export type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = NonNullable<
+  Schema[T]['sse']
+> extends { events: infer Events extends SSEEventSchemas }
+  ? {
+      [EventName in keyof Events & string]: SSEMessageEnvelope<
+        EventName,
+        StandardSchemaV1.InferOutput<Events[EventName]>
+      >;
+    }[keyof Events & string]
+  : never;
 
 /** Function returned from `sse` requests that closes the stream. */
 export type SSEReturn = () => void;
