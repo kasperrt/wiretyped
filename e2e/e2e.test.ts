@@ -465,9 +465,13 @@ describe('wiretyped e2e', () => {
 
     close?.();
 
-    const counts = server.getCounts();
+    await vi.waitFor(
+      () => {
+        expect(server.getCounts()['SSE /sse']).toBeGreaterThanOrEqual(2);
+      },
+      { timeout: 200 },
+    );
 
-    expect(counts['SSE /sse']).toBeGreaterThanOrEqual(2);
     expect(messages.filter((i) => i === 1).length).toBeGreaterThanOrEqual(2);
     expect(statuses.length).toBeGreaterThanOrEqual(1);
 
