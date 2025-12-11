@@ -1,4 +1,3 @@
-import { EventSource } from 'eventsource';
 import { afterAll, assert, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   getHttpError,
@@ -104,7 +103,9 @@ const endpoints = {
       $search: z.object({
         error: z.enum(['never', 'sometimes']),
       }),
-      response: z.object({ i: z.number() }),
+      events: {
+        message: z.object({ i: z.number() }),
+      },
     },
   },
 } satisfies RequestDefinitions;
@@ -123,7 +124,6 @@ beforeAll(async () => {
     hostname: '127.0.0.1',
     endpoints,
     validation: true,
-    sseProvider: EventSource,
     fetchOpts: {
       headers: new Headers([['x-type', 'e2e-global']]),
     },
@@ -354,13 +354,15 @@ describe('wiretyped e2e', () => {
           error: 'never',
         },
       },
-      ([err, data]) => {
+      ([err, event]) => {
         if (err) {
           errors.push(err);
           return;
         }
 
-        messages.push(data.i);
+        if (event.type === 'message') {
+          messages.push(event.data.i);
+        }
       },
       { timeout: 1000 },
     );
@@ -389,13 +391,13 @@ describe('wiretyped e2e', () => {
           error: 'sometimes',
         },
       },
-      ([err, data]) => {
+      ([err, event]) => {
         if (err) {
           errors.push(err);
           return;
         }
-        if (data) {
-          messages.push(data.i);
+        if (event.type === 'message') {
+          messages.push(event.data.i);
         }
       },
       { timeout: 1000 },
@@ -422,13 +424,15 @@ describe('wiretyped e2e', () => {
     const [errOpen, close] = await client.sse(
       '/sse',
       { $search: { error: 'never' } },
-      ([err, data]) => {
+      ([err, event]) => {
         if (err) {
           errors.push(err);
           return;
         }
 
-        messages.push(data.i);
+        if (event.type === 'message') {
+          messages.push(event.data.i);
+        }
       },
       { timeout: 1000 },
     );

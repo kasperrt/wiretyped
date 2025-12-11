@@ -185,10 +185,11 @@ describe('RequestClient', () => {
           headers: { get: () => 'application/json' },
         };
 
+        // AsyncWrap<Error, FetchResponse>
         return [null, response];
       });
 
-      const requestClient = new RequestClient({
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
@@ -357,7 +358,7 @@ describe('RequestClient', () => {
       const abortErr = new AbortError('stopped');
       const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(async () => asyncErr(abortErr));
 
-      const requestClient = new RequestClient({
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
@@ -401,7 +402,7 @@ describe('RequestClient', () => {
         .mockImplementationOnce(async () => asyncErr(timeoutErr))
         .mockImplementationOnce(async () => asyncOk(successResponse));
 
-      const requestClient = new RequestClient({
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
@@ -439,7 +440,7 @@ describe('RequestClient', () => {
         .mockImplementationOnce(async () => asyncErr(abortErr))
         .mockImplementationOnce(async () => asyncOk(successResponse));
 
-      const requestClient = new RequestClient({
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
@@ -476,7 +477,7 @@ describe('RequestClient', () => {
         .mockImplementationOnce(async () => asyncErr(typeErr))
         .mockImplementationOnce(async () => asyncOk(successResponse));
 
-      const requestClient = new RequestClient({
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
@@ -512,7 +513,7 @@ describe('RequestClient', () => {
         .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
         .mockImplementation(async () => asyncOk(httpResponse));
 
-      const requestClient = new RequestClient({
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
@@ -548,7 +549,7 @@ describe('RequestClient', () => {
         .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
         .mockImplementation(async () => asyncOk(httpResponse));
 
-      const requestClient = new RequestClient({
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
@@ -597,7 +598,7 @@ describe('RequestClient', () => {
         .mockImplementationOnce(async () => asyncOk(errorResponse))
         .mockImplementationOnce(async () => asyncOk(successResponse));
 
-      const requestClient = new RequestClient({
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
@@ -617,6 +618,12 @@ describe('RequestClient', () => {
       const mockGetEndpoints = {
         '/api/my-endpoint': {
           get: { response: z.object({ data: z.string() }) },
+          sse: {
+            events: {
+              message: z.object({ foo: z.string() }),
+              player: z.object({ bar: z.string() }),
+            },
+          },
         },
       } satisfies RequestDefinitions;
 
@@ -633,7 +640,7 @@ describe('RequestClient', () => {
         .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
         .mockImplementation(async () => asyncOk(httpResponse));
 
-      const requestClient = new RequestClient({
+      const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
@@ -642,6 +649,21 @@ describe('RequestClient', () => {
         validation: true,
       });
 
+      requestClient.sse('/api/my-endpoint', null, ([err, event]) => {
+        if (err) {
+          return;
+        }
+
+        if (event.type === 'message') {
+          // This should type-narrow the types based on the standard-schema/spec infered type,
+          // from
+          event.data;
+        } else if (event.type === 'player') {
+          event.data;
+        } else {
+          event;
+        }
+      });
       const [err, res] = await requestClient.get('/api/my-endpoint', null);
 
       expect(res).toBeNull();

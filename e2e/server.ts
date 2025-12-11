@@ -90,13 +90,17 @@ export async function startE2EServer(endpoints: RequestDefinitions): SafeWrapAsy
         requestBody = validated;
       }
 
-      const responseData = requestBody ? { success: true, received: requestBody } : { success: true };
-      const [errResponse, validatedResponse] = await validator(responseData, schemas.response);
-      if (errResponse) {
-        return c.json({ error: 'response failed validation', details: errResponse.message }, 500);
+      if ('response' in schemas) {
+        const responseData = requestBody ? { success: true, received: requestBody } : { success: true };
+        const [errResponse, validatedResponse] = await validator(responseData, schemas.response);
+        if (errResponse) {
+          return c.json({ error: 'response failed validation', details: errResponse.message }, 500);
+        }
+
+        return c.json(validatedResponse);
       }
 
-      return c.json(validatedResponse);
+      return c.json({ error: 'missing schema' }, 500);
     });
   }
 
@@ -158,7 +162,7 @@ export async function startE2EServer(endpoints: RequestDefinitions): SafeWrapAsy
           }
 
           const payload = { i };
-          const [errValidate, validated] = await validator(payload, schemas.response);
+          const [errValidate, validated] = await validator(payload, schemas.events.message);
           if (errValidate) {
             controller.error(errValidate);
             clearInterval(interval);
