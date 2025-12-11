@@ -410,8 +410,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * incoming messages into the provided handler as typed payloads.
    *
    * - Builds the URL from endpoint definitions and params.
-   * - Uses the configured `sseProvider` (defaults to `EventSource`).
-   * - Optionally validates each incoming message via the endpoint `response` schema.
+   * - Optionally validates each incoming message via the endpoint `events` schema.
    *
    * The returned function can be used to close the SSE connection.
    *
