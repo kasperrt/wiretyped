@@ -12,9 +12,5 @@ export class AbortError extends Error {
  * Type guard for {@link AbortError}.
  */
 export function isAbortError(error: unknown): error is AbortError {
-  if (isErrorType(AbortError, error)) {
-    return true;
-  }
-
-  return false;
+  return isErrorType(AbortError, error);
 }

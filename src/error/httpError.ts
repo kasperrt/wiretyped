@@ -22,12 +22,7 @@ export class HTTPError extends Error {
    * Response causing the HTTPError
    */
   get response(): FetchResponse {
-    // We'd rather not error in case something has happened to response and it doesn't have clone
-    if (typeof this.#response.clone !== 'function') {
-      return this.#response;
-    }
-
-    return this.#response.clone() as FetchResponse;
+    return (this.#response.clone?.() as FetchResponse) ?? this.#response;
   }
 }
 

@@ -27,42 +27,39 @@ export async function getResponseData<ReturnValue>(response: FetchResponse): Saf
   }
 
   const contentType = response.headers.get('Content-Type');
-  if (contentType?.includes('application/json')) {
-    let [errJson, json] = await safeWrapAsync(() => response.json());
-    // if we get a normal non TypeError, we want to try more aggressively at parsing this still, in case
-    // the browser fumbled and didn't supply us with a proper json method
-    if (errJson && !isErrorType(TypeError, errJson)) {
-      return [new Error('error parsing json in getResponseData', { cause: errJson }), null];
+  if (!contentType?.includes('application/json')) {
+    const [errText, text] = await safeWrapAsync(() => response.text());
+    if (errText) {
+      return [new Error('error parsing text in getResponseData', { cause: errText }), null];
+    }
+    if (text === '') {
+      return [null, null as ReturnValue];
     }
 
-    // If TypeError, try again, more aggressively
-    if (isErrorType(TypeError, errJson)) {
-      const [errText, text] = await safeWrapAsync(() => response.text());
-      if (errText) {
-        return [
-          new Error('error attempting string parse after json failed in getResponseData', { cause: errText }),
-          null,
-        ];
-      }
+    return [null, text as ReturnValue];
+  }
 
-      const [errParse, parsed] = safeWrap<Error, ReturnValue>(() => JSON.parse(text));
-      if (errParse) {
-        return [new Error('error json-parse string after json failed in getResponseData', { cause: errParse }), null];
-      }
+  const [errJson, json] = await safeWrapAsync(() => response.json());
+  // if we get a normal non TypeError, we want to try more aggressively at parsing this still, in case
+  // the browser fumbled and didn't supply us with a proper json method
+  if (errJson && !isErrorType(TypeError, errJson)) {
+    return [new Error('error parsing json in getResponseData', { cause: errJson }), null];
+  }
 
-      json = parsed;
-    }
-
+  if (!isErrorType(TypeError, errJson)) {
     return [null, json];
   }
 
+  // If TypeError, try again, more aggressively
   const [errText, text] = await safeWrapAsync(() => response.text());
   if (errText) {
-    return [new Error('error parsing text in getResponseData', { cause: errText }), null];
-  }
-  if (text === '') {
-    return [null, null as ReturnValue];
+    return [new Error('error attempting string parse after json failed in getResponseData', { cause: errText }), null];
   }
 
-  return [null, text as ReturnValue];
+  const [errParse, parsed] = safeWrap<Error, ReturnValue>(() => JSON.parse(text));
+  if (errParse) {
+    return [new Error('error json-parse string after json failed in getResponseData', { cause: errParse }), null];
+  }
+
+  return [null, parsed];
 }

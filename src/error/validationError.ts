@@ -23,11 +23,7 @@ export class ValidationError extends Error {
  * Type guard for {@link ValidationError}.
  */
 export function isValidationError(error: unknown): error is ValidationError {
-  if (isErrorType(ValidationError, error)) {
-    return true;
-  }
-
-  return false;
+  return isErrorType(ValidationError, error);
 }
 
 /**

@@ -50,20 +50,14 @@ export class CacheClient {
    * Updates cache configuration without recreating the client.
    */
   public config(opts: Partial<CacheClientOptions>) {
-    const ttlChanged = opts.ttl !== undefined && opts.ttl !== this.#ttl;
-
-    if (opts.ttl !== undefined) {
+    if (opts.ttl !== undefined && opts.ttl !== this.#ttl) {
       this.#ttl = opts.ttl;
+      this.#cache = {};
+      this.#pending = {};
     }
 
     if (opts.cleanupInterval !== undefined) {
       this.#cleanupInterval = opts.cleanupInterval;
-    }
-
-    // If TTL was changed, we should clear any cache immediately
-    if (ttlChanged) {
-      this.#cache = {};
-      this.#pending = {};
     }
 
     this.#cleanup();

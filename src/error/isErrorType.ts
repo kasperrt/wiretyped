@@ -1,3 +1,5 @@
+import { unwrapErrorType } from './unwrapErrorType';
+
 /**
  * Generic type guard to check if an unknown error matches a specific error class.
  * Traverses nested `cause` chains unless `shallow` is true.
@@ -8,24 +10,8 @@ export function isErrorType<T extends Error>(
   err: unknown,
   shallow = false,
 ): err is T {
-  if (err instanceof errorClass) {
-    return true;
+  if (shallow) {
+    return err instanceof errorClass;
   }
-
-  if (!(err instanceof Error) || shallow) {
-    return false;
-  }
-
-  if (err?.cause instanceof Error) {
-    return isErrorType(errorClass, err.cause);
-  }
-
-  if (
-    (err?.name && errorClass?.name && err?.name === errorClass?.name) ||
-    (err?.message && errorClass?.name && err?.message.startsWith(errorClass?.name))
-  ) {
-    return true;
-  }
-
-  return false;
+  return Boolean(unwrapErrorType(errorClass, err));
 }
