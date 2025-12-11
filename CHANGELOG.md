@@ -1,6 +1,7 @@
 # WireTyped Releases
 
 ## Contents
+- [v0.3.0-alpha.0](#v030-alpha.0)
 - [v0.2.5](#v025)
 - [v0.2.4](#v024)
 - [v0.2.3](#v023)
@@ -11,6 +12,42 @@
 - [v0.1.1](#v011)
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
+
+## v0.3.0-alpha.0
+
+- Switch SSE to use fetch streaming instead of EventSource; schemas now define an `events` map of typed event payloads, e.g.:
+```ts
+const endpoints = {
+  '/events': {
+    sse: {
+      events: {
+        message: z.object({ msg: z.string() }),
+        status: z.object({ ok: z.boolean() }),
+      },
+    },
+  },
+} satisfies RequestDefinitions;
+```
+
+and usages with such as:
+```ts
+const [err, close] = await client.sse(
+  '/events',
+  null,
+  ([err, event]) => {
+    if (err) return console.error('sse error', err);
+    if (event.type === 'message') {
+      console.log('message', event.data.msg);
+    }
+    if (event.type === 'status') {
+      console.log('status', event.data.ok);
+    }
+  },
+  { credentials: 'include' },
+);
+```
+- SSE handler remains error-first; unknown event types can be ignored or surfaced via `errorUnknownType`.
+- Added README docs and e2e coverage for multi-event SSE streams and validation behavior.
 
 ## v0.2.5
 
