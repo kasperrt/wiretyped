@@ -156,7 +156,7 @@ export type SSEMessageEnvelope<EventType extends string, Data> = {
 };
 
 /** SSE Options */
-export type SSEOptions = Omit<FetchOptions, 'body' | 'method'> &
+export type SSEOptions = Omit<FetchOptions, 'body' | 'method' | 'keepalive'> &
   Pick<RequestOptions, 'timeout' | 'validate'> & { errorUnknownType?: boolean };
 
 /**

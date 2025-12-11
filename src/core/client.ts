@@ -439,14 +439,18 @@ export class RequestClient<Schema extends RequestDefinitions> {
     let retryDelayMs = 1000;
     const controller = new AbortController();
     const baseHeaders = mergeHeaderOptions(
-      new Headers({ Accept: 'text/event-stream' }),
       mergeHeaderOptions(this.#defaultHeaders, headers),
+      new Headers({ Accept: 'text/event-stream', Connection: 'keep-alive' }),
     );
 
     const isAborted = (extra?: AbortSignal | null) =>
       controller.signal.aborted || signal?.aborted === true || extra?.aborted === true;
 
-    const emitData = async (block: string) => {
+    const close = (): void => {
+      controller.abort();
+    };
+
+    const writeData = async (block: string) => {
       if (!block) {
         return;
       }
@@ -488,9 +492,9 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       if (!(eventName in schemas.events)) {
         if (errorUnknownType) {
-          handler([new Error(`error unknown event-type ${eventName} in sse stream`), null]);
+          return handler([new Error(`error unknown event-type ${eventName} in sse stream`), null]);
         }
-        return;
+        return this.#log(`error unknown event-type ${eventName} in sse stream`);
       }
 
       const schema = eventSchemas[eventName];
@@ -513,7 +517,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       handler([null, { type: eventName, data: validated } as SSEDataReturn<Schema, Endpoint>]);
     };
 
-    const read = async (response: FetchResponse) => {
+    const readData = async (response: FetchResponse) => {
       if (!response?.body || !response.ok || typeof response.body.getReader !== 'function') {
         return;
       }
@@ -533,7 +537,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
         const parts = decoder.decode(value, { stream: true }).split(/\n\n/);
         for (const part of parts) {
-          await emitData(part.trim());
+          await writeData(part.trim());
         }
       }
     };
@@ -551,6 +555,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
           ...options,
           headers: mergeHeaderOptions(baseHeaders, { ...(lastEventId && { 'Last-Event-ID': lastEventId }) }),
           credentials,
+          keepalive: true,
           ...(mergedSignal && { signal: mergedSignal }),
         }),
       );
@@ -564,21 +569,17 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return;
       }
 
-      return await read(response);
+      return await readData(response);
     };
 
-    const run = async () => {
+    const listen = async () => {
       while (!isAborted(null)) {
         await open();
         await sleep(retryDelayMs);
       }
     };
 
-    run();
-
-    const close = (): void => {
-      controller.abort();
-    };
+    listen();
 
     return [null, close];
   }
