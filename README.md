@@ -80,7 +80,8 @@ Notes on path params:
 - For dynamic segments that accept generic strings/numbers, you can omit `$path`—the URL template (e.g., `/users/{id}`) already infers string/number.
 
 ```ts
-import { RequestClient, type RequestDefinitions, z } from 'wiretyped/core';
+import { RequestClient, type RequestDefinitions } from 'wiretyped/core';
+import { z } from 'zod';
 
 const endpoints = {
   '/users/{id}': {
@@ -372,13 +373,12 @@ close();
 Options mirrors fetch options except method/body/keepalive, plus SSE extras:
 ```ts
 {
-  validate?: boolean;        // override client/default validation for this stream
-  timeout?: number | false;  // abort opening/reads after the given ms (falls back to client default); false disables timeout
-  headers?: HeadersInit;     // extra headers merged into the SSE request (defaults include Accept: text/event-stream and Connection: keep-alive)
+  validate?: boolean;               // override client/default validation for this stream
+  timeout?: number | false;         // abort opening/reads after the given ms (falls back to client default); false disables timeout
+  headers?: HeadersInit;            // extra headers merged into the SSE request (defaults include Accept: text/event-stream and Connection: keep-alive)
   credentials?: RequestCredentials; // forwarded to the underlying fetch call
-  signal?: AbortSignal;      // aborts the SSE stream when triggered
-  errorUnknownType?: boolean; // when true, unknown event types call the handler with an error; when false (default), they are ignored
-  retry?: number;            // optional backoff override for reconnect delay (in ms) after a retry hint from the server
+  signal?: AbortSignal;             // aborts the SSE stream when triggered
+  errorUnknownType?: boolean;       // when true, unknown event types call the handler with an error; when false (default), they are ignored
 }
   ```
 

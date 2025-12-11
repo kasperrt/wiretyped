@@ -89,7 +89,7 @@ export type RequestType<
   Method extends keyof Schema[Endpoint],
 > = Schema[Endpoint][Method] extends { request: infer S extends SchemaType }
   ? StandardSchemaV1.InferOutput<S>
-  : Record<string, string>;
+  : Record<string, unknown>;
 
 /** Typed query params via `$search` if present. */
 export type SearchType<

@@ -1,7 +1,7 @@
 # WireTyped Releases
 
 ## Contents
-- [v0.3.0-alpha.0](#v030-alpha.0)
+- [v0.3.0-alpha.0](#v030-alpha0)
 - [v0.2.5](#v025)
 - [v0.2.4](#v024)
 - [v0.2.3](#v023)
