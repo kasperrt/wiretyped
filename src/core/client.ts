@@ -117,6 +117,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
   #credentials?: RequestCredentials;
   /** Default headers applied to every request (merged with per-call headers). */
   #defaultHeaders: HeaderOptions;
+  /** Default SSE reconnect timeout (from SSE spec) */
+  #defaultSSEReconnectWait = 1_000;
 
   /**
    * Creates a typed RequestClient that wires together the fetch provider, SSE provider, and cache.
@@ -436,19 +438,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     let lastEventId = '';
-    let retryDelayMs = 1000;
+    let retryDelayMs = this.#defaultSSEReconnectWait;
     const controller = new AbortController();
-    const baseHeaders = mergeHeaderOptions(
-      mergeHeaderOptions(this.#defaultHeaders, headers),
-      new Headers({ Accept: 'text/event-stream', Connection: 'keep-alive' }),
-    );
-
     const isAborted = (extra?: AbortSignal | null) =>
       controller.signal.aborted || signal?.aborted === true || extra?.aborted === true;
-
-    const close = (): void => {
-      controller.abort();
-    };
+    const close = (): void => controller.abort('closed by user request');
 
     const writeData = async (block: string) => {
       if (!block) {
@@ -546,6 +540,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       const timeoutSignal = timeout ? createTimeoutSignal(timeout) : null;
       const mergedSignal = mergeSignals([signal, controller.signal, timeoutSignal]);
 
+      // I need test coverage for this line
       if (isAborted(mergedSignal)) {
         return;
       }
@@ -553,7 +548,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
       const [errWrapped, wrapped] = await safeWrapAsync(() =>
         this.#fetchClient.get(url, {
           ...options,
-          headers: mergeHeaderOptions(baseHeaders, { ...(lastEventId && { 'Last-Event-ID': lastEventId }) }),
+          headers: mergeHeaderOptions(mergeHeaderOptions(this.#defaultHeaders, headers), {
+            ...(lastEventId && { 'Last-Event-ID': lastEventId }),
+            Accept: 'text/event-stream',
+            Connection: 'keep-alive',
+          }),
           credentials,
           keepalive: true,
           ...(mergedSignal && { signal: mergedSignal }),
@@ -565,6 +564,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       }
 
       const [errResponse, response] = wrapped;
+      // I need test coverage for this line
       if (errResponse) {
         return;
       }

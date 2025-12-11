@@ -8,8 +8,15 @@ import { getRetryExhaustedError, RetryExhaustedError } from '../error/retryExhau
 import { getRetrySuppressedError, RetrySuppressedError } from '../error/retrySuppressedError.js';
 import { TimeoutError } from '../error/timeoutError.js';
 import { ValidationError } from '../error/validationError.js';
-import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request.js';
+import type {
+  FetchClientProvider,
+  FetchClientProviderDefinition,
+  FetchResponse,
+  Options,
+  RequestOptions,
+} from '../types/request.js';
 import * as signals from '../utils/signals.js';
+import type { SafeWrapAsync } from '../utils/wrap.js';
 import { RequestClient } from './client.js';
 import type { RequestDefinitions } from './types.js';
 
@@ -649,21 +656,6 @@ describe('RequestClient', () => {
         validation: true,
       });
 
-      requestClient.sse('/api/my-endpoint', null, ([err, event]) => {
-        if (err) {
-          return;
-        }
-
-        if (event.type === 'message') {
-          // This should type-narrow the types based on the standard-schema/spec infered type,
-          // from
-          event.data;
-        } else if (event.type === 'player') {
-          event.data;
-        } else {
-          event;
-        }
-      });
       const [err, res] = await requestClient.get('/api/my-endpoint', null);
 
       expect(res).toBeNull();
@@ -2935,6 +2927,615 @@ describe('RequestClient', () => {
       expect(deleteSpy).not.toHaveBeenCalled();
       expect(err).toBeInstanceOf(Error);
       expect(err?.message.toLowerCase()).toContain('error constructing url');
+    });
+  });
+
+  describe('SSE', () => {
+    const mockSseEndpoints = {
+      '/api/stream': {
+        sse: {
+          events: {
+            message: z.object({ foo: z.string() }),
+            update: z.object({ bar: z.number() }),
+          },
+        },
+      },
+    } satisfies RequestDefinitions;
+
+    const flushPromises = async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    };
+
+    const makeSseResponse = (chunks: string[]) => {
+      const encoded = chunks.map((chunk) => new TextEncoder().encode(chunk));
+      const reader = {
+        read: vi.fn().mockImplementation(() => {
+          const value = encoded.shift();
+          return Promise.resolve({ value, done: value === undefined });
+        }),
+      };
+
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => 'text/event-stream' },
+        body: {
+          getReader: () => reader,
+        },
+      };
+    };
+
+    test('returns when response body missing reader', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk({
+          ok: true,
+          status: 200,
+          body: null,
+        } as unknown as Response),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('breaks on reader read error', async () => {
+      const handler = vi.fn();
+      const readerError = new Error('boom');
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk({
+          ok: true,
+          status: 200,
+          headers: { get: () => 'text/event-stream' },
+          body: {
+            getReader: () => ({
+              read: vi.fn().mockImplementation(() => Promise.reject(readerError)),
+            }),
+          },
+        } as unknown as Response),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('breaks response errored', async () => {
+      const handler = vi.fn();
+      const readerError = new Error('boom');
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncErr({
+          ok: false,
+          status: 500,
+          headers: { get: () => 'text/event-stream' },
+          body: {
+            getReader: () => ({
+              read: vi.fn().mockImplementation(() => Promise.reject(readerError)),
+            }),
+          },
+        } as unknown as Response),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('returns early when merged signal already aborted', async () => {
+      const handler = vi.fn();
+      const abortController = new AbortController();
+      abortController.abort();
+
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get');
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { signal: abortController.signal });
+
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+      expect(getSpy).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('returns when fetch client get rejects or returns null', async () => {
+      const handler = vi.fn();
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() => {
+        throw new Error('fetch failed');
+      });
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [errThrown] = await client.sse('/api/stream', null, handler);
+      expect(errThrown).toBeNull();
+      expect(handler).not.toHaveBeenCalled();
+      expect(getSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test('returns when provider resolves with error tuple', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() => asyncOk([new Error('bad'), null] as unknown as SafeWrapAsync<Error, FetchResponse>));
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+      expect(getSpy).toHaveBeenCalledTimes(1);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('returns early when merged signal is aborted before fetch', async () => {
+      vi.useFakeTimers();
+      const handler = vi.fn();
+      const aborted = new AbortController();
+      aborted.abort();
+
+      const mergeSpy = vi.spyOn(signals, 'mergeSignals').mockReturnValue(aborted.signal);
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get');
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      await flushPromises();
+      close?.();
+      await vi.runOnlyPendingTimersAsync();
+      vi.useRealTimers();
+
+      expect(err).toBeNull();
+      expect(getSpy).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+      mergeSpy.mockRestore();
+      getSpy.mockRestore();
+    });
+
+    test('returns when fetch provider yields error response tuple', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() => asyncOk([new Error('bad'), null]));
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      await flushPromises();
+      close?.();
+
+      expect(err).toBeNull();
+      expect(getSpy).toHaveBeenCalledTimes(1);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('streams SSE events through handler with validation', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() =>
+          asyncOk(
+            makeSseResponse(['id: 1\nevent: message\ndata: {"foo":"bar"}\n\n', 'event: update\ndata: {"bar":2}\n\n']),
+          ),
+        );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      expect(err).toBeNull();
+      expect(typeof close).toBe('function');
+
+      await flushPromises();
+      await flushPromises();
+      await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+
+      expect(handler).toHaveBeenNthCalledWith(1, [null, { type: 'message', data: { foo: 'bar' } }]);
+      expect(handler).toHaveBeenNthCalledWith(2, [null, { type: 'update', data: { bar: 2 } }]);
+
+      // @ts-expect-error
+      const firstHeaders = getSpy.mock.calls[0][1]?.headers as Headers;
+      expect(firstHeaders.get('accept')).toBe('text/event-stream');
+      expect(firstHeaders.get('connection')).toBe('keep-alive');
+
+      close?.();
+    });
+
+    test('streams SSE events through handler without inline validation', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() =>
+          asyncOk(
+            makeSseResponse(['id: 1\nevent: message\ndata: {"foo":"bar"}\n\n', 'event: update\ndata: {"bar":2}\n\n']),
+          ),
+        );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { validate: false, timeout: 1000 });
+
+      expect(err).toBeNull();
+      expect(typeof close).toBe('function');
+
+      await flushPromises();
+      await flushPromises();
+      await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+
+      expect(handler).toHaveBeenNthCalledWith(1, [null, { type: 'message', data: { foo: 'bar' } }]);
+      expect(handler).toHaveBeenNthCalledWith(2, [null, { type: 'update', data: { bar: 2 } }]);
+
+      // @ts-expect-error
+      const firstHeaders = getSpy.mock.calls[0][1]?.headers as Headers;
+      expect(firstHeaders.get('accept')).toBe('text/event-stream');
+      expect(firstHeaders.get('connection')).toBe('keep-alive');
+
+      close?.();
+    });
+
+    test('streams SSE events through handler without global validation', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() =>
+          asyncOk(
+            makeSseResponse(['id: 1\nevent: message\ndata: {"foo":"bar"}\n\n', 'event: update\ndata: {"bar":2}\n\n']),
+          ),
+        );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: false,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      expect(err).toBeNull();
+      expect(typeof close).toBe('function');
+
+      await flushPromises();
+      await flushPromises();
+      await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+
+      expect(handler).toHaveBeenNthCalledWith(1, [null, { type: 'message', data: { foo: 'bar' } }]);
+      expect(handler).toHaveBeenNthCalledWith(2, [null, { type: 'update', data: { bar: 2 } }]);
+
+      // @ts-expect-error
+      const firstHeaders = getSpy.mock.calls[0][1]?.headers as Headers;
+      expect(firstHeaders.get('accept')).toBe('text/event-stream');
+      expect(firstHeaders.get('connection')).toBe('keep-alive');
+
+      close?.();
+    });
+
+    test('streams SSE events through handler without global validation', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() =>
+          asyncOk(
+            makeSseResponse(['id: 1\nevent: message\ndata: {"foo":"bar"}\n\n', 'event: update\ndata: {"bar":2}\n\n']),
+          ),
+        );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: false,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      expect(err).toBeNull();
+      expect(typeof close).toBe('function');
+
+      await flushPromises();
+      await flushPromises();
+      await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+
+      expect(handler).toHaveBeenNthCalledWith(1, [null, { type: 'message', data: { foo: 'bar' } }]);
+      expect(handler).toHaveBeenNthCalledWith(2, [null, { type: 'update', data: { bar: 2 } }]);
+
+      // @ts-expect-error
+      const firstHeaders = getSpy.mock.calls[0][1]?.headers as Headers;
+      expect(firstHeaders.get('accept')).toBe('text/event-stream');
+      expect(firstHeaders.get('connection')).toBe('keep-alive');
+
+      close?.();
+    });
+
+    test('reconnects with last event id when retry delay received', async () => {
+      vi.useFakeTimers();
+      const handler = vi.fn();
+      const firstResponse = makeSseResponse(['id: 42\nretry: 10\nevent: message\ndata: {"foo":"bar"}\n\n']);
+      const secondResponse = makeSseResponse([]);
+
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementationOnce(() => asyncOk(firstResponse))
+        .mockImplementationOnce(() => asyncOk(secondResponse));
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      await flushPromises();
+
+      expect(err).toBeNull();
+
+      await vi.advanceTimersByTimeAsync(10);
+      await flushPromises();
+
+      close?.();
+      await vi.advanceTimersByTimeAsync(10);
+      vi.useRealTimers();
+
+      expect(getSpy).toHaveBeenCalledTimes(2);
+
+      // @ts-expect-error
+      const reconnectHeaders = getSpy.mock.calls[1][1]?.headers as Headers;
+      expect(reconnectHeaders.get('last-event-id')).toBe('42');
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: { foo: 'bar' } }]);
+    });
+
+    test('errors on missing schemas', async () => {
+      const endpoints = {
+        '/sse': {
+          // @ts-expect-error
+          sse: {},
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        // @ts-expect-error
+        endpoints: endpoints,
+        validation: true,
+      });
+
+      // @ts-expect-error
+      const [err, close] = await client.sse('/sse', null, ([_error, _event]) => {});
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /sse'));
+      expect(close).toBeNull();
+    });
+
+    test('errors on constructing url', async () => {
+      const endpoints = {
+        '/sse/{ye}}': {
+          sse: {
+            events: {},
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: endpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/sse/{ye}}', { ye: 'ok' }, ([_error, _event]) => {});
+
+      expect(err).toStrictEqual(new Error('error constructing url in sse'));
+      expect(close).toBeNull();
+    });
+
+    test('forwards parsing errors to handler', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: message\ndata: not-json\n\n'])),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      await flushPromises();
+
+      expect(err).toBeNull();
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error parsing in sse stream');
+      expect(data).toBeNull();
+
+      close?.();
+    });
+
+    test('forwards validation errors to handler', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse([`event: message\ndata: ${JSON.stringify({ foo: { bar: 'nested' } })}\n\n`])),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(err).toBeNull();
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error validating response in sse stream');
+      expect(data).toBeNull();
+
+      close?.();
+    });
+
+    test('silently ignores non-mapped events', async () => {
+      const handler = vi.fn();
+      const logger = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: event-name\ndata: not-json\n\n'])),
+      );
+
+      vi.spyOn(console, 'debug').mockImplementation(logger);
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+        debug: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      await flushPromises();
+
+      expect(err).toBeNull();
+      expect(handler).toHaveBeenCalledTimes(0);
+      expect(logger).toHaveBeenCalledTimes(2);
+      expect(logger.mock.calls[1][0]).toEqual('error unknown event-type event-name in sse stream');
+
+      close?.();
+    });
+
+    test('error on non-mapped events', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: event-name\ndata: not-json\n\n'])),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { errorUnknownType: true });
+
+      await flushPromises();
+
+      expect(err).toBeNull();
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error unknown event-type event-name in sse stream');
+      expect(data).toBeNull();
+
+      close?.();
     });
   });
 });
