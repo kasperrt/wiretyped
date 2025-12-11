@@ -540,7 +540,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
       const timeoutSignal = timeout ? createTimeoutSignal(timeout) : null;
       const mergedSignal = mergeSignals([signal, controller.signal, timeoutSignal]);
 
-      // I need test coverage for this line
       if (isAborted(mergedSignal)) {
         return;
       }
@@ -564,7 +563,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
       }
 
       const [errResponse, response] = wrapped;
-      // I need test coverage for this line
       if (errResponse) {
         return;
       }
