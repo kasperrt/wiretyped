@@ -8,7 +8,7 @@
 
 A universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.
 
-Runs across browser, Node, Bun, and worker runtimes with a small, composable API and predictable failure modes.
+Runs across browser, Node, Bun, Deno, and worker runtimes with a small, composable API and predictable failure modes.
 
 
 ## Why
