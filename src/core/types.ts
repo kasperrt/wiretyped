@@ -1,6 +1,5 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import type { RequestOptions } from 'http';
-import type { FetchOptions, Options } from '../types/request.js';
+import type { FetchOptions, Options, RequestOptions } from '../types/request.js';
 import type { SafeWrap } from '../utils/wrap.js';
 
 /** Schema for unknown input, any output, used to easier infer data */
@@ -150,8 +149,7 @@ export type SSEMessageEnvelope<Data> = {
 };
 
 /** SSE Options */
-export type SSEOptions = Omit<FetchOptions, 'body' | 'method'> &
-  Pick<RequestOptions, 'timeout'> & { validate?: boolean };
+export type SSEOptions = Omit<FetchOptions, 'body' | 'method'> & Pick<RequestOptions, 'timeout' | 'validate'>;
 
 /**
  * Typed parameters for get function call parameters

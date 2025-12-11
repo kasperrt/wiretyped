@@ -185,7 +185,6 @@ describe('RequestClient', () => {
           headers: { get: () => 'application/json' },
         };
 
-        // AsyncWrap<Error, FetchResponse>
         return [null, response];
       });
 
