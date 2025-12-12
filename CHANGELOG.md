@@ -40,7 +40,7 @@ const [err, close] = await client.sse(
       console.log('message', event.data.msg);
     }
     if (event.type === 'status') {
-      console.log('status', event.data.ok);
+      console.log('status', event.data); // data is string
     }
   },
   { credentials: 'include' },
