@@ -2,7 +2,7 @@ import { CacheClient } from '../cache/client.js';
 import { isAbortError } from '../error/abortError.js';
 import { getHttpError, HTTPError } from '../error/httpError.js';
 import { isErrorType } from '../error/isErrorType.js';
-import { isTimeoutError, TimeoutError } from '../error/timeoutError.js';
+import { isTimeoutError } from '../error/timeoutError.js';
 import { FetchClient } from '../fetch/client.js';
 import { mergeHeaderOptions } from '../fetch/utils.js';
 import type {
@@ -15,12 +15,11 @@ import type {
   RequestOptions,
   StatusCode,
 } from '../types/request.js';
-import type { SSEClientProvider, SSEClientProviderDefinition } from '../types/sse.js';
 import { constructUrl } from '../utils/constructUrl.js';
 import { getResponseData } from '../utils/getResponseData.js';
 import { retry } from '../utils/retry.js';
 import { createTimeoutSignal, mergeSignals } from '../utils/signals.js';
-import type { Timeout } from '../utils/timeout.js';
+import { sleep } from '../utils/sleep.js';
 import { validator } from '../utils/validator.js';
 import { type SafeWrap, type SafeWrapAsync, safeWrap, safeWrapAsync } from '../utils/wrap.js';
 import type {
@@ -47,6 +46,7 @@ import type {
   PutReturn,
   RequestDefinitions,
   SSEArgs,
+  SSEDataReturn,
   SSEEndpoint,
   SSEReturn,
   UrlArgs,
@@ -57,8 +57,6 @@ import type {
 export interface RequestClientProps<Schema extends RequestDefinitions> extends Config {
   /** HTTP client implementation used for regular requests. Defaults to {@link FetchClient}. */
   fetchProvider?: FetchClientProvider;
-  /** SSE client implementation used for server-sent events. Defaults to {@link EventSource}. */
-  sseProvider?: SSEClientProvider;
   /** Base URL used when constructing request URLs (e.g. `https://api.example.com/`). */
   baseUrl: string;
   /** Absolute hostname used to build urls (e.g. `https://api.example.com`) */
@@ -97,8 +95,6 @@ export interface RequestClientProps<Schema extends RequestDefinitions> extends C
 export class RequestClient<Schema extends RequestDefinitions> {
   /** Underlying fetch-capable HTTP provider instance. */
   #fetchClient: FetchClientProviderDefinition;
-  /** SSE client provider instance used for streaming endpoints. */
-  #sseClient?: SSEClientProvider | null;
   /** In-memory cache for GET requests. */
   #cacheClient: CacheClient;
   /** Default request-level options (timeout, retry). */
@@ -121,6 +117,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
   #credentials?: RequestCredentials;
   /** Default headers applied to every request (merged with per-call headers). */
   #defaultHeaders: HeaderOptions;
+  /** Default SSE reconnect timeout (from SSE spec) */
+  #defaultSSEReconnectWait = 1_000;
 
   /**
    * Creates a typed RequestClient that wires together the fetch provider, SSE provider, and cache.
@@ -129,7 +127,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
    */
   constructor({
     fetchProvider = FetchClient,
-    sseProvider = typeof EventSource !== 'undefined' ? EventSource : undefined,
     baseUrl,
     cacheOpts,
     debug = false,
@@ -147,7 +144,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#hostname = hostname;
     this.#debug = debug;
     this.#validation = validation;
-    this.#sseClient = sseProvider;
     this.#credentials = fetchClientOpts.credentials;
     this.#defaultHeaders = mergeHeaderOptions(
       {
@@ -161,15 +157,10 @@ export class RequestClient<Schema extends RequestDefinitions> {
       headers: this.#defaultHeaders,
     });
 
-    if (!sseProvider) {
-      this.#log(`potentially missing event-provider polyfill, SSE handlers won't work`);
-    }
-
     this.#log(
       `RequestClient: ${JSON.stringify(
         {
           fetchProvider,
-          sseProvider,
           baseUrl,
           cacheOpts,
           fetchOpts,
@@ -419,8 +410,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * incoming messages into the provided handler as typed payloads.
    *
    * - Builds the URL from endpoint definitions and params.
-   * - Uses the configured `sseProvider` (defaults to `EventSource`).
-   * - Optionally validates each incoming message via the endpoint `response` schema.
+   * - Optionally validates each incoming message via the endpoint `events` schema.
    *
    * The returned function can be used to close the SSE connection.
    *
@@ -432,132 +422,161 @@ export class RequestClient<Schema extends RequestDefinitions> {
   async sse<Endpoint extends SSEEndpoint<Schema>>(
     ...args: SSEArgs<Schema, Endpoint & string>
   ): SafeWrapAsync<Error, SSEReturn> {
-    const [endpoint, params, handler, { validate, ...options } = {}] = args;
-    const opts = { withCredentials: options?.withCredentials ?? this.#credentials === 'include', ...options };
-
-    this.#log(`SSE OPTIONS: ${JSON.stringify(opts, null, 4)}`);
+    const [endpoint, params, handler, opts = {}] = args;
+    const { validate, timeout, headers, signal, errorUnknownType, credentials = this.#credentials, ...options } = opts;
 
     const schemas = this.#endpoints[endpoint]?.sse;
-    if (!schemas) {
+    if (!schemas || !schemas.events) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
+    const eventSchemas = schemas.events;
     const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
-      this.#log(`SSE ERRURL: ${errUrl}`);
       return [new Error('error constructing url in sse', { cause: errUrl }), null];
     }
 
-    const provider = this.#sseClient;
-    if (!provider) {
-      return [new Error(`error missing sse provider in sse on url ${url}`), null];
-    }
-
-    const opener = new Promise<SafeWrap<Error, SSEReturn>>((resolve) => {
-      let resolved = false;
-      let timeoutId: Timeout;
-      let connection: SSEClientProviderDefinition | null = null;
-
-      const closeConnection = () => {
-        if (!connection || connection.readyState === connection.CLOSED) {
-          return;
-        }
-
-        connection.close();
-      };
-
-      const done = (res: SafeWrap<Error, VoidFunction>) => {
-        if (resolved) {
-          return;
-        }
-
-        clearTimeout(timeoutId);
-        resolved = true;
-        resolve(res);
-      };
-
-      if (opts.timeout) {
-        timeoutId = setTimeout(() => {
-          closeConnection();
-          done([new TimeoutError(`error timed out opening connection to SSE endpoint: ${url}`), null]);
-        }, opts.timeout);
-      }
-
-      const [errConnection, createdConnection] = safeWrap(() => new provider(`${this.#baseUrl}/${url}`, opts));
-      if (errConnection || !createdConnection) {
-        done([new Error(`error creating new connection for SSE on ${url}`, { cause: errConnection }), null]);
+    let lastEventId = '';
+    let retryDelayMs = this.#defaultSSEReconnectWait;
+    const controller = new AbortController();
+    const isAborted = () => controller.signal.aborted || signal?.aborted === true;
+    const close = (): void => controller.abort('closed by user request');
+    const parseBlock = async (block: string) => {
+      if (!block) {
         return;
       }
 
-      connection = createdConnection;
-
-      const close = (): void => {
-        this.#log(`SSE CLOSE: ${url}`);
-
-        if (connection.readyState === connection.CLOSED) {
-          this.#log(`SSE TRIED CLOSING CLOSED STREAM: ${url}`);
-          return;
+      let eventName = 'message';
+      let data = '';
+      for (const line of block.split(/\r?\n/)) {
+        // Safeguard, in reality should never be hit
+        /* v8 ignore next -- @preserve */
+        if (!line) {
+          continue;
         }
 
-        connection.close();
-      };
+        if (line.startsWith('event:')) {
+          const name = line.slice(6).trim();
+          if (name) {
+            eventName = name;
+          }
 
-      connection.onopen = () => {
-        done([null, close]);
-      };
-
-      connection.onerror = (event: Event) => {
-        if (!resolved) {
-          closeConnection();
-          done([new Error(`error opening SSE connection`, { cause: event }), null]);
-          return;
+          continue;
+        }
+        if (line.startsWith('id:')) {
+          const id = line.slice(3).trim();
+          if (id) {
+            lastEventId = id;
+          }
+          continue;
         }
 
-        if ('name' in event && 'message' in event && event.name === 'ErrorEvent') {
-          handler([
-            new Error(`error receiving on ${url} for sse: ${event.message}`, {
-              cause: event,
-            }),
-            null,
-          ]);
-          return;
+        if (line.startsWith('retry:')) {
+          const delay = Number(line.slice(6).trim());
+          if (Number.isFinite(delay) && delay > 0) {
+            retryDelayMs = delay;
+          }
+          continue;
         }
 
-        handler([new Error(`error generic error on ${url} for sse`), null]);
-      };
+        if (line.startsWith('data:')) {
+          data += (data ? '\n' : '') + line.slice(5).trim();
+        }
+      }
 
-      connection.onmessage = async (e: MessageEvent) => {
-        const [err, result] = safeWrap(() => JSON.parse(e.data));
-        if (err) {
-          handler([new Error('error parsing JSON in sse onmessage', { cause: err }), null]);
-          return;
+      // Extra safeguard in case the above breaks in some absurd way
+      if (!data) {
+        return;
+      }
+
+      if (!(eventName in eventSchemas)) {
+        if (errorUnknownType) {
+          return handler([new Error(`error unknown event-type ${eventName} in sse stream`), null]);
         }
 
-        if (validate === false || (this.#validation === false && !validate)) {
-          handler([null, result]);
-          return;
+        return this.#log(`error unknown event-type ${eventName} in sse stream`);
+      }
+
+      const [errParsed, parsed] = safeWrap(() => JSON.parse(data));
+      if (errParsed) {
+        handler([new Error('error parsing in sse stream', { cause: errParsed }), null]);
+        return;
+      }
+
+      if (validate === false || (this.#validation === false && !validate)) {
+        handler([null, { type: eventName, data: parsed } as SSEDataReturn<Schema, Endpoint>]);
+        return;
+      }
+
+      const [errValidate, validated] = await validator(parsed, eventSchemas[eventName]);
+      if (errValidate) {
+        handler([new Error('error validating response in sse stream', { cause: errValidate }), null]);
+        return;
+      }
+
+      handler([null, { type: eventName, data: validated } as SSEDataReturn<Schema, Endpoint>]);
+    };
+
+    const open = async () => {
+      const timeoutSignal = timeout ? createTimeoutSignal(timeout) : null;
+      const mergedSignal = mergeSignals([signal, controller.signal, timeoutSignal]);
+
+      if (mergedSignal?.aborted) {
+        controller.abort(mergedSignal.reason ?? 'aborted');
+        return;
+      }
+
+      const [errWrapped, wrapped] = await safeWrapAsync(() =>
+        this.#fetchClient.get(url, {
+          ...options,
+          headers: mergeHeaderOptions(mergeHeaderOptions(this.#defaultHeaders, headers), {
+            ...(lastEventId && { 'Last-Event-ID': lastEventId }),
+            Accept: 'text/event-stream',
+            Connection: 'keep-alive',
+          }),
+          credentials,
+          keepalive: true,
+          ...(mergedSignal && { signal: mergedSignal }),
+        }),
+      );
+
+      if (errWrapped || !wrapped) {
+        return;
+      }
+
+      const [errResponse, response] = wrapped;
+      if (errResponse || !response?.ok || typeof response.body?.getReader !== 'function') {
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const [errRead, chunk] = await safeWrapAsync(() => reader.read());
+        if (errRead) {
+          break;
         }
 
-        const [errParse, parsed] = await validator(result, schemas.response);
-        if (errParse) {
-          handler([
-            new Error('error parsing response in sse onmessage', {
-              cause: errParse,
-            }),
-            null,
-          ]);
-          return;
+        const { value, done } = chunk;
+        if (done) {
+          break;
         }
 
-        handler([null, parsed]);
-      };
-    });
+        const text = decoder.decode(value, { stream: true });
+        for (const part of text.split(/\n\n/)) {
+          await parseBlock(part.trim());
+        }
+      }
+    };
 
-    this.#log(`SSE URL: ${url}`);
-    const [errOpen, close] = await opener;
-    if (errOpen) {
-      return [new Error('error opening SSE connection', { cause: errOpen }), null];
-    }
+    const listen = async () => {
+      while (!isAborted()) {
+        await open();
+        await sleep(retryDelayMs);
+      }
+    };
+
+    listen();
 
     return [null, close];
   }

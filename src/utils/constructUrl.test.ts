@@ -59,4 +59,34 @@ describe('constructUrl', () => {
     expect(isConstructURLError(err)).toBe(true);
     expect(err?.message).toContain('path contains {}');
   });
+
+  it('errors when path params are wrong', async () => {
+    const schema = {
+      '/users/{id}': {
+        get: {
+          $path: z.object({
+            id: z.number(),
+          }),
+          response: z.string(),
+        },
+      },
+    } satisfies RequestDefinitions;
+
+    const [err, url] = await constructUrl<'get', typeof schema, '/users/{id}'>(
+      '/users/{id}',
+      {
+        $path:
+          // @ts-expect-error
+          { id: 'test' },
+      },
+      schema['/users/{id}'].get,
+      true,
+    );
+
+    expect(url).toBeNull();
+    expect(err).toBeInstanceOf(ConstructURLError);
+    expect(getConstructURLError(err)?.url).toBe('/users/{id}');
+    expect(isConstructURLError(err)).toBe(true);
+    expect(err?.message).toContain('error $path validation failed');
+  });
 });

@@ -8,7 +8,7 @@
 
 A universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.
 
-Runs across browser, Node, Bun, and worker runtimes with a small, composable API and predictable failure modes.
+Runs across browser, Node, Bun, Deno, and worker runtimes with a small, composable API and predictable failure modes.
 
 
 ## Why
@@ -49,6 +49,7 @@ Runs across browser, Node, Bun, and worker runtimes with a small, composable API
     - [DOWNLOAD](#download)
     - [URL](#url)
     - [SSE](#sse)
+      - [Options](#options)
   - [Caching](#caching)
   - [Retries](#retries)
   - [Error handling](#error-handling)
@@ -56,7 +57,6 @@ Runs across browser, Node, Bun, and worker runtimes with a small, composable API
   - [Exposed entrypoints](#exposed-entrypoints)
   - [Providers](#providers)
     - [HTTP provider shape](#http-provider-shape)
-    - [SSE provider shape](#sse-provider-shape)
   - [Building](#building)
   - [Tests](#tests)
   - [Publishing](#publishing)
@@ -80,7 +80,8 @@ Notes on path params:
 - For dynamic segments that accept generic strings/numbers, you can omit `$path`—the URL template (e.g., `/users/{id}`) already infers string/number.
 
 ```ts
-import { RequestClient, type RequestDefinitions, z } from 'wiretyped/core';
+import { RequestClient, type RequestDefinitions } from 'wiretyped/core';
+import { z } from 'zod';
 
 const endpoints = {
   '/users/{id}': {
@@ -332,7 +333,14 @@ const [err, link] = await client.url('/links', null);
 Request definition:
 ```ts
 const endpoints = {
-  '/events': { sse: { response: z.string() } },
+  '/events': {
+    sse: {
+      events: {
+        message: z.object({ msg: z.string() }),
+        status: z.object({ ok: z.boolean() }),
+      },
+    },
+  },
 } satisfies RequestDefinitions;
 ```
 
@@ -341,13 +349,16 @@ Subscribe to server-sent events; signature is `(endpoint, params, handler, optio
 const [err, close] = await client.sse(
   '/events',
   null,
-  ([err, data]) => {
+  ([err, event]) => {
     if (err) return console.error('sse error', err);
-    console.log('sse message', data);
+    if (event.type === 'message') {
+      console.log('message', event.data.msg);
+    }
+    if (event.type === 'status') {
+      console.log('status', event.data.ok);
+    }
   },
-  // The SSE client also inherits credentials adding from the fetchOpts
-  // as long as it is not 'omit', so usually this will end up sending withCredentials: true
-  { withCredentials: true },
+  { credentials: 'include' },
 );
 
 if(err) {
@@ -357,6 +368,24 @@ if(err) {
 // Closer
 close();
 ```
+
+#### Options
+Options mirrors fetch options except method/body/keepalive, plus SSE extras:
+```ts
+{
+  validate?: boolean;               // override client/default validation for this stream
+  timeout?: number | false;         // abort opening/reads after the given ms (falls back to client default); false disables timeout
+  headers?: HeadersInit;            // extra headers merged into the SSE request (defaults include Accept: text/event-stream and Connection: keep-alive)
+  credentials?: RequestCredentials; // forwarded to the underlying fetch call
+  signal?: AbortSignal;             // aborts the SSE stream when triggered
+  errorUnknownType?: boolean;       // when true, unknown event types call the handler with an error; when false (default), they are ignored
+}
+  ```
+
+- The client builds URLs with path/query validation just like HTTP requests.
+- Messages are parsed as JSON and validated against the typed event schema by default; set `validate: false` per-call to skip.
+- Unknown event names are ignored unless you pass `errorUnknownType: true`, which forwards an error to the handler.
+- The handler is error-first: it receives either `[err, null]` or `[null, { type, data }]` with latter allows for type-narrowing.
 
 ## Caching
 
@@ -444,7 +473,7 @@ Use `isX` or `getX` helpers from `wiretyped/error` (e.g., `isHttpError`, `getVal
 
 ## Providers
 
-Defaults are `FetchClient` for HTTP and the global `EventSource` for SSE. Override only if you need custom transports. If your runtime does not provide `EventSource` (e.g., Node without a polyfill), install one such as [`eventsource`](https://github.com/EventSource/eventsource) and pass it as `sseProvider` when constructing the client.
+Defaults are `FetchClient` for HTTP. Override only if you need custom transports. 
 
 ### HTTP provider shape
 
@@ -462,40 +491,6 @@ interface FetchClientProviderDefinition {
   config(opts: FetchClientOptions): void;
 }
 ```
-
-### SSE provider shape
-
-```ts
-interface SSEClientProvider {
-  new (url: string | URL, init?: { withCredentials?: boolean }): SSEClientProviderInstance;
-}
-
-interface SSEClientProviderInstance {
-  readonly url: string;
-  readonly withCredentials: boolean;
-  readonly readyState: number;
-  readonly CLOSED: 2;
-  readonly CONNECTING: 0;
-  readonly OPEN: 1;
-  onopen: ((ev: Event) => void) | null;
-  onmessage: ((ev: MessageEvent) => void) | null;
-  onerror: ((ev: Event) => void) | null;
-  close(): void;
-  addEventListener<K extends 'open' | 'message' | 'error'>(
-    type: K,
-    listener: (ev: K extends 'message' ? MessageEvent : Event) => void,
-    options?: boolean | AddEventListenerOptions,
-  ): void;
-  removeEventListener<K extends 'open' | 'message' | 'error'>(
-    type: K,
-    listener: (ev: K extends 'message' ? MessageEvent : Event) => void,
-    options?: boolean | EventListenerOptions,
-  ): void;
-  dispatchEvent(event: Event): boolean;
-}
-```
-
-Pass these via `fetchProvider` or `sseProvider` in the `RequestClient` constructor when swapping transports.
 
 ## Building
 

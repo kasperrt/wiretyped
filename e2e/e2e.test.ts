@@ -1,4 +1,3 @@
-import { EventSource } from 'eventsource';
 import { afterAll, assert, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   getHttpError,
@@ -104,13 +103,18 @@ const endpoints = {
       $search: z.object({
         error: z.enum(['never', 'sometimes']),
       }),
-      response: z.object({ i: z.number() }),
+      events: {
+        message: z.object({ i: z.number() }),
+        status: z.object({ ok: z.boolean() }),
+      },
     },
   },
 } satisfies RequestDefinitions;
 
 let server: E2EServer;
 let client: RequestClient<typeof endpoints>;
+
+const flushPromises = async () => await Promise.resolve();
 
 beforeAll(async () => {
   const [err, srv] = await startE2EServer(endpoints);
@@ -123,7 +127,6 @@ beforeAll(async () => {
     hostname: '127.0.0.1',
     endpoints,
     validation: true,
-    sseProvider: EventSource,
     fetchOpts: {
       headers: new Headers([['x-type', 'e2e-global']]),
     },
@@ -343,9 +346,8 @@ describe('wiretyped e2e', () => {
   });
 
   test('SSE /sse streams messages', async () => {
-    vi.useFakeTimers();
-
     const messages: number[] = [];
+    const statuses: boolean[] = [];
     const errors: Error[] = [];
     const [errOpen, close] = await client.sse(
       '/sse',
@@ -354,32 +356,36 @@ describe('wiretyped e2e', () => {
           error: 'never',
         },
       },
-      ([err, data]) => {
+      ([err, event]) => {
         if (err) {
           errors.push(err);
           return;
         }
 
-        messages.push(data.i);
+        if (event.type === 'message') {
+          messages.push(event.data.i);
+        }
+
+        if (event.type === 'status') {
+          statuses.push(event.data.ok);
+        }
       },
       { timeout: 1000 },
     );
 
     expect(errOpen).toBeNull();
     expect(errors.length).toBe(0);
-    await vi.advanceTimersByTimeAsync(10);
+    await new Promise((resolve) => setTimeout(resolve, 20));
     close?.();
 
     expect(messages.length).toBeGreaterThanOrEqual(3);
     expect(messages).toEqual([1, 2, 3]);
-
-    vi.useRealTimers();
+    expect(statuses).toContain(true);
   });
 
   test('SSE /sse forwards errors without crashing handler', async () => {
-    vi.useFakeTimers();
-
     const messages: number[] = [];
+    const statuses: boolean[] = [];
     const errors: Error[] = [];
 
     const [errOpen, close] = await client.sse(
@@ -389,13 +395,17 @@ describe('wiretyped e2e', () => {
           error: 'sometimes',
         },
       },
-      ([err, data]) => {
+      ([err, event]) => {
         if (err) {
           errors.push(err);
           return;
         }
-        if (data) {
-          messages.push(data.i);
+        if (event.type === 'message') {
+          messages.push(event.data.i);
+        }
+
+        if (event.type === 'status') {
+          statuses.push(event.data.ok);
         }
       },
       { timeout: 1000 },
@@ -403,49 +413,67 @@ describe('wiretyped e2e', () => {
 
     expect(errOpen).toBeNull();
 
-    await vi.advanceTimersByTimeAsync(10);
+    await new Promise((resolve) => setTimeout(resolve, 20));
     close?.();
 
     expect(errors.length).toBeGreaterThanOrEqual(1);
     expect(messages).toContain(1);
     expect(messages).toContain(3);
-
-    vi.useRealTimers();
+    expect(statuses.length).toBeGreaterThanOrEqual(1);
   });
 
   test('SSE /sse reconnects after connection error', async () => {
     vi.useFakeTimers();
 
     const messages: number[] = [];
+    const statuses: boolean[] = [];
     const errors: Error[] = [];
 
     const [errOpen, close] = await client.sse(
       '/sse',
       { $search: { error: 'never' } },
-      ([err, data]) => {
+      ([err, event]) => {
         if (err) {
           errors.push(err);
           return;
         }
 
-        messages.push(data.i);
+        if (event.type === 'message') {
+          messages.push(event.data.i);
+        }
+
+        if (event.type === 'status') {
+          statuses.push(event.data.ok);
+        }
       },
       { timeout: 1000 },
     );
 
     expect(errOpen).toBeNull();
 
-    // Add two extra await tickers to ensure that we get around the initial connect, reconnect delay, and resumed stream
+    // Initial stream (3 messages over ~3ms)
     await vi.advanceTimersByTimeAsync(10);
-    await vi.advanceTimersByTimeAsync(3000);
+    await flushPromises();
+
+    // Retry backoff default 1000ms, then next stream
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushPromises();
     await vi.advanceTimersByTimeAsync(10);
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(1);
+    await flushPromises();
+
     close?.();
 
-    const counts = server.getCounts();
+    await vi.waitFor(
+      () => {
+        expect(server.getCounts()['SSE /sse']).toBeGreaterThanOrEqual(2);
+      },
+      { timeout: 200 },
+    );
 
-    expect(errors.length).toBeGreaterThanOrEqual(1);
-    expect(counts['SSE /sse']).toBeGreaterThanOrEqual(2);
     expect(messages.filter((i) => i === 1).length).toBeGreaterThanOrEqual(2);
+    expect(statuses.length).toBeGreaterThanOrEqual(1);
 
     vi.useRealTimers();
   });

@@ -6,11 +6,17 @@ import { isHttpError } from '../error/httpError.js';
 import { isErrorType } from '../error/isErrorType.js';
 import { getRetryExhaustedError, RetryExhaustedError } from '../error/retryExhaustedError.js';
 import { getRetrySuppressedError, RetrySuppressedError } from '../error/retrySuppressedError.js';
-import { isTimeoutError, TimeoutError } from '../error/timeoutError.js';
+import { TimeoutError } from '../error/timeoutError.js';
 import { ValidationError } from '../error/validationError.js';
-import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request.js';
-import type { SSEClientProvider, SSEClientProviderDefinition, SSEClientSourceInit } from '../types/sse.js';
+import type {
+  FetchClientProvider,
+  FetchClientProviderDefinition,
+  FetchResponse,
+  Options,
+  RequestOptions,
+} from '../types/request.js';
 import * as signals from '../utils/signals.js';
+import type { SafeWrapAsync } from '../utils/wrap.js';
 import { RequestClient } from './client.js';
 import type { RequestDefinitions } from './types.js';
 
@@ -37,45 +43,6 @@ MOCK_FETCH_PROVIDER.prototype.patch = vi.fn();
 MOCK_FETCH_PROVIDER.prototype.delete = vi.fn();
 MOCK_FETCH_PROVIDER.prototype.config = vi.fn();
 MOCK_FETCH_PROVIDER.prototype.dispose = vi.fn();
-
-type MockedSSEClientProvider = MockedFunction<SSEClientProvider>;
-
-const MOCK_SSE_PROVIDER = vi.fn(function (
-  this: SSEClientProviderDefinition,
-  url: string | URL,
-  init?: SSEClientSourceInit,
-) {
-  Object.defineProperties(this, {
-    url: {
-      value: typeof url === 'string' ? url : url.toString(),
-      writable: false,
-    },
-    withCredentials: { value: init?.withCredentials ?? true, writable: false },
-    readyState: { value: 0, writable: true }, // start CONNECTING to be realistic
-    CLOSED: { value: 2, writable: false },
-    CONNECTING: { value: 0, writable: false },
-    OPEN: { value: 1, writable: false },
-  });
-
-  this.onopen = null;
-  this.onmessage = null;
-  this.onerror = null;
-
-  this.close = vi.fn(() => {
-    // biome-ignore lint/suspicious/noExplicitAny: Overriding on purpose to access internal state
-    (this as any).readyState = this.CLOSED;
-  });
-  this.addEventListener = vi.fn();
-  this.removeEventListener = vi.fn();
-  this.dispatchEvent = vi.fn().mockReturnValue(true);
-
-  // Simulate async successful open
-  queueMicrotask(() => {
-    // biome-ignore lint/suspicious/noExplicitAny: Overriding on purpose to access internal state
-    (this as any).readyState = this.OPEN;
-    this.onopen?.(new Event('open'));
-  });
-}) as unknown as MockedSSEClientProvider;
 
 const DEFAULT_HEADERS = {
   Accept: 'application/json',
@@ -114,7 +81,6 @@ describe('RequestClient', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         endpoints: defaultEndpoints,
@@ -193,7 +159,6 @@ describe('RequestClient', () => {
 
       const requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -233,7 +198,6 @@ describe('RequestClient', () => {
 
       const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -279,7 +243,6 @@ describe('RequestClient', () => {
 
       const client: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { timeout: false }, // no retry provided -> default { limit: 2 }
@@ -327,7 +290,6 @@ describe('RequestClient', () => {
 
       const client: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { timeout: false, retry: 5 },
@@ -372,7 +334,6 @@ describe('RequestClient', () => {
 
       const client: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         // @ts-expect-error
@@ -406,7 +367,6 @@ describe('RequestClient', () => {
 
       const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { retry: { limit: 3, timeout: 1 }, timeout: false },
@@ -451,7 +411,6 @@ describe('RequestClient', () => {
 
       const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { retry: { limit: 1, timeout: 1 }, timeout: false },
@@ -490,7 +449,6 @@ describe('RequestClient', () => {
 
       const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { retry: { limit: 1, timeout: 1 }, timeout: false },
@@ -528,7 +486,6 @@ describe('RequestClient', () => {
 
       const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { retry: { limit: 1, timeout: 1 }, timeout: false },
@@ -565,7 +522,6 @@ describe('RequestClient', () => {
 
       const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { retry: { limit: 3, timeout: 1, ignoreStatusCodes: [429] }, timeout: false },
@@ -602,7 +558,6 @@ describe('RequestClient', () => {
 
       const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { retry: { limit: 3, timeout: 1, ignoreStatusCodes: [429] }, timeout: false },
@@ -652,7 +607,6 @@ describe('RequestClient', () => {
 
       const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { retry: { limit: 1, timeout: 1, statusCodes: [500] }, timeout: false },
@@ -671,6 +625,12 @@ describe('RequestClient', () => {
       const mockGetEndpoints = {
         '/api/my-endpoint': {
           get: { response: z.object({ data: z.string() }) },
+          sse: {
+            events: {
+              message: z.object({ foo: z.string() }),
+              player: z.object({ bar: z.string() }),
+            },
+          },
         },
       } satisfies RequestDefinitions;
 
@@ -689,7 +649,6 @@ describe('RequestClient', () => {
 
       const requestClient: RequestClient<typeof mockGetEndpoints> = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { retry: { limit: 3, timeout: 1, statusCodes: [500] }, timeout: false },
@@ -721,7 +680,6 @@ describe('RequestClient', () => {
 
       const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { timeout: false, retry: { limit: 0 } },
@@ -762,7 +720,6 @@ describe('RequestClient', () => {
 
       const requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         endpoints: defaultEndpoints,
@@ -815,7 +772,6 @@ describe('RequestClient', () => {
 
       const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         endpoints: mockGetEndpoints,
@@ -861,7 +817,6 @@ describe('RequestClient', () => {
 
       const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         endpoints: mockGetEndpoints,
@@ -909,7 +864,6 @@ describe('RequestClient', () => {
 
       const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: { timeout: false, retry: { limit: 0 } },
@@ -953,7 +907,6 @@ describe('RequestClient', () => {
 
       const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: {},
@@ -994,7 +947,6 @@ describe('RequestClient', () => {
 
       const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         //@ts-expect-error
@@ -1054,7 +1006,6 @@ describe('RequestClient', () => {
 
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: '/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -1121,7 +1072,6 @@ describe('RequestClient', () => {
 
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -1311,7 +1261,6 @@ describe('RequestClient', () => {
 
         requestClient = new RequestClient({
           fetchProvider: MOCK_FETCH_PROVIDER,
-          sseProvider: MOCK_SSE_PROVIDER,
           baseUrl: 'https://api.example.com/base',
           hostname: 'https://api.example.com',
           fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -1387,7 +1336,6 @@ describe('RequestClient', () => {
       test('No params: returns json parsed data when request was successful non-validated on client', async () => {
         requestClient = new RequestClient({
           fetchProvider: MOCK_FETCH_PROVIDER,
-          sseProvider: MOCK_SSE_PROVIDER,
           baseUrl: 'https://api.example.com/base',
           hostname: 'https://api.example.com',
           fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -1628,7 +1576,6 @@ describe('RequestClient', () => {
 
         const requestClientWithCache = new RequestClient({
           fetchProvider: MOCK_FETCH_PROVIDER,
-          sseProvider: MOCK_SSE_PROVIDER,
           baseUrl: 'https://api.example.com/base',
           hostname: 'https://api.example.com',
           fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -1665,7 +1612,6 @@ describe('RequestClient', () => {
       test('Does not call get() if key was in cache, and returns cached value', async () => {
         const requestClientWithCache = new RequestClient({
           fetchProvider: MOCK_FETCH_PROVIDER,
-          sseProvider: MOCK_SSE_PROVIDER,
           baseUrl: 'https://api.example.com/base',
           hostname: 'https://api.example.com',
           fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -1710,7 +1656,6 @@ describe('RequestClient', () => {
       test('Returns error and null data when request returns error tuple in cacheRequest: true', async () => {
         const requestClientWithCache = new RequestClient({
           fetchProvider: MOCK_FETCH_PROVIDER,
-          sseProvider: MOCK_SSE_PROVIDER,
           baseUrl: 'https://api.example.com/base',
           hostname: 'https://api.example.com',
           fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -1787,7 +1732,6 @@ describe('RequestClient', () => {
 
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -1957,7 +1901,6 @@ describe('RequestClient', () => {
     test("No params: returns response from provider's post method when successful non-validated on client", async () => {
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -2113,7 +2056,6 @@ describe('RequestClient', () => {
 
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -2289,7 +2231,6 @@ describe('RequestClient', () => {
     test("No params: returns response from provider's put method when successful non-validated on client", async () => {
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -2434,7 +2375,6 @@ describe('RequestClient', () => {
 
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -2620,7 +2560,6 @@ describe('RequestClient', () => {
     test("No params: returns response from provider's patch method when successful without validation on client", async () => {
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -2766,7 +2705,6 @@ describe('RequestClient', () => {
 
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -2898,7 +2836,6 @@ describe('RequestClient', () => {
     test("No params: returns response from provider's delete method when successful without validation on client", async () => {
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -2995,351 +2932,589 @@ describe('RequestClient', () => {
 
   describe('SSE', () => {
     const mockSseEndpoints = {
-      '/api/my-sse': {
+      '/api/stream': {
         sse: {
-          response: z.object({
-            hello: z.literal('world'),
-          }),
-        },
-      },
-      '/api/{integration}': {
-        sse: {
-          $path: z.object({
-            integration: z.enum(['sse-test']),
-          }),
-          response: z.object({
-            hello: z.literal('world'),
-          }),
+          events: {
+            message: z.object({ foo: z.string() }),
+            update: z.object({ bar: z.number() }),
+          },
         },
       },
     } satisfies RequestDefinitions;
 
-    let requestClient: RequestClient<typeof mockSseEndpoints>;
+    const flushPromises = async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    };
 
-    let consoleLogSpy: MockedFunction<VoidFunction>;
-    let consoleDebugSpy: MockedFunction<VoidFunction>;
-    let consoleWarnSpy: MockedFunction<VoidFunction>;
+    const makeSseResponse = (chunks: string[]) => {
+      const encoded = chunks.map((chunk) => new TextEncoder().encode(chunk));
+      const reader = {
+        read: vi.fn().mockImplementation(() => {
+          const value = encoded.shift();
+          return Promise.resolve({ value, done: value === undefined });
+        }),
+      };
 
-    beforeEach(() => {
-      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => 'text/event-stream' },
+        body: {
+          getReader: () => reader,
+        },
+      };
+    };
 
-      requestClient = new RequestClient({
-        fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
-        baseUrl: 'https://api.example.com/base',
-        hostname: 'https://api.example.com',
-        fetchOpts: DEFAULT_REQUEST_OPTS,
-        endpoints: mockSseEndpoints,
-        validation: true,
-        debug: true,
-      });
-
-      vi.clearAllMocks();
-    });
-
-    afterEach(() => {
-      consoleLogSpy.mockRestore();
-      consoleDebugSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
-    });
-
-    test('Constructs SSE connection and returns close function', async () => {
+    test('returns when response body missing reader', async () => {
       const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk({
+          ok: true,
+          status: 200,
+          body: null,
+        } as unknown as Response),
+      );
 
-      const [err, close] = await requestClient.sse('/api/my-sse', null, handler);
-
-      expect(err).toBeNull();
-      expect(MOCK_SSE_PROVIDER).toHaveBeenCalledOnce();
-
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      expect(instance.url).toBe('https://api.example.com/base/api/my-sse');
-      expect(instance.withCredentials).toBe(false);
-
-      close?.();
-      expect(instance.close).toHaveBeenCalled();
-    });
-
-    test('Constructs SSE connection and returns close function, with credentials', async () => {
-      const handler = vi.fn();
-
-      const [err, close] = await requestClient.sse('/api/my-sse', null, handler, { withCredentials: true });
-
-      expect(err).toBeNull();
-      expect(MOCK_SSE_PROVIDER).toHaveBeenCalledOnce();
-
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      expect(instance.url).toBe('https://api.example.com/base/api/my-sse');
-      expect(instance.withCredentials).toBe(true);
-
-      close?.();
-      expect(instance.close).toHaveBeenCalled();
-    });
-
-    test('Errors when no sseProvider is supplied', async () => {
       const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        // @ts-expect-error testing missing provider branch
-        sseProvider: null,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: true,
-        debug: false,
       });
 
-      const handler = vi.fn();
-      const [err, close] = await client.sse('/api/my-sse', null, handler);
-
-      expect(err).toStrictEqual(new Error('error missing sse provider in sse on url api/my-sse'));
-      expect(close).toBeNull();
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
       expect(handler).not.toHaveBeenCalled();
     });
 
-    test('Errors on non-existant URL', async () => {
+    test('breaks on reader read error', async () => {
       const handler = vi.fn();
+      const readerError = new Error('boom');
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk({
+          ok: true,
+          status: 200,
+          headers: { get: () => 'text/event-stream' },
+          body: {
+            getReader: () => ({
+              read: vi.fn().mockImplementation(() => Promise.reject(readerError)),
+            }),
+          },
+        } as unknown as Response),
+      );
 
-      // @ts-expect-error
-      const [err, close] = await requestClient.sse('/api/my-non-existing-sse', null, handler);
-
-      expect(err).toStrictEqual(new Error('error no schemas found for /api/my-non-existing-sse'));
-      expect(MOCK_SSE_PROVIDER).toHaveBeenCalledTimes(0);
-      expect(close).toBeNull();
-    });
-
-    test('Errors on malformed URL constructing', async () => {
-      const handler = vi.fn();
-
-      // @ts-expect-error
-      const [err, close] = await requestClient.sse('/api/{integration}', { $path: { integration: 'slack' } }, handler);
-
-      expect(err).toStrictEqual(new Error('error constructing url in sse'));
-      expect(MOCK_SSE_PROVIDER).toHaveBeenCalledTimes(0);
-      expect(close).toBeNull();
-    });
-
-    test('onmessage parses JSON and calls handler with data', async () => {
-      vi.useFakeTimers();
-      const handler = vi.fn();
-
-      await requestClient.sse('/api/my-sse', null, handler);
-
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      const fakeMessage = {
-        data: JSON.stringify({ hello: 'world' }),
-      } as MessageEvent;
-
-      instance.onmessage?.(fakeMessage);
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.waitUntil(() => handler.mock.calls.length > 0);
-
-      expect(handler).toHaveBeenCalledWith([null, { hello: 'world' }]);
-      vi.useRealTimers();
-    });
-
-    test('onerror after open passes ErrorEvent-like details to handler', async () => {
-      const handler = vi.fn();
-
-      await requestClient.sse('/api/my-sse', null, handler);
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      // Simulate a post-open error event with name/message
-      const errorLike = { name: 'ErrorEvent', message: 'I died', extra: true } as unknown as Event;
-      instance.onerror?.(errorLike);
-
-      expect(handler).toHaveBeenCalledWith([
-        new Error('error receiving on api/my-sse for sse: I died', { cause: errorLike }),
-        null,
-      ]);
-    });
-
-    test('onmessage parses JSON and calls handler with data without validation', async () => {
-      vi.useFakeTimers();
-      const handler = vi.fn();
-
-      await requestClient.sse('/api/my-sse', null, handler, {
-        validate: false,
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
       });
 
-      await vi.advanceTimersByTimeAsync(1000);
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      const fakeMessage = {
-        data: JSON.stringify({ hello: 'world' }),
-      } as MessageEvent;
-
-      instance.onmessage?.(fakeMessage);
-
-      await vi.waitUntil(() => handler.mock.calls.length > 0);
-
-      expect(handler).toHaveBeenCalledWith([null, { hello: 'world' }]);
-      vi.useRealTimers();
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+      expect(handler).not.toHaveBeenCalled();
     });
 
-    test('onmessage parses JSON and calls handler with data without validation on client', async () => {
-      vi.useFakeTimers();
-      requestClient = new RequestClient({
+    test('breaks response errored', async () => {
+      const handler = vi.fn();
+      const readerError = new Error('boom');
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncErr({
+          ok: false,
+          status: 500,
+          headers: { get: () => 'text/event-stream' },
+          body: {
+            getReader: () => ({
+              read: vi.fn().mockImplementation(() => Promise.reject(readerError)),
+            }),
+          },
+        } as unknown as Response),
+      );
+
+      const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: MOCK_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('returns early when merged signal already aborted', async () => {
+      const handler = vi.fn();
+      const abortController = new AbortController();
+      abortController.abort();
+
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get');
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { signal: abortController.signal });
+
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+      expect(getSpy).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('returns when fetch client get rejects or returns null', async () => {
+      const handler = vi.fn();
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() => {
+        throw new Error('fetch failed');
+      });
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [errThrown] = await client.sse('/api/stream', null, handler);
+      expect(errThrown).toBeNull();
+      expect(handler).not.toHaveBeenCalled();
+      expect(getSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test('returns when provider resolves with error tuple', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() => asyncOk([new Error('bad'), null] as unknown as SafeWrapAsync<Error, FetchResponse>));
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+      expect(getSpy).toHaveBeenCalledTimes(1);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('returns early when merged signal is aborted before fetch', async () => {
+      vi.useFakeTimers();
+      const handler = vi.fn();
+      const aborted = new AbortController();
+      aborted.abort();
+
+      const mergeSpy = vi.spyOn(signals, 'mergeSignals').mockReturnValue(aborted.signal);
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get');
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      await flushPromises();
+      close?.();
+      await vi.runOnlyPendingTimersAsync();
+      vi.useRealTimers();
+
+      expect(err).toBeNull();
+      expect(getSpy).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+      mergeSpy.mockRestore();
+      getSpy.mockRestore();
+    });
+
+    test('skips empty lines in SSE blocks', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['id: 1\nevent: message\n\n\ndata: {"foo":"bar"}\n\n'])),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: { foo: 'bar' } }]);
+
+      close?.();
+    });
+
+    test('returns when fetch provider yields error response tuple', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() => asyncOk([new Error('bad'), null]));
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      await flushPromises();
+      close?.();
+
+      expect(err).toBeNull();
+      expect(getSpy).toHaveBeenCalledTimes(1);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('streams SSE events through handler with validation', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() =>
+          asyncOk(
+            makeSseResponse(['id: 1\nevent: message\ndata: {"foo":"bar"}\n\n', 'event: update\ndata: {"bar":2}\n\n']),
+          ),
+        );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      expect(err).toBeNull();
+      expect(typeof close).toBe('function');
+
+      await flushPromises();
+      await flushPromises();
+      await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+
+      expect(handler).toHaveBeenNthCalledWith(1, [null, { type: 'message', data: { foo: 'bar' } }]);
+      expect(handler).toHaveBeenNthCalledWith(2, [null, { type: 'update', data: { bar: 2 } }]);
+
+      // @ts-expect-error
+      const firstHeaders = getSpy.mock.calls[0][1]?.headers as Headers;
+      expect(firstHeaders.get('accept')).toBe('text/event-stream');
+      expect(firstHeaders.get('connection')).toBe('keep-alive');
+
+      close?.();
+    });
+
+    test('streams SSE events through handler without inline validation', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() =>
+          asyncOk(
+            makeSseResponse(['id: 1\nevent: message\ndata: {"foo":"bar"}\n\n', 'event: update\ndata: {"bar":2}\n\n']),
+          ),
+        );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { validate: false, timeout: 1000 });
+
+      expect(err).toBeNull();
+      expect(typeof close).toBe('function');
+
+      await flushPromises();
+      await flushPromises();
+      await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+
+      expect(handler).toHaveBeenNthCalledWith(1, [null, { type: 'message', data: { foo: 'bar' } }]);
+      expect(handler).toHaveBeenNthCalledWith(2, [null, { type: 'update', data: { bar: 2 } }]);
+
+      // @ts-expect-error
+      const firstHeaders = getSpy.mock.calls[0][1]?.headers as Headers;
+      expect(firstHeaders.get('accept')).toBe('text/event-stream');
+      expect(firstHeaders.get('connection')).toBe('keep-alive');
+
+      close?.();
+    });
+
+    test('streams SSE events through handler without global validation', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() =>
+          asyncOk(
+            makeSseResponse(['id: 1\nevent: message\ndata: {"foo":"bar"}\n\n', 'event: update\ndata: {"bar":2}\n\n']),
+          ),
+        );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: false,
-        debug: false,
       });
 
-      const handler = vi.fn();
+      const [err, close] = await client.sse('/api/stream', null, handler);
 
-      await vi.advanceTimersByTimeAsync(1000);
-      await requestClient.sse('/api/my-sse', null, handler);
+      expect(err).toBeNull();
+      expect(typeof close).toBe('function');
 
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
+      await flushPromises();
+      await flushPromises();
+      await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
 
-      const fakeMessage = {
-        data: JSON.stringify({ hello: 'world' }),
-      } as MessageEvent;
+      expect(handler).toHaveBeenNthCalledWith(1, [null, { type: 'message', data: { foo: 'bar' } }]);
+      expect(handler).toHaveBeenNthCalledWith(2, [null, { type: 'update', data: { bar: 2 } }]);
 
-      instance.onmessage?.(fakeMessage);
-
-      await vi.waitUntil(() => handler.mock.calls.length > 0);
-
-      expect(handler).toHaveBeenCalledWith([null, { hello: 'world' }]);
-      vi.useRealTimers();
-    });
-
-    test('onmessage calls handler with error when JSON is invalid', async () => {
-      vi.useFakeTimers();
-      const handler = vi.fn();
-
-      await requestClient.sse('/api/my-sse', null, handler);
-
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      const fakeMessage = { data: 'not-json' } as MessageEvent;
-      instance.onmessage?.(fakeMessage);
-
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.waitUntil(() => handler.mock.calls.length > 0);
-
-      const [err, data] = handler.mock.calls[0][0];
-
-      expect(err).toBeInstanceOf(Error);
-      expect(data).toBeNull();
-      vi.useRealTimers();
-    });
-
-    test('onmessage calls handler with error when JSON is invalid', async () => {
-      vi.useFakeTimers();
-      const handler = vi.fn();
-
-      await requestClient.sse('/api/my-sse', null, handler);
-
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      const fakeMessage = {
-        data: JSON.stringify({ yo: 'dawg' }),
-      } as MessageEvent;
-      instance.onmessage?.(fakeMessage);
-
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.waitUntil(() => handler.mock.calls.length > 0);
-
-      const [err, data] = handler.mock.calls[0][0];
-
-      expect(err).toBeInstanceOf(Error);
-      expect(data).toBeNull();
-      vi.useRealTimers();
-    });
-
-    test('onerror calls handler with generic error', async () => {
-      vi.useFakeTimers();
-      const handler = vi.fn();
-
-      await requestClient.sse('/api/my-sse', null, handler);
-
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      const fakeError = new Event('error');
-      instance.onerror?.(fakeError);
-
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.waitUntil(() => handler.mock.calls.length > 0);
-
-      const [err, data] = handler.mock.calls[0][0];
-      expect(err).toBeInstanceOf(Error);
-      expect(data).toBeNull();
-      vi.useRealTimers();
-    });
-
-    test('onerror calls handler with error-event error', async () => {
-      vi.useFakeTimers();
-      const handler = vi.fn();
-
-      await requestClient.sse('/api/my-sse', null, handler);
-
-      const instance = MOCK_SSE_PROVIDER.mock.instances[0];
-
-      const fakeError = { name: 'EventError', message: 'Testing' };
       // @ts-expect-error
-      instance.onerror?.(fakeError);
+      const firstHeaders = getSpy.mock.calls[0][1]?.headers as Headers;
+      expect(firstHeaders.get('accept')).toBe('text/event-stream');
+      expect(firstHeaders.get('connection')).toBe('keep-alive');
 
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.waitUntil(() => handler.mock.calls.length > 0);
-
-      const [err, data] = handler.mock.calls[0][0];
-      expect(err).toBeInstanceOf(Error);
-      expect(data).toBeNull();
-      vi.useRealTimers();
+      close?.();
     });
 
-    test('close() is a no-op when SSE stream is already closed', async () => {
-      vi.useFakeTimers();
-      const LOCAL_CLOSED_SSE_PROVIDER = vi.fn(function (
-        this: SSEClientProviderDefinition,
-        url: string | URL,
-        init?: SSEClientSourceInit,
-      ) {
-        Object.defineProperties(this, {
-          url: {
-            value: typeof url === 'string' ? url : url.toString(),
-            writable: false,
-          },
-          withCredentials: {
-            value: init?.withCredentials ?? true,
-            writable: false,
-          },
-          readyState: { value: 2, writable: true },
-          CLOSED: { value: 2, writable: false },
-          CONNECTING: { value: 0, writable: false },
-          OPEN: { value: 1, writable: false },
-        });
-
-        this.onopen = null;
-        this.onmessage = null;
-        this.onerror = null;
-
-        this.close = vi.fn(() => {
-          // biome-ignore lint/suspicious/noExplicitAny: it's a test
-          (this as any).readyState = this.CLOSED;
-        });
-        this.addEventListener = vi.fn();
-        this.removeEventListener = vi.fn();
-        this.dispatchEvent = vi.fn().mockReturnValue(true);
-      }) as unknown as MockedSSEClientProvider;
-
-      const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    test('streams SSE events through handler without global validation', async () => {
       const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() =>
+          asyncOk(
+            makeSseResponse(['id: 1\nevent: message\ndata: {"foo":"bar"}\n\n', 'event: update\ndata: {"bar":2}\n\n']),
+          ),
+        );
 
-      const localClient = new RequestClient({
+      const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: LOCAL_CLOSED_SSE_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: false,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      expect(err).toBeNull();
+      expect(typeof close).toBe('function');
+
+      await flushPromises();
+      await flushPromises();
+      await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+
+      expect(handler).toHaveBeenNthCalledWith(1, [null, { type: 'message', data: { foo: 'bar' } }]);
+      expect(handler).toHaveBeenNthCalledWith(2, [null, { type: 'update', data: { bar: 2 } }]);
+
+      // @ts-expect-error
+      const firstHeaders = getSpy.mock.calls[0][1]?.headers as Headers;
+      expect(firstHeaders.get('accept')).toBe('text/event-stream');
+      expect(firstHeaders.get('connection')).toBe('keep-alive');
+
+      close?.();
+    });
+
+    test('reconnects with last event id when retry delay received', async () => {
+      vi.useFakeTimers();
+      const handler = vi.fn();
+      const firstResponse = makeSseResponse(['id: 42\nretry: 10\nevent: message\ndata: {"foo":"bar"}\n\n']);
+      const secondResponse = makeSseResponse([]);
+
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementationOnce(() => asyncOk(firstResponse))
+        .mockImplementationOnce(() => asyncOk(secondResponse));
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      await flushPromises();
+
+      expect(err).toBeNull();
+
+      await vi.advanceTimersByTimeAsync(10);
+      await flushPromises();
+
+      close?.();
+      await vi.advanceTimersByTimeAsync(10);
+      vi.useRealTimers();
+
+      expect(getSpy).toHaveBeenCalledTimes(2);
+
+      // @ts-expect-error
+      const reconnectHeaders = getSpy.mock.calls[1][1]?.headers as Headers;
+      expect(reconnectHeaders.get('last-event-id')).toBe('42');
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: { foo: 'bar' } }]);
+    });
+
+    test('errors on missing schemas', async () => {
+      const endpoints = {
+        '/sse': {
+          // @ts-expect-error
+          sse: {},
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        // @ts-expect-error
+        endpoints: endpoints,
+        validation: true,
+      });
+
+      // @ts-expect-error
+      const [err, close] = await client.sse('/sse', null, ([_error, _event]) => {});
+
+      expect(err).toStrictEqual(new Error('error no schemas found for /sse'));
+      expect(close).toBeNull();
+    });
+
+    test('errors on constructing url', async () => {
+      const endpoints = {
+        '/sse/{ye}}': {
+          sse: {
+            events: {},
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: endpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/sse/{ye}}', { ye: 'ok' }, ([_error, _event]) => {});
+
+      expect(err).toStrictEqual(new Error('error constructing url in sse'));
+      expect(close).toBeNull();
+    });
+
+    test('forwards parsing errors to handler', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: message\ndata: not-json\n\n'])),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      await flushPromises();
+
+      expect(err).toBeNull();
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error parsing in sse stream');
+      expect(data).toBeNull();
+
+      close?.();
+    });
+
+    test('forwards validation errors to handler', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse([`event: message\ndata: ${JSON.stringify({ foo: { bar: 'nested' } })}\n\n`])),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(err).toBeNull();
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error validating response in sse stream');
+      expect(data).toBeNull();
+
+      close?.();
+    });
+
+    test('silently ignores non-mapped events', async () => {
+      const handler = vi.fn();
+      const logger = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: event-name\ndata: not-json\n\n'])),
+      );
+
+      vi.spyOn(console, 'debug').mockImplementation(logger);
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
@@ -3348,368 +3523,45 @@ describe('RequestClient', () => {
         debug: true,
       });
 
-      // Start the SSE, but DON'T await yet – we want to control when it resolves
-      const ssePromise = localClient.sse('/api/my-sse', null, handler);
+      const [err, close] = await client.sse('/api/stream', null, handler);
 
-      await vi.advanceTimersByTimeAsync(1000);
-      // Wait until constructUrl has finished and the SSE provider has actually been constructed
-      await vi.waitFor(() => {
-        expect(LOCAL_CLOSED_SSE_PROVIDER).toHaveBeenCalledOnce();
-      });
-
-      const instance = LOCAL_CLOSED_SSE_PROVIDER.mock.instances[0];
-      // Simulate successful open so the inner "opener" promise resolves
-      instance.onopen?.(new Event('open'));
-
-      const [err, close] = await ssePromise;
+      await flushPromises();
 
       expect(err).toBeNull();
-      expect(LOCAL_CLOSED_SSE_PROVIDER).toHaveBeenCalledOnce();
+      expect(handler).toHaveBeenCalledTimes(0);
+      expect(logger).toHaveBeenCalledTimes(2);
+      expect(logger.mock.calls[1][0]).toEqual('error unknown event-type event-name in sse stream');
 
-      // Simulate that the stream has already been closed by the server
-      // @ts-expect-error: simulating a state change
-      instance.readyState = instance.CLOSED;
-      expect(instance.readyState).toBe(instance.CLOSED); // sanity check
-
-      // Call the close function returned from client.sse(...)
       close?.();
-
-      // Since readyState === CLOSED, the underlying connection.close must NOT be called
-      expect(instance.close).not.toHaveBeenCalled();
-
-      consoleDebugSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
-      vi.useRealTimers();
     });
 
-    test('sse() returns timeout error when opening SSE connection exceeds timeout', async () => {
-      vi.useFakeTimers();
-
-      const LOCAL_SSE_PROVIDER = vi.fn(function (
-        this: SSEClientProviderDefinition,
-        url: string | URL,
-        init?: SSEClientSourceInit,
-      ) {
-        Object.defineProperties(this, {
-          url: {
-            value: typeof url === 'string' ? url : url.toString(),
-            writable: false,
-          },
-          withCredentials: {
-            value: init?.withCredentials ?? true,
-            writable: false,
-          },
-          readyState: { value: 0, writable: true }, // CONNECTING
-          CLOSED: { value: 2, writable: false },
-          CONNECTING: { value: 0, writable: false },
-          OPEN: { value: 1, writable: false },
-        });
-
-        this.onopen = null;
-        this.onmessage = null;
-        this.onerror = null;
-
-        this.close = vi.fn().mockImplementation(() => {
-          // @ts-expect-error
-          this.readyState = 2;
-        });
-        this.addEventListener = vi.fn();
-        this.removeEventListener = vi.fn();
-        this.dispatchEvent = vi.fn().mockReturnValue(true);
-      }) as unknown as MockedSSEClientProvider;
-
+    test('error on non-mapped events', async () => {
       const handler = vi.fn();
-
-      const client = new RequestClient({
-        fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: LOCAL_SSE_PROVIDER,
-        baseUrl: 'https://api.example.com/base',
-        hostname: 'https://api.example.com',
-        fetchOpts: DEFAULT_REQUEST_OPTS,
-        endpoints: mockSseEndpoints,
-        validation: true,
-        debug: false,
-      });
-
-      // Start the SSE, but don't resolve it yet; we want the timeout to fire
-      const ssePromise = client.sse('/api/my-sse', null, handler, { timeout: 1000 });
-
-      await vi.advanceTimersByTimeAsync(1000);
-      // Ensure the SSE provider has actually been instantiated (constructUrl finished)
-      await vi.waitFor(() => {
-        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
-      });
-
-      const [err, close] = await ssePromise;
-
-      expect(err).toBeInstanceOf(Error);
-      expect(err?.message).toBe('error opening SSE connection');
-      expect(isTimeoutError(err)).toBe(true);
-      expect(close).toBeNull();
-      expect(handler).not.toHaveBeenCalled();
-
-      const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
-      expect(instance.close).toHaveBeenCalledTimes(1);
-
-      vi.useRealTimers();
-    });
-
-    test('sse opener timeout does not attempt to close an already closed connection', async () => {
-      vi.useFakeTimers();
-
-      const LOCAL_SSE_PROVIDER = vi.fn(function (
-        this: SSEClientProviderDefinition,
-        url: string | URL,
-        init?: SSEClientSourceInit,
-      ) {
-        Object.defineProperties(this, {
-          url: {
-            value: typeof url === 'string' ? url : url.toString(),
-            writable: false,
-          },
-          withCredentials: {
-            value: init?.withCredentials ?? true,
-            writable: false,
-          },
-          readyState: { value: 2, writable: true }, // CLOSED
-          CLOSED: { value: 2, writable: false },
-          CONNECTING: { value: 0, writable: false },
-          OPEN: { value: 1, writable: false },
-        });
-
-        this.onopen = null;
-        this.onmessage = null;
-        this.onerror = null;
-
-        this.close = vi.fn();
-        this.addEventListener = vi.fn();
-        this.removeEventListener = vi.fn();
-        this.dispatchEvent = vi.fn().mockReturnValue(true);
-      }) as unknown as MockedSSEClientProvider;
-
-      const handler = vi.fn();
-
-      const client = new RequestClient({
-        fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: LOCAL_SSE_PROVIDER,
-        baseUrl: 'https://api.example.com/base',
-        hostname: 'https://api.example.com',
-        fetchOpts: DEFAULT_REQUEST_OPTS,
-        endpoints: mockSseEndpoints,
-        validation: true,
-        debug: false,
-      });
-
-      const ssePromise = client.sse('/api/my-sse', null, handler, { timeout: 1000 });
-
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.waitFor(() => {
-        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
-      });
-
-      const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
-      expect(instance.readyState).toBe(instance.CLOSED);
-
-      const [err, close] = await ssePromise;
-
-      expect(isTimeoutError(err)).toBe(true);
-      expect(close).toBeNull();
-      expect(instance.close).not.toHaveBeenCalled();
-      expect(handler).not.toHaveBeenCalled();
-
-      vi.useRealTimers();
-    });
-
-    test('sse() returns error when new is run', async () => {
-      vi.useFakeTimers();
-      const LOCAL_SSE_PROVIDER = vi.fn(function (
-        this: SSEClientProviderDefinition,
-        _: string | URL,
-        __?: SSEClientSourceInit,
-      ) {
-        throw new Error('throwing on instantiation');
-      }) as unknown as MockedSSEClientProvider;
-
-      const handler = vi.fn();
-
-      const client = new RequestClient({
-        fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: LOCAL_SSE_PROVIDER,
-        baseUrl: 'https://api.example.com/base',
-        hostname: 'https://api.example.com',
-        fetchOpts: DEFAULT_REQUEST_OPTS,
-        endpoints: mockSseEndpoints,
-        validation: true,
-        debug: false,
-      });
-
-      const ssePromise = client.sse('/api/my-sse', null, handler);
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.waitFor(() => {
-        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
-      });
-
-      const [err, close] = await ssePromise;
-
-      expect(err).toBeInstanceOf(Error);
-      expect(err).toStrictEqual(
-        new Error('error opening SSE connection', {
-          cause: new Error('error creating new connection for SSE on api/my-sse'),
-        }),
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: event-name\ndata: not-json\n\n'])),
       );
-      expect(close).toBeNull();
-      expect(handler).not.toHaveBeenCalled();
-      vi.useRealTimers();
-    });
-
-    test('sse() returns error when connection.onerror fires before SSE opens', async () => {
-      vi.useFakeTimers();
-      const LOCAL_SSE_PROVIDER = vi.fn(function (
-        this: SSEClientProviderDefinition,
-        url: string | URL,
-        init?: SSEClientSourceInit,
-      ) {
-        Object.defineProperties(this, {
-          url: {
-            value: typeof url === 'string' ? url : url.toString(),
-            writable: false,
-          },
-          withCredentials: {
-            value: init?.withCredentials ?? true,
-            writable: false,
-          },
-          readyState: { value: 0, writable: true }, // CONNECTING
-          CLOSED: { value: 2, writable: false },
-          CONNECTING: { value: 0, writable: false },
-          OPEN: { value: 1, writable: false },
-        });
-
-        this.onopen = null;
-        this.onmessage = null;
-        this.onerror = null;
-
-        this.close = vi.fn();
-        this.addEventListener = vi.fn();
-        this.removeEventListener = vi.fn();
-        this.dispatchEvent = vi.fn().mockReturnValue(true);
-      }) as unknown as MockedSSEClientProvider;
-
-      const handler = vi.fn();
 
       const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: LOCAL_SSE_PROVIDER,
         baseUrl: 'https://api.example.com/base',
         hostname: 'https://api.example.com',
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: true,
-        debug: false,
       });
 
-      // Start the SSE, do NOT await yet – we want to trigger onerror manually
-      const ssePromise = client.sse('/api/my-sse', null, handler);
+      const [err, close] = await client.sse('/api/stream', null, handler, { errorUnknownType: true });
 
-      await vi.advanceTimersByTimeAsync(1000);
-      // Wait for provider construction so connection.onerror has been wired
-      await vi.waitFor(() => {
-        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
-      });
+      await flushPromises();
 
-      const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
+      expect(err).toBeNull();
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error unknown event-type event-name in sse stream');
+      expect(data).toBeNull();
 
-      // Trigger the connection.onerror handler before onopen has ever fired
-      const errorEvent = new Event('error');
-      instance.onerror?.(errorEvent);
-
-      const [err, close] = await ssePromise;
-
-      expect(err).toBeInstanceOf(Error);
-      expect(err?.message).toBe('error opening SSE connection');
-      expect(close).toBeNull();
-      expect(handler).not.toHaveBeenCalled();
-      expect(instance.close).toHaveBeenCalledTimes(1);
-      vi.useRealTimers();
-    });
-
-    test('sse opener ignores subsequent resolution attempts (timeout then onopen)', async () => {
-      vi.useFakeTimers();
-
-      const LOCAL_SSE_PROVIDER = vi.fn(function (
-        this: SSEClientProviderDefinition,
-        url: string | URL,
-        init?: SSEClientSourceInit,
-      ) {
-        Object.defineProperties(this, {
-          url: {
-            value: typeof url === 'string' ? url : url.toString(),
-            writable: false,
-          },
-          withCredentials: {
-            value: init?.withCredentials ?? true,
-            writable: false,
-          },
-          readyState: { value: 0, writable: true }, // CONNECTING
-          CLOSED: { value: 2, writable: false },
-          CONNECTING: { value: 0, writable: false },
-          OPEN: { value: 1, writable: false },
-        });
-
-        this.onopen = null;
-        this.onmessage = null;
-        this.onerror = null;
-
-        this.close = vi.fn();
-        this.addEventListener = vi.fn();
-        this.removeEventListener = vi.fn();
-        this.dispatchEvent = vi.fn().mockReturnValue(true);
-      }) as unknown as MockedSSEClientProvider;
-
-      const handler = vi.fn();
-
-      const client = new RequestClient({
-        fetchProvider: MOCK_FETCH_PROVIDER,
-        sseProvider: LOCAL_SSE_PROVIDER,
-        baseUrl: 'https://api.example.com/base',
-        hostname: 'https://api.example.com',
-        fetchOpts: DEFAULT_REQUEST_OPTS,
-        endpoints: mockSseEndpoints,
-        validation: true,
-        debug: false,
-      });
-
-      // Start the SSE, but don't await yet – we need to manipulate timers and instance
-      const ssePromise = client.sse('/api/my-sse', null, handler, { timeout: 1000 });
-
-      await vi.advanceTimersByTimeAsync(1000);
-
-      // Wait until the SSE provider has actually been constructed
-      await vi.waitFor(() => {
-        expect(LOCAL_SSE_PROVIDER).toHaveBeenCalledOnce();
-      });
-
-      const instance = LOCAL_SSE_PROVIDER.mock.instances[0];
-      expect(instance).toBeDefined();
-
-      // At this point, opener should have resolved with a timeout error
-      // but we haven't awaited ssePromise yet.
-
-      // 2) Now simulate a late "open" event -> second call to `done` with resolved === true
-      //    This is what hits the `if (resolved) { return; }` branch.
-      instance.onopen?.(new Event('open'));
-
-      const [err, close] = await ssePromise;
-
-      // We still see the timeout error result – the late onopen didn't change anything.
-      expect(err).toBeInstanceOf(Error);
-      expect(err?.message).toBe('error opening SSE connection');
-      expect(isTimeoutError(err)).toBe(true);
-      expect(close).toBeNull();
-
-      // No messages should have been delivered, since we never successfully opened.
-      expect(handler).not.toHaveBeenCalled();
-
-      vi.useRealTimers();
+      close?.();
     });
   });
 });

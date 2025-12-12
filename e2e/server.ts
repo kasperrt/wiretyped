@@ -1,5 +1,6 @@
 import { type ServerType, serve } from '@hono/node-server';
 import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import type { RequestDefinitions } from '../src/core/types';
 import { validator } from '../src/utils/validator';
 import { type SafeWrapAsync, safeWrapAsync } from '../src/utils/wrap';
@@ -90,13 +91,17 @@ export async function startE2EServer(endpoints: RequestDefinitions): SafeWrapAsy
         requestBody = validated;
       }
 
-      const responseData = requestBody ? { success: true, received: requestBody } : { success: true };
-      const [errResponse, validatedResponse] = await validator(responseData, schemas.response);
-      if (errResponse) {
-        return c.json({ error: 'response failed validation', details: errResponse.message }, 500);
+      if ('response' in schemas) {
+        const responseData = requestBody ? { success: true, received: requestBody } : { success: true };
+        const [errResponse, validatedResponse] = await validator(responseData, schemas.response);
+        if (errResponse) {
+          return c.json({ error: 'response failed validation', details: errResponse.message }, 500);
+        }
+
+        return c.json(validatedResponse);
       }
 
-      return c.json(validatedResponse);
+      return c.json({ error: 'missing schema' }, 500);
     });
   }
 
@@ -144,46 +149,35 @@ export async function startE2EServer(endpoints: RequestDefinitions): SafeWrapAsy
 
     const searchParams = c.req.query();
     const mode = (searchParams.error as string | undefined) ?? 'never';
-    const encoder = new TextEncoder();
 
-    const stream = new ReadableStream({
-      start(controller) {
-        let i = 0;
-        const interval = setInterval(async () => {
-          i++;
+    return streamSSE(c, async (stream) => {
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-          if (mode === 'sometimes' && i === 2) {
-            controller.enqueue(encoder.encode(`data: not-json\n\n`));
-            return;
-          }
+      for (let i = 1; i <= 3; i++) {
+        if (mode === 'sometimes' && i === 2) {
+          await stream.writeSSE({ data: 'not-json' });
+          await sleep(1);
+          continue;
+        }
 
-          const payload = { i };
-          const [errValidate, validated] = await validator(payload, schemas.response);
-          if (errValidate) {
-            controller.error(errValidate);
-            clearInterval(interval);
-            return;
-          }
+        const payload = { i };
+        const [errValidate, validated] = await validator(payload, schemas.events.message);
+        if (errValidate) {
+          await stream.close();
+          return;
+        }
 
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(validated)}\n\n`));
+        await stream.writeSSE({ data: JSON.stringify(validated) });
+        await sleep(1);
+      }
 
-          if (i < 3) {
-            return;
-          }
+      const statusPayload = { ok: true };
+      const [errStatus, validatedStatus] = await validator(statusPayload, schemas.events.status);
+      if (!errStatus) {
+        await stream.writeSSE({ event: 'status', data: JSON.stringify(validatedStatus) });
+      }
 
-          clearInterval(interval);
-          controller.close();
-        }, 1);
-      },
-    });
-
-    return new Response(stream, {
-      status: 200,
-      headers: {
-        'content-type': 'text/event-stream',
-        'cache-control': 'no-cache',
-        connection: 'keep-alive',
-      },
+      await stream.close();
     });
   });
 

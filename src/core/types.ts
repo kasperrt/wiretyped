@@ -1,6 +1,5 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import type { Options } from '../types/request.js';
-import type { SSEClientSourceInit } from '../types/sse.js';
+import type { FetchOptions, Options, RequestOptions } from '../types/request.js';
 import type { SafeWrap } from '../utils/wrap.js';
 
 /** Schema for unknown input, any output, used to easier infer data */
@@ -32,6 +31,16 @@ export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 /** Allowed operations supported by the client. */
 export type ClientOperation = HttpMethod | 'download' | 'url' | 'sse';
 
+/** Events schema mapping with mapping event-type to schema */
+export type SSEEventSchemas<EventName extends string = string> = Record<EventName, SchemaType>;
+
+/** Definition of an SSE endpoint with typed events map. */
+export type SSEEndpointDefinition<Events extends SSEEventSchemas = SSEEventSchemas> = {
+  $search?: SchemaType;
+  $path?: SchemaType;
+  events: Events;
+};
+
 /**
  * RequestDefinitions types up the possible variations of
  * the endpoints we create
@@ -40,14 +49,16 @@ export type RequestDefinitions = {
   [path: string]: RequireAtLeastOne<{
     [M in ClientOperation]: M extends 'url'
       ? { $search?: SchemaType; $path?: SchemaType; response: SchemaString }
-      : M extends 'get' | 'delete' | 'download'
-        ? { $search?: SchemaType; $path?: SchemaType; response: SchemaType }
-        : {
-            $search?: SchemaType;
-            $path?: SchemaType;
-            request?: SchemaType;
-            response: SchemaType;
-          };
+      : M extends 'sse'
+        ? SSEEndpointDefinition
+        : M extends 'get' | 'delete' | 'download'
+          ? { $search?: SchemaType; $path?: SchemaType; response: SchemaType }
+          : {
+              $search?: SchemaType;
+              $path?: SchemaType;
+              request?: SchemaType;
+              response: SchemaType;
+            };
   }>;
 };
 
@@ -78,7 +89,7 @@ export type RequestType<
   Method extends keyof Schema[Endpoint],
 > = Schema[Endpoint][Method] extends { request: infer S extends SchemaType }
   ? StandardSchemaV1.InferOutput<S>
-  : Record<string, string>;
+  : Record<string, unknown>;
 
 /** Typed query params via `$search` if present. */
 export type SearchType<
@@ -137,13 +148,25 @@ export type DownloadEndpoint<Schema extends RequestDefinitions> = EndpointsWithM
 export type UrlEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'url', Schema>;
 
 /**
+ * Typed SSE Message envelope returning data
+ */
+export type SSEMessageEnvelope<EventType extends string, Data> = {
+  type: EventType;
+  data: Data;
+};
+
+/** SSE Options */
+export type SSEOptions = Omit<FetchOptions, 'body' | 'method' | 'keepalive'> &
+  Pick<RequestOptions, 'timeout' | 'validate'> & { errorUnknownType?: boolean };
+
+/**
  * Typed parameters for get function call parameters
  */
 export type SSEArgs<Schema extends RequestDefinitions, Endpoint extends SSEEndpoint<Schema> & string> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'sse'>,
   handler: (data: SafeWrap<Error, SSEDataReturn<Schema, Endpoint>>) => void,
-  options?: SSEClientSourceInit & { validate?: boolean; timeout?: number },
+  options?: SSEOptions,
 ];
 
 /**
@@ -254,14 +277,17 @@ export type UrlReturn<Schema extends RequestDefinitions, T extends UrlEndpoint<S
   'url'
 >;
 
-/**
- * Typed return-type for get function
- */
-export type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = ResponseType<
-  Schema,
-  T,
-  'sse'
->;
+/** Extract typed events map for an SSE endpoint. */
+export type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = NonNullable<
+  Schema[T]['sse']
+> extends { events: infer Events extends SSEEventSchemas }
+  ? {
+      [EventName in keyof Events & string]: SSEMessageEnvelope<
+        EventName,
+        StandardSchemaV1.InferOutput<Events[EventName]>
+      >;
+    }[keyof Events & string]
+  : never;
 
 /** Function returned from `sse` requests that closes the stream. */
 export type SSEReturn = () => void;
