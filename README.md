@@ -195,12 +195,12 @@ The method forwards fetch-related updates to the underlying fetch provider and c
 
 ## Disposal
 
-`RequestClient` runs a small cleanup interval for the in-memory cache. For short-lived clients (scripts, tests), call `client.dispose()` to clear timers and drop cached entries. If your custom fetch provider exposes `dispose`, it will be called too (useful for cleaning up agents, sockets, etc.).
+`RequestClient` runs a small cleanup interval for the in-memory cache. For short-lived clients (scripts, tests), call `client.dispose()` to clear timers, abort any in-flight HTTP requests, and close ongoing SSE streams. If your custom fetch provider exposes `dispose`, it will be called too (useful for cleaning up agents, sockets, etc.).
 
 ```ts
 const client = new RequestClient({ /* ... */ });
 // ...use the client...
-client.dispose(); // clears cache timers/state and invokes provider dispose if present
+client.dispose(); // clears cache timers/state, aborts in-flight requests/SSE, and invokes provider dispose if present
 ```
 
 ## Methods

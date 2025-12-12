@@ -216,7 +216,10 @@ describe('RequestClient', () => {
       expect(res).toEqual({ data: 'GET request data no params' });
       expect(getSpy).toHaveBeenCalledOnce();
       // Retry/timeout are handled inside RequestClient; the provider only receives fetch options.
-      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(getSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
     });
 
     test('uses default retry limit when none provided', async () => {
@@ -874,10 +877,10 @@ describe('RequestClient', () => {
       await client.get('/api/my-endpoint', null, { signal: externalController.signal, timeout: false });
 
       expect(timeoutSpy).toHaveBeenCalledWith(false);
-      expect(mergeSpy).toHaveBeenCalledWith([externalController.signal, null]);
+      expect(mergeSpy).toHaveBeenCalledWith([externalController.signal, null, expect.any(AbortSignal)]);
       expect(getSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
-        expect.objectContaining({ signal: externalController.signal }),
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
       );
 
       timeoutSpy.mockRestore();
@@ -914,11 +917,14 @@ describe('RequestClient', () => {
         validation: false,
       });
 
-      await client.get('/api/my-endpoint', null, {});
+      await client.get('/api/my-endpoint', null);
 
       expect(timeoutSpy).toHaveBeenCalledWith(60_000);
-      expect(mergeSpy).toHaveBeenCalledWith([undefined, timeoutSignal]);
-      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', expect.objectContaining({ signal: timeoutSignal }));
+      expect(mergeSpy).toHaveBeenCalledWith([undefined, timeoutSignal, expect.any(AbortSignal)]);
+      expect(getSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
 
       timeoutSpy.mockRestore();
       mergeSpy.mockRestore();
@@ -959,8 +965,11 @@ describe('RequestClient', () => {
       await client.get('/api/my-endpoint', null, { timeout: null });
 
       expect(timeoutSpy).toHaveBeenCalledWith(60_000);
-      expect(mergeSpy).toHaveBeenCalledWith([undefined, timeoutSignal]);
-      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', expect.objectContaining({ signal: timeoutSignal }));
+      expect(mergeSpy).toHaveBeenCalledWith([undefined, timeoutSignal, expect.any(AbortSignal)]);
+      expect(getSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
 
       timeoutSpy.mockRestore();
       mergeSpy.mockRestore();
@@ -1115,7 +1124,10 @@ describe('RequestClient', () => {
 
       expect(res).toBeNull();
       expect(getSpy).toHaveBeenCalledOnce();
-      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(getSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(err).toBeInstanceOf(Error);
       expect(err).toStrictEqual(
         new Error('error doing request in download', {
@@ -1145,7 +1157,10 @@ describe('RequestClient', () => {
       expect(err).toBeInstanceOf(Error);
       expect(err?.message).toBe('error doing request in download');
       expect(getSpy).toHaveBeenCalledOnce();
-      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(getSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(res).toBeNull();
     });
 
@@ -1167,7 +1182,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(getSpy).toHaveBeenCalledOnce();
-      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(getSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(res?.type).toBe('application/pdf');
 
       const blobText = await res?.text();
@@ -1194,7 +1212,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(getSpy).toHaveBeenCalledOnce();
-      expect(getSpy).toHaveBeenCalledWith('api/my-endpoint/download-this', {});
+      expect(getSpy).toHaveBeenCalledWith(
+        'api/my-endpoint/download-this',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(res?.type).toBe('application/pdf');
 
       const blobText = await res?.text();
@@ -1301,7 +1322,10 @@ describe('RequestClient', () => {
 
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(res).toStrictEqual({ data: 'GET request data no params' });
       });
 
@@ -1329,6 +1353,7 @@ describe('RequestClient', () => {
           headers: {
             'x-test': 'foo',
           },
+          signal: expect.any(AbortSignal),
         });
         expect(res).toStrictEqual({ data: 'GET request data no params' });
       });
@@ -1357,7 +1382,10 @@ describe('RequestClient', () => {
 
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(res).toStrictEqual({ data: 'GET request data no params' });
       });
 
@@ -1375,7 +1403,10 @@ describe('RequestClient', () => {
         const [err, res] = await requestClient.get('/api/my-endpoint', null);
         expect(isErrorType(ValidationError, err)).toEqual(true);
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(res).toStrictEqual(null);
       });
 
@@ -1397,7 +1428,10 @@ describe('RequestClient', () => {
 
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-empty-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-empty-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(res).toStrictEqual(null);
       });
 
@@ -1419,7 +1453,10 @@ describe('RequestClient', () => {
 
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-empty-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-empty-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(res).toStrictEqual(null);
       });
 
@@ -1437,7 +1474,10 @@ describe('RequestClient', () => {
         const [err, res] = await requestClient.get('/api/my-string-endpoint', null);
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-string-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-string-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(res).toStrictEqual('test');
       });
 
@@ -1460,7 +1500,10 @@ describe('RequestClient', () => {
         expect(err).toBeInstanceOf(Error);
         expect(err?.message).toBe('error doing request in get');
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-string-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-string-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(res).toBeNull();
       });
 
@@ -1481,7 +1524,10 @@ describe('RequestClient', () => {
 
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint/23', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-endpoint/23',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(res).toStrictEqual({ data: 'GET request data with params' });
       });
 
@@ -1499,7 +1545,10 @@ describe('RequestClient', () => {
 
         expect(res).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(err).toBeInstanceOf(Error);
         expect(err?.message).toBe('error doing request in get');
         expect((err as Error).cause).toStrictEqual(
@@ -1527,7 +1576,10 @@ describe('RequestClient', () => {
 
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-param-endpoint/foo?test=1', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-param-endpoint/foo?test=1',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(res).toStrictEqual({ data: 'GET request data no params' });
       });
 
@@ -1600,7 +1652,10 @@ describe('RequestClient', () => {
 
         expect(err).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(res).toStrictEqual({
           data: 'GET request data with cacheRequest',
         });
@@ -1633,7 +1688,10 @@ describe('RequestClient', () => {
           cacheRequest: true,
         });
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(err).toBeNull();
         expect(res).toStrictEqual({
           data: 'GET request data with cacheRequest',
@@ -1678,7 +1736,10 @@ describe('RequestClient', () => {
 
         expect(res).toBeNull();
         expect(getSpy).toHaveBeenCalledOnce();
-        expect(getSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+        expect(getSpy).toHaveBeenCalledWith(
+          'api/my-endpoint',
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
         expect(err).toBeInstanceOf(Error);
         expect(err).toStrictEqual(
           new Error('error getting cached response in get', {
@@ -2762,7 +2823,10 @@ describe('RequestClient', () => {
       expect(err).toBeInstanceOf(Error);
       expect(err?.message).toBe('error doing request in delete');
       expect(deleteSpy).toHaveBeenCalledOnce();
-      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(deleteSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(res).toBeNull();
     });
 
@@ -2781,7 +2845,10 @@ describe('RequestClient', () => {
 
       expect(isErrorType(ValidationError, err)).toBe(true);
       expect(deleteSpy).toHaveBeenCalledOnce();
-      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(deleteSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(res).toBeNull();
     });
 
@@ -2802,7 +2869,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(deleteSpy).toHaveBeenCalledOnce();
-      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(deleteSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(res).toStrictEqual({
         data: 'DELETE returned from mock provider no params',
       });
@@ -2827,7 +2897,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(deleteSpy).toHaveBeenCalledOnce();
-      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(deleteSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(res).toStrictEqual({
         data: 'DELETE returned from mock provider no params',
       });
@@ -2859,7 +2932,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(deleteSpy).toHaveBeenCalledOnce();
-      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(deleteSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(res).toStrictEqual({
         data: 'DELETE returned from mock provider no params',
       });
@@ -2884,7 +2960,10 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(deleteSpy).toHaveBeenCalledOnce();
-      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint/hey', {});
+      expect(deleteSpy).toHaveBeenCalledWith(
+        'api/my-endpoint/hey',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(res).toStrictEqual({
         data: 'DELETE returned from mock provider with params',
       });
@@ -2904,7 +2983,10 @@ describe('RequestClient', () => {
 
       expect(res).toBeNull();
       expect(deleteSpy).toHaveBeenCalledOnce();
-      expect(deleteSpy).toHaveBeenCalledWith('api/my-endpoint', {});
+      expect(deleteSpy).toHaveBeenCalledWith(
+        'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
       expect(err).toBeInstanceOf(Error);
       expect(getRetryExhaustedError(err)?.attempts).toBe(1);
       expect(err).toStrictEqual(
@@ -3274,6 +3356,148 @@ describe('RequestClient', () => {
       const firstHeaders = getSpy.mock.calls[0][1]?.headers as Headers;
       expect(firstHeaders.get('accept')).toBe('text/event-stream');
       expect(firstHeaders.get('connection')).toBe('keep-alive');
+
+      close?.();
+    });
+
+    test('streams SSE string events through handler with global validation', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: message\ndata: "first line"\n'])),
+      );
+
+      const endpoints = {
+        '/api/stream': {
+          sse: {
+            events: {
+              message: z.string(),
+            },
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: endpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: 'first line' }]);
+
+      close?.();
+    });
+
+    test('streams SSE string events through handler with local validation', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: message\ndata: "first line"\n'])),
+      );
+
+      const endpoints = {
+        '/api/stream': {
+          sse: {
+            events: {
+              message: z.string(),
+            },
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: endpoints,
+        validation: false,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { validate: true });
+
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: 'first line' }]);
+
+      close?.();
+    });
+
+    test('streams SSE string events through handler with no validation', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: message\ndata: "first line"\n'])),
+      );
+
+      const endpoints = {
+        '/api/stream': {
+          sse: {
+            events: {
+              message: z.string(),
+            },
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: endpoints,
+        validation: false,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { validate: false });
+
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: 'first line' }]);
+
+      close?.();
+    });
+
+    test('concatenates multi-line data fields with newline separators', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: message\ndata: "first line"\ndata: "second line"\n\n'])),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { validate: false });
+
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: 'first line\nsecond line' }]);
 
       close?.();
     });

@@ -119,6 +119,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
   #defaultHeaders: HeaderOptions;
   /** Default SSE reconnect timeout (from SSE spec) */
   #defaultSSEReconnectWait = 1_000;
+  /** Global abort-controller for disposing */
+  #abortController: AbortController;
 
   /**
    * Creates a typed RequestClient that wires together the fetch provider, SSE provider, and cache.
@@ -145,6 +147,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#debug = debug;
     this.#validation = validation;
     this.#credentials = fetchClientOpts.credentials;
+    this.#abortController = new AbortController();
     this.#defaultHeaders = mergeHeaderOptions(
       {
         Accept: 'application/json',
@@ -215,6 +218,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * Invoke when tearing down short-lived clients to avoid leaking intervals.
    */
   dispose() {
+    this.#abortController.abort('client was disposed');
     this.#cacheClient.dispose();
     this.#fetchClient.dispose?.();
   }
@@ -480,7 +484,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         }
 
         if (line.startsWith('data:')) {
-          data += (data ? '\n' : '') + line.slice(5).trim();
+          data = data + line.slice(5).trim();
         }
       }
 
@@ -495,6 +499,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
         }
 
         return this.#log(`error unknown event-type ${eventName} in sse stream`);
+      }
+
+      // This is likely a double-data lined message so we should combine with newlines
+      if (data?.includes('""')) {
+        data = data.replace(/""/g, '\\n');
       }
 
       const [errParsed, parsed] = safeWrap(() => JSON.parse(data));
@@ -519,10 +528,10 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
     const open = async () => {
       const timeoutSignal = timeout ? createTimeoutSignal(timeout) : null;
-      const mergedSignal = mergeSignals([signal, controller.signal, timeoutSignal]);
+      const mergedSignal = mergeSignals([signal, controller.signal, timeoutSignal, this.#abortController.signal]);
 
       if (mergedSignal?.aborted) {
-        controller.abort(mergedSignal.reason ?? 'aborted');
+        controller.abort(mergedSignal.reason);
         return;
       }
 
@@ -799,7 +808,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       },
       fn: async () => {
         const timeoutSignal = createTimeoutSignal(timeout);
-        const signal = mergeSignals([fetchOptions.signal, timeoutSignal]);
+        const signal = mergeSignals([fetchOptions.signal, timeoutSignal, this.#abortController.signal]);
         const requestOptions = { ...fetchOptions, ...(signal && { signal }) };
         const [errWrapped, wrapped] = await safeWrapAsync(() => this.#fetchClient[method](url, requestOptions));
         if (errWrapped) {
