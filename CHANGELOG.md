@@ -1,6 +1,7 @@
 # WireTyped Releases
 
 ## Contents
+- [v0.3.0-alpha.1](#v030-alpha1)
 - [v0.3.0-alpha.0](#v030-alpha0)
 - [v0.2.5](#v025)
 - [v0.2.4](#v024)
@@ -12,6 +13,11 @@
 - [v0.1.1](#v011)
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
+
+## v0.3.0-alpha.1
+
+- Allow SSE events to parse string-only data.
+- Add global AbortController for full client disposing, stopping any requests or open SSE requests in flight.
 
 ## v0.3.0-alpha.0
 
