@@ -50,6 +50,7 @@ const [err, close] = await client.sse(
 - Added README docs and e2e coverage for multi-event SSE streams and validation behavior.
 - Allow SSE events to parse string-only data.
 - Add global AbortController for full client disposing, stopping any requests or open SSE requests in flight.
+- Update keywords to target package more correctly.
 
 ## v0.2.5
 
