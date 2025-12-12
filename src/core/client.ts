@@ -501,6 +501,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return this.#log(`error unknown event-type ${eventName} in sse stream`);
       }
 
+      // This is likely a double-data lined message so we should combine with newlines
+      if (data?.includes('""')) {
+        data = data.replace(/""/g, '\\n');
+      }
+
       const [errParsed, parsed] = safeWrap(() => JSON.parse(data));
       if (errParsed) {
         handler([new Error('error parsing in sse stream', { cause: errParsed }), null]);
