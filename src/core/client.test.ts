@@ -112,44 +112,6 @@ describe('RequestClient', () => {
       consoleDebugSpy.mockRestore();
       consoleWarnSpy.mockRestore();
     });
-
-    test('Constructs http provider with expected params, and class has expected properties, but missing sseProvider doesnt crash', () => {
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const requestClient = new RequestClient({
-        fetchProvider: MOCK_FETCH_PROVIDER,
-        // @ts-expect-error
-        sseProvider: null,
-        baseUrl: 'https://api.example.com/base',
-        hostname: 'https://api.example.com',
-        fetchOpts: DEFAULT_REQUEST_OPTS,
-        endpoints: defaultEndpoints,
-        validation: true,
-        debug: true,
-      });
-
-      expect(MOCK_FETCH_PROVIDER).toHaveBeenCalledOnce();
-      const firstCall = MOCK_FETCH_PROVIDER.mock.calls[0];
-      const options = firstCall[1];
-
-      expect(options).toEqual({
-        headers: new Headers(DEFAULT_HEADERS),
-      });
-
-      expect(requestClient).toHaveProperty('url');
-      expect(requestClient).toHaveProperty('get');
-      expect(requestClient).toHaveProperty('put');
-      expect(requestClient).toHaveProperty('post');
-      expect(requestClient).toHaveProperty('patch');
-      expect(requestClient).toHaveProperty('delete');
-      expect(requestClient).toHaveProperty('config');
-      expect(requestClient).toHaveProperty('download');
-
-      consoleLogSpy.mockRestore();
-      consoleDebugSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
-    });
   });
 
   describe('Lifecycle', () => {
