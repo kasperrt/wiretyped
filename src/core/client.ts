@@ -235,16 +235,10 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
   get<Endpoint extends GetEndpoint<Schema>>(
-    ...args: GetArgs<Schema, Endpoint & string>
+    ...args: GetArgs<Schema, Endpoint>
   ): SafeWrapAsync<Error, GetReturn<Schema, Endpoint>> {
     const [endpoint, params, opts = {}] = args;
-    return this.#execute<'get', Endpoint & string, GetReturn<Schema, Endpoint>>(
-      'get',
-      endpoint,
-      params,
-      opts,
-      getResponseData,
-    );
+    return this.#execute<'get', Endpoint, GetReturn<Schema, Endpoint>>('get', endpoint, params, opts, getResponseData);
   }
 
   /**
@@ -259,10 +253,10 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
   post<Endpoint extends PostEndpoint<Schema>>(
-    ...args: PostArgs<Schema, Endpoint & string>
+    ...args: PostArgs<Schema, Endpoint>
   ): SafeWrapAsync<Error, PostReturn<Schema, Endpoint>> {
     const [endpoint, params, data, opts = {}] = args;
-    return this.#execute<'post', Endpoint & string, PostReturn<Schema, Endpoint>>(
+    return this.#execute<'post', Endpoint, PostReturn<Schema, Endpoint>>(
       'post',
       endpoint,
       params,
@@ -284,10 +278,10 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
   put<Endpoint extends PutEndpoint<Schema>>(
-    ...args: PutArgs<Schema, Endpoint & string>
+    ...args: PutArgs<Schema, Endpoint>
   ): SafeWrapAsync<Error, PutReturn<Schema, Endpoint>> {
     const [endpoint, params, data, opts = {}] = args;
-    return this.#execute<'put', Endpoint & string, PutReturn<Schema, Endpoint>>(
+    return this.#execute<'put', Endpoint, PutReturn<Schema, Endpoint>>(
       'put',
       endpoint,
       params,
@@ -309,11 +303,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
   patch<Endpoint extends PatchEndpoint<Schema>>(
-    ...args: PatchArgs<Schema, Endpoint & string>
+    ...args: PatchArgs<Schema, Endpoint>
   ): SafeWrapAsync<Error, PatchReturn<Schema, Endpoint>> {
     const [endpoint, params, data, opts = {}] = args;
 
-    return this.#execute<'patch', Endpoint & string, PatchReturn<Schema, Endpoint>>(
+    return this.#execute<'patch', Endpoint, PatchReturn<Schema, Endpoint>>(
       'patch',
       endpoint,
       params,
@@ -334,11 +328,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
   delete<Endpoint extends DeleteEndpoint<Schema>>(
-    ...args: DeleteArgs<Schema, Endpoint & string>
+    ...args: DeleteArgs<Schema, Endpoint>
   ): SafeWrapAsync<Error, DeleteReturn<Schema, Endpoint>> {
     const [endpoint, params, opts = {}] = args;
 
-    return this.#execute<'delete', Endpoint & string, DeleteReturn<Schema, Endpoint>>(
+    return this.#execute<'delete', Endpoint, DeleteReturn<Schema, Endpoint>>(
       'delete',
       endpoint,
       params,
@@ -358,11 +352,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, blob]`.
    */
   download<Endpoint extends DownloadEndpoint<Schema>>(
-    ...args: DownloadArgs<Schema, Endpoint & string>
+    ...args: DownloadArgs<Schema, Endpoint>
   ): SafeWrapAsync<Error, Blob> {
     const [endpoint, params, opts = {}] = args;
 
-    return this.#execute<'download', Endpoint & string, Blob>('download', endpoint, params, opts, (response) =>
+    return this.#execute<'download', Endpoint, Blob>('download', endpoint, params, opts, (response) =>
       safeWrapAsync(() => response.blob()),
     );
   }
@@ -377,9 +371,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params]`.
    * @returns A tuple `[error, url]` where `url` is the resolved absolute URL.
    */
-  async url<Endpoint extends UrlEndpoint<Schema>>(
-    ...args: UrlArgs<Schema, Endpoint & string>
-  ): SafeWrapAsync<Error, string> {
+  async url<Endpoint extends UrlEndpoint<Schema>>(...args: UrlArgs<Schema, Endpoint>): SafeWrapAsync<Error, string> {
     const [endpoint, params, { validate } = {}] = args;
     const schemas = this.#endpoints[endpoint]?.url;
     if (!schemas) {
@@ -424,13 +416,13 @@ export class RequestClient<Schema extends RequestDefinitions> {
    *          that closes the SSE stream.
    */
   async sse<Endpoint extends SSEEndpoint<Schema>>(
-    ...args: SSEArgs<Schema, Endpoint & string>
+    ...args: SSEArgs<Schema, Endpoint, SSEDataReturn<Schema, Endpoint>>
   ): SafeWrapAsync<Error, SSEReturn> {
-    const [endpoint, params, handler, opts = {}] = args;
+    const [endpoint, params, handler, opts = {}]: SSEArgs<Schema, Endpoint> = args;
     const { validate, timeout, headers, signal, errorUnknownType, credentials = this.#credentials, ...options } = opts;
 
-    const schemas = this.#endpoints[endpoint]?.sse;
-    if (!schemas || !schemas.events) {
+    const schemas = this.#endpoints[endpoint].sse;
+    if (!schemas?.events) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
@@ -445,6 +437,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
     const controller = new AbortController();
     const isAborted = () => controller.signal.aborted || signal?.aborted === true;
     const close = (): void => controller.abort('closed by user request');
+    const hasEventSchema = (name: string): name is SSEDataReturn<Schema, Endpoint & string>['type'] =>
+      name in eventSchemas;
     const parseBlock = async (block: string) => {
       if (!block) {
         return;
@@ -493,7 +487,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return;
       }
 
-      if (!(eventName in eventSchemas)) {
+      if (!hasEventSchema(eventName)) {
         if (errorUnknownType) {
           return handler([new Error(`error unknown event-type ${eventName} in sse stream`), null]);
         }
@@ -513,17 +507,15 @@ export class RequestClient<Schema extends RequestDefinitions> {
       }
 
       if (validate === false || (this.#validation === false && !validate)) {
-        handler([null, { type: eventName, data: parsed } as SSEDataReturn<Schema, Endpoint>]);
-        return;
+        return handler([null, { type: eventName, data: parsed }]);
       }
 
       const [errValidate, validated] = await validator(parsed, eventSchemas[eventName]);
       if (errValidate) {
-        handler([new Error('error validating response in sse stream', { cause: errValidate }), null]);
-        return;
+        return handler([new Error('error validating response in sse stream', { cause: errValidate }), null]);
       }
 
-      handler([null, { type: eventName, data: validated } as SSEDataReturn<Schema, Endpoint>]);
+      handler([null, { type: eventName, data: validated }]);
     };
 
     const open = async () => {
