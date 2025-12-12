@@ -93,7 +93,7 @@ const endpoints = {
 
 const client = new RequestClient({
   baseUrl: 'https://api.example.com',
-  hostname: 'api.example.com',
+  hostname: 'https://api.example.com',
   endpoints,
   validation: true,
 });
@@ -113,9 +113,14 @@ import { RequestClient, type RequestDefinitions } from 'wiretyped';
 
 ## Imports
 
-- Root: `import { RequestClient,  ...errors } from 'wiretyped'`
-- Subpath: `import { RequestClient } from 'wiretyped/core'`
-- Errors-only: `import { HTTPError, unwrapErrorType, ... } from 'wiretyped/error'`
+npm:
+- Root: `import { RequestClient, ...errors } from 'wiretyped'`
+- Core-only: `import { RequestClient } from 'wiretyped/core'`
+- Error helpers: `import { HTTPError, unwrapErrorType, ... } from 'wiretyped/error'`
+
+JSR:
+- Single entrypoint: `import { RequestClient, ...errors } from 'wiretyped'`
+
 
 ## Client options
 
@@ -337,7 +342,7 @@ const endpoints = {
     sse: {
       events: {
         message: z.object({ msg: z.string() }),
-        status: z.object({ ok: z.boolean() }),
+        status: z.string(),
       },
     },
   },
@@ -355,7 +360,7 @@ const [err, close] = await client.sse(
       console.log('message', event.data.msg);
     }
     if (event.type === 'status') {
-      console.log('status', event.data.ok);
+      console.log('status', event.data); // Will be a string
     }
   },
   { credentials: 'include' },
