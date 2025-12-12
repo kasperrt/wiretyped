@@ -4,6 +4,9 @@
   "description": "Universal fetch-based HTTP client with robust error handling, retries, caching, SSE, and Standard Schema validation.",
   "type": "module",
   "keywords": [
+    "ajax",
+    "request",
+    "url",
     "http-client",
     "api-client",
     "rest-client",
@@ -26,9 +29,7 @@
     "typescript",
     "typed",
     "type-safe",
-    "standard-schema",
-    "schema-validation",
-    "validation"
+    "standard-schema"
   ],
   "author": "Kasper Rynning-Tønnesen <kasperrt@users.noreply.github.com> (https://github.com/kasperrt)",
   "license": "MIT",
