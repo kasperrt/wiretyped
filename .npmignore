@@ -21,6 +21,8 @@ scripts
 coverage
 node_modules
 
+docs
+
 # Config and build tooling not needed at runtime
 tsconfig*.json
 vitest.config.ts

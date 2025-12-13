@@ -1,6 +1,6 @@
 {
   "name": "@kasperrt/wiretyped",
-  "version": "0.3.1-alpha.0",
+  "version": "0.3.1-alpha.1",
   "exports": {
     ".": "./src/index.ts"
   },
@@ -13,6 +13,6 @@
   "license": "MIT",
   "publish": {
     "include": ["README.md", "src/**/*.ts", "package.json"],
-    "exclude": ["**/*.test.ts"]
+    "exclude": ["**/*.test.ts", "docs/"]
   }
 }

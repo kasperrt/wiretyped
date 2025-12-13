@@ -22,3 +22,4 @@ yarn-error.log*
 /.parcel-cache
 /.cache
 *.tsbuildinfo
+docs/.vitepress/cache
