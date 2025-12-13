@@ -266,7 +266,7 @@ jobs:
 
       - name: Build docs (GitHub Pages)
         env:
-          DOCS_BASE: "/wiretyped/"
+          DOCS_BASE: "/"
         run: pnpm docs:build
 
       - uses: actions/configure-pages@v5
