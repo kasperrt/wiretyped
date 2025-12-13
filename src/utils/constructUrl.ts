@@ -20,11 +20,12 @@ export async function constructUrl<
   const searchParams = new URLSearchParams();
   let result = path.toString();
 
-  if (!params) {
-    if (result.startsWith('/')) {
-      result = result.substring(1);
-    }
+  // Strip leading slash for clean concatenation with baseUrl
+  if (result.startsWith('/')) {
+    result = result.substring(1);
+  }
 
+  if (!params) {
     // Check for remaining unreplaced braces
     if (result.includes('{') || result.includes('}')) {
       return [new ConstructURLError(`error constructing URL, path contains {}`, result), null];
@@ -90,11 +91,6 @@ export async function constructUrl<
   // Check for remaining unreplaced braces
   if (result.includes('{') || result.includes('}')) {
     return [new ConstructURLError(`error constructing URL, remaining contains {}`, result), null];
-  }
-
-  // Strip leading slash for clean concatenation with baseUrl
-  if (result.startsWith('/')) {
-    return [null, result.substring(1)];
   }
 
   return [null, result];

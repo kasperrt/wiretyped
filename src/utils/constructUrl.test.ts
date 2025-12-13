@@ -85,7 +85,7 @@ describe('constructUrl', () => {
 
     expect(url).toBeNull();
     expect(err).toBeInstanceOf(ConstructURLError);
-    expect(getConstructURLError(err)?.url).toBe('/users/{id}');
+    expect(getConstructURLError(err)?.url).toBe('users/{id}');
     expect(isConstructURLError(err)).toBe(true);
     expect(err?.message).toContain('error $path validation failed');
   });

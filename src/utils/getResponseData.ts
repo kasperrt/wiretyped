@@ -32,11 +32,8 @@ export async function getResponseData<ReturnValue>(response: FetchResponse): Saf
     if (errText) {
       return [new Error('error parsing text in getResponseData', { cause: errText }), null];
     }
-    if (text === '') {
-      return [null, null as ReturnValue];
-    }
 
-    return [null, text as ReturnValue];
+    return [null, (text || null) as ReturnValue];
   }
 
   const [errJson, json] = await safeWrapAsync(() => response.json());

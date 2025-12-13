@@ -392,11 +392,10 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
     absoluteUrl += url;
 
-    this.#log(`RESULTING URL: ${absoluteUrl}`);
-
     if (!absoluteUrl.startsWith('http')) {
       absoluteUrl = `${this.#hostname}${absoluteUrl}`;
     }
+    this.#log(`RESULTING URL: ${absoluteUrl}`);
 
     return [null, absoluteUrl];
   }
@@ -523,8 +522,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       const mergedSignal = mergeSignals([signal, controller.signal, timeoutSignal, this.#abortController.signal]);
 
       if (mergedSignal?.aborted) {
-        controller.abort(mergedSignal.reason);
-        return;
+        return controller.abort(mergedSignal.reason);
       }
 
       const [errWrapped, wrapped] = await safeWrapAsync(() =>

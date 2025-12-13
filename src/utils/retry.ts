@@ -1,5 +1,6 @@
 import { RetryExhaustedError } from '../error/retryExhaustedError.js';
 import { RetrySuppressedError } from '../error/retrySuppressedError.js';
+import { sleep } from './sleep.js';
 import type { SafeWrapAsync } from './wrap.js';
 
 /** Options for retry-function */
@@ -35,7 +36,7 @@ export interface RetryOptions<R> {
  * @param timeout how long the wait-time should be
  * @param errFn optional errorFunction on whether we want to skip retrying and propagate the error (true = stop, false = retry and move on)
  */
-export function retry<R>({
+export function retry<R = unknown>({
   name,
   fn,
   attempts = 10,
@@ -46,13 +47,14 @@ export function retry<R>({
   const retrier = async (fn: () => SafeWrapAsync<Error, R>, attempt = 1): SafeWrapAsync<Error, R> => {
     const [err, data] = await fn();
     if (!err) {
-      return [null, data as R];
+      return [null, data];
     }
 
     if (typeof errFn === 'function' && errFn(err)) {
       if (log) {
         console.debug(`${name} retrier: Didn't match error-condition for retrier, aborting subsequent retries.`);
       }
+
       return [new RetrySuppressedError('error further retries suppressed', attempt, { cause: err }), null];
     }
 
@@ -64,11 +66,8 @@ export function retry<R>({
       return [new RetryExhaustedError('error retries exhausted', attempt, { cause: err }), null];
     }
 
-    return new Promise((resolve) =>
-      setTimeout(() => {
-        resolve(retrier(fn, attempt + 1));
-      }, timeout),
-    );
+    await sleep(timeout);
+    return retrier(fn, attempt + 1);
   };
 
   return retrier(fn);

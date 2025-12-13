@@ -1,4 +1,4 @@
-import type { Interval } from '../utils/timeout.js';
+import type { Interval } from '../types/timeout.js';
 import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap.js';
 
 /** Options for cache-client */
@@ -152,7 +152,7 @@ export class CacheClient {
     }
 
     this.#addPendingRequest(key, res, ttl);
-    return this.#pending[key] as SafeWrapAsync<Error, T>;
+    return this.#pending[key];
   };
 
   /**
