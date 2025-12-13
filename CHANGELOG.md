@@ -1,6 +1,7 @@
 # WireTyped Releases
 
 ## Contents
+- [v0.3.1-alpha.0](#v031-alpha0)
 - [v0.3.0](#v030)
 - [v0.2.5](#v025)
 - [v0.2.4](#v024)
@@ -12,6 +13,14 @@
 - [v0.1.1](#v011)
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
+
+## v0.3.1-alpha.0
+
+- Fix excessive resulting URL leading `/` removal in constructURL (and fix faulty test).
+- Update internal SSE handler-callback-types to be strictly defined on call, with a looser variant in consumation with kept semi strict type-inference with key-check.
+- Remove internal excessive type-casts in CacheClient.
+- Improve readability of internal retrier.
+- Add missing JSDoc to internal sleeper.
 
 ## v0.3.0
 
