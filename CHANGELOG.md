@@ -30,6 +30,7 @@
 ## v0.3.0
 
 - Switch SSE to use fetch streaming instead of EventSource; schemas now define an `events` map of typed event payloads, e.g.:
+  
 ```ts
 const endpoints = {
   '/events': {

@@ -18,7 +18,15 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Reference', link: '/reference/entrypoints' },
       { text: 'Changelog', link: '/changelog' },
-      { text: 'GitHub', link: 'https://github.com/kasperrt/wiretyped' },
+      {
+        text: 'v0.3.1-alpha.1',
+        items: [
+          { text: 'v0.3.0', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.0' },
+          { text: 'v0.2.5', link: 'https://github.com/kasperrt/wiretyped/tree/v0.2.5' },
+          { text: 'v0.1.2', link: 'https://github.com/kasperrt/wiretyped/tree/v0.1.2' },
+          { text: 'v0.0.8', link: 'https://github.com/kasperrt/wiretyped/tree/v0.0.8' },
+        ],
+      },
     ],
 
     sidebar: {
