@@ -1,8 +1,3 @@
-<!--
-This file is generated from VitePress docs.
-Run: pnpm gen:readme
--->
-
 <div align="center">
 
 # WireTyped

@@ -1,5 +1,5 @@
 import type { Interval } from '../types/timeout.js';
-import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap.js';
+import { type SafeWrapAsync, safeWrap, safeWrapAsync } from '../utils/wrap.js';
 
 /** Options for cache-client */
 export interface CacheClientOptions {
@@ -160,29 +160,26 @@ export class CacheClient {
    * The key is sha256 or base64-encoded using built-in primitives.
    */
   public async key(url: string, headers: Headers): Promise<string> {
-    const header = Array.from(headers.entries())
-      .sort()
-      .map(([key, value]) => `${key}:${value}`)
-      .join('|');
-
-    const input = `${url}|${header}`;
+    const input =
+      url +
+      '|' +
+      [...headers]
+        .sort()
+        .map(([k, v]) => `${k}:${v}`)
+        .join('|');
     const data = new TextEncoder().encode(input);
 
-    if (typeof globalThis.crypto?.subtle?.digest === 'function') {
-      const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-
-      return hashHex;
+    const c = safeWrap(() => globalThis.crypto)[1] ?? safeWrap(() => crypto)[1];
+    if (c?.subtle) {
+      const buf = await c.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
     }
 
-    if (typeof globalThis.btoa === 'function') {
-      return globalThis.btoa(input);
-    }
+    const encode = safeWrap(() => globalThis.btoa)[1] ?? safeWrap(() => btoa)[1];
+    if (typeof encode === 'function') return encode(String.fromCharCode(...data));
 
-    if (typeof Buffer !== 'undefined') {
-      return Buffer.from(input, 'utf-8').toString('base64');
-    }
+    const buffer = safeWrap(() => globalThis.Buffer)[1] ?? safeWrap(() => Buffer)[1];
+    if (buffer?.from) return buffer.from(input, 'utf-8').toString('base64');
 
     return input;
   }

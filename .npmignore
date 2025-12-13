@@ -22,6 +22,7 @@ coverage
 node_modules
 
 docs
+!docs/public/wiretyped.png
 
 # Config and build tooling not needed at runtime
 tsconfig*.json
