@@ -11,6 +11,7 @@ on:
 permissions:
   id-token: write
   contents: write
+  pages: write
 
 concurrency:
   group: release-${{ github.ref_name }}
@@ -228,3 +229,51 @@ jobs:
 
       - name: Publish to JSR
         run: pnpx jsr publish
+
+  docs:
+    if: github.repository == 'kasperrt/wiretyped' && needs.tag.outputs.created == 'true'
+    needs: [tag, release]
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.tag.outputs.tag }}"
+          git fetch --tags
+          git checkout "$TAG"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build docs (GitHub Pages)
+        env:
+          DOCS_BASE: "/wiretyped/"
+        run: pnpm docs:build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

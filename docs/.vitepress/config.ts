@@ -2,9 +2,14 @@ import { defineConfig } from 'vitepress';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+  head: [
+    ['link', { rel: 'icon', href: '/favicon.ico' }],
+    ['link', { rel: 'shortcut icon', href: '/favicon.ico' }],
+  ],
   title: 'WireTyped',
   description:
     'Universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.',
+  base: process.env.DOCS_BASE ?? '/',
   appearance: 'force-dark',
   themeConfig: {
     logo: '/logo.png',
