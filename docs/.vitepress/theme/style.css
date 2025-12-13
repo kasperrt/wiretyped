@@ -1,0 +1,201 @@
+/**
+ * Customize default theme styling by overriding CSS variables:
+ * https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
+ */
+
+/**
+ * Colors
+ *
+ * Each colors have exact same color scale system with 3 levels of solid
+ * colors with different brightness, and 1 soft color.
+ *
+ * - `XXX-1`: The most solid color used mainly for colored text. It must
+ *   satisfy the contrast ratio against when used on top of `XXX-soft`.
+ *
+ * - `XXX-2`: The color used mainly for hover state of the button.
+ *
+ * - `XXX-3`: The color for solid background, such as bg color of the button.
+ *   It must satisfy the contrast ratio with pure white (#ffffff) text on
+ *   top of it.
+ *
+ * - `XXX-soft`: The color used for subtle background such as custom container
+ *   or badges. It must satisfy the contrast ratio when putting `XXX-1` colors
+ *   on top of it.
+ *
+ *   The soft color must be semi transparent alpha channel. This is crucial
+ *   because it allows adding multiple "soft" colors on top of each other
+ *   to create an accent, such as when having inline code block inside
+ *   custom containers.
+ *
+ * - `default`: The color used purely for subtle indication without any
+ *   special meanings attached to it such as bg color for menu hover state.
+ *
+ * - `brand`: Used for primary brand colors, such as link text, button with
+ *   brand theme, etc.
+ *
+ * - `tip`: Used to indicate useful information. The default theme uses the
+ *   brand color for this by default.
+ *
+ * - `warning`: Used to indicate warning to the users. Used in custom
+ *   container, badges, etc.
+ *
+ * - `danger`: Used to show error, or dangerous message to the users. Used
+ *   in custom container, badges, etc.
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --vp-c-default-1: var(--vp-c-gray-1);
+  --vp-c-default-2: var(--vp-c-gray-2);
+  --vp-c-default-3: var(--vp-c-gray-3);
+  --vp-c-default-soft: var(--vp-c-gray-soft);
+
+  /* Brand palette (logo): #bf96ba */
+  --vp-c-brand-1: #bf96ba; /* links */
+  --vp-c-brand-2: #a56ea0; /* hover */
+  --vp-c-brand-3: #8f4b86; /* button bg / emphasis */
+  --vp-c-brand-soft: rgba(191, 150, 186, 0.18);
+
+  --vp-c-tip-1: var(--vp-c-brand-1);
+  --vp-c-tip-2: var(--vp-c-brand-2);
+  --vp-c-tip-3: var(--vp-c-brand-3);
+  --vp-c-tip-soft: var(--vp-c-brand-soft);
+
+  --vp-c-warning-1: var(--vp-c-yellow-1);
+  --vp-c-warning-2: var(--vp-c-yellow-2);
+  --vp-c-warning-3: var(--vp-c-yellow-3);
+  --vp-c-warning-soft: var(--vp-c-yellow-soft);
+
+  --vp-c-danger-1: var(--vp-c-red-1);
+  --vp-c-danger-2: var(--vp-c-red-2);
+  --vp-c-danger-3: var(--vp-c-red-3);
+  --vp-c-danger-soft: var(--vp-c-red-soft);
+}
+
+/**
+ * Component: Button
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: var(--vp-c-white);
+  --vp-button-brand-bg: var(--vp-c-brand-3);
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: var(--vp-c-white);
+  --vp-button-brand-hover-bg: #7a3e73;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: var(--vp-c-white);
+  --vp-button-brand-active-bg: #6a3564;
+}
+
+:root.dark {
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-active-text: #ffffff;
+}
+
+/**
+ * Component: Home
+ * -------------------------------------------------------------------------- */
+
+:root {
+  /* Keep it clean and readable */
+  --vp-home-hero-name-color: var(--vp-c-brand-3);
+  --vp-home-hero-name-background: none;
+
+  /* Turn off the default hero-image "glare" behind the logo */
+  --vp-home-hero-image-background-image: none;
+  --vp-home-hero-image-filter: none;
+}
+
+/* Dark mode tweaks: keep it vibrant but readable */
+:root.dark {
+  --vp-c-brand-1: #d8b6d4;
+  --vp-c-brand-2: #bf96ba;
+  --vp-c-brand-3: #8f4b86;
+  --vp-c-brand-soft: rgba(191, 150, 186, 0.16);
+
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+  --vp-home-hero-name-background: none;
+  --vp-home-hero-image-background-image: none;
+  --vp-home-hero-image-filter: none;
+}
+
+/**
+ * Component: Custom Block
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --vp-custom-block-tip-border: transparent;
+  --vp-custom-block-tip-text: var(--vp-c-text-1);
+  --vp-custom-block-tip-bg: var(--vp-c-brand-soft);
+  --vp-custom-block-tip-code-bg: var(--vp-c-brand-soft);
+}
+
+/**
+ * Component: Algolia
+ * -------------------------------------------------------------------------- */
+
+.DocSearch.DocSearch {
+  --docsearch-primary-color: var(--vp-c-brand-1);
+}
+
+/* Force-hide appearance switch (site is force-dark) */
+.VPSwitchAppearance.VPSwitchAppearance {
+  display: none;
+}
+
+.wt-hero-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.wt-hero-badges-row--bottom {
+  margin-top: 8px;
+}
+
+@media (min-width: 960px) {
+  .wt-hero-badges-row {
+    justify-content: flex-start;
+  }
+}
+
+.wt-hero-badges-wrap {
+  margin-top: 12px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.wt-hero-badges-intro {
+  padding-bottom: 18px;
+  margin: 0 0 10px;
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--vp-c-text-2);
+}
+
+/* Default theme centers hero text on small screens when a hero image exists.
+   Keep this site left-aligned across breakpoints. */
+.VPHero.has-image .container {
+  text-align: left;
+}
+
+.wt-hero-badge {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.wt-hero-badge img {
+  height: 20px;
+  border-radius: 0;
+  opacity: 0.95;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.wt-hero-badge:hover img {
+  opacity: 1;
+  transform: translateY(-1px);
+}
