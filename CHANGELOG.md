@@ -22,6 +22,7 @@
 - Improve readability of internal retrier.
 - Add missing JSDoc to internal sleeper.
 - Add VitePress docs site and split README into a guide/reference structure under `docs/`.
+- Improve cache-key generation safeguarding against runtime errors.
 
 ## v0.3.0
 
