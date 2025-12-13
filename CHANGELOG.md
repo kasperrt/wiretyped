@@ -1,4 +1,4 @@
-# WireTyped Releases
+# Releases
 
 ## Contents
 - [v0.3.1-alpha.1](#v031-alpha1)
