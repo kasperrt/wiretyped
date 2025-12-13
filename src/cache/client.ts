@@ -166,39 +166,38 @@ export class CacheClient {
       .join('|');
 
     const input = `${url}|${header}`;
-    let [errTextEncoder, TextEncoderCtor] = safeWrap(() => globalThis.TextEncoder);
-    if (errTextEncoder || typeof TextEncoderCtor !== 'function') {
-      [errTextEncoder, TextEncoderCtor] = safeWrap(() => TextEncoder);
-    }
-    const data = typeof TextEncoderCtor === 'function' ? new TextEncoderCtor().encode(input) : null;
+    const data = new TextEncoder().encode(input);
 
-    let [errCrypto, cryptoImpl] = safeWrap(() => globalThis.crypto);
-    if (errCrypto || !cryptoImpl) {
-      [errCrypto, cryptoImpl] = safeWrap(() => crypto);
+    let [errHasher, hasher] = safeWrap(() => globalThis.crypto);
+    if (errHasher) {
+      // Safeguard, in reality should never be hit
+      /* v8 ignore next -- @preserve */
+      [errHasher, hasher] = safeWrap(() => crypto);
     }
-    const subtle = (cryptoImpl as Crypto | undefined)?.subtle;
-    if (data && typeof subtle?.digest === 'function') {
-      const [errHash, hashBuffer] = await safeWrapAsync(() => subtle.digest('SHA-256', data));
-      if (!errHash) {
-        return Array.from(new Uint8Array(hashBuffer))
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('');
-      }
+
+    if (typeof hasher !== 'undefined' && hasher && 'subtle' in hasher) {
+      const hashBuffer = await hasher.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
+      return hashHex;
     }
 
     let [errEncoder, encoder] = safeWrap(() => globalThis.btoa);
     if (errEncoder) {
+      // Safeguard, in reality should never be hit
+      /* v8 ignore next -- @preserve */
       [errEncoder, encoder] = safeWrap(() => btoa);
     }
 
     if (typeof encoder === 'function') {
-      const payload = data ? Array.from(data, (v) => String.fromCharCode(v)).join('') : input;
-      const [errEncoded, encoded] = safeWrap(() => encoder(payload));
-      if (!errEncoded) return encoded;
+      return encoder(Array.from(data, (v) => String.fromCharCode(v)).join(''));
     }
 
     let [errBuffer, buffer] = safeWrap(() => globalThis.Buffer);
     if (errBuffer) {
+      // Safeguard, in reality should never be hit
+      /* v8 ignore next -- @preserve */
       [errBuffer, buffer] = safeWrap(() => Buffer);
     }
 
