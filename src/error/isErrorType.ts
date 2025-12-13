@@ -13,5 +13,6 @@ export function isErrorType<T extends Error>(
   if (shallow) {
     return err instanceof errorClass;
   }
+
   return Boolean(unwrapErrorType(errorClass, err));
 }

@@ -131,29 +131,32 @@ export type Params<
 >;
 
 /** Endpoint keys that expose an SSE handler. */
-export type SSEEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'sse', Schema>;
+export type SSEEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'sse', Schema> & string;
 /** Explicitly typed GET endpoints. */
-export type GetEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'get', Schema>;
+export type GetEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'get', Schema> & string;
 /** Explicitly typed POST endpoints. */
-export type PostEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'post', Schema>;
+export type PostEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'post', Schema> & string;
 /** Explicitly typed PUT endpoints. */
-export type PutEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'put', Schema>;
+export type PutEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'put', Schema> & string;
 /** Explicitly typed PATCH endpoints. */
-export type PatchEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'patch', Schema>;
+export type PatchEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'patch', Schema> & string;
 /** Explicitly typed DELETE endpoints. */
-export type DeleteEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'delete', Schema>;
+export type DeleteEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'delete', Schema> & string;
 /** Explicitly typed DOWNLOAD endpoints. */
-export type DownloadEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'download', Schema>;
+export type DownloadEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'download', Schema> & string;
 /** Explicitly typed URL builder endpoints. */
-export type UrlEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'url', Schema>;
+export type UrlEndpoint<Schema extends RequestDefinitions> = EndpointsWithMethod<'url', Schema> & string;
 
 /**
- * Typed SSE Message envelope returning data
+ * Typed SSE Message envelope returning data.
  */
 export type SSEMessageEnvelope<EventType extends string, Data> = {
   type: EventType;
   data: Data;
 };
+
+/** SSEHandler callback helper (for overload implementation signatures). */
+export type SSEHandlerCallback<T> = { handler(value: SafeWrap<Error, T>): void }['handler'];
 
 /** SSE Options */
 export type SSEOptions = Omit<FetchOptions, 'body' | 'method' | 'keepalive'> &
@@ -162,10 +165,14 @@ export type SSEOptions = Omit<FetchOptions, 'body' | 'method' | 'keepalive'> &
 /**
  * Typed parameters for get function call parameters
  */
-export type SSEArgs<Schema extends RequestDefinitions, Endpoint extends SSEEndpoint<Schema> & string> = [
+export type SSEArgs<
+  Schema extends RequestDefinitions,
+  Endpoint extends SSEEndpoint<Schema> & string,
+  HandlerReturn = SSEDataReturnInferable<Schema, Endpoint>,
+> = [
   endpoint: Endpoint,
   params: Params<Schema, Endpoint, 'sse'>,
-  handler: (data: SafeWrap<Error, SSEDataReturn<Schema, Endpoint>>) => void,
+  handler: SSEHandlerCallback<HandlerReturn>,
   options?: SSEOptions,
 ];
 
@@ -277,10 +284,10 @@ export type UrlReturn<Schema extends RequestDefinitions, T extends UrlEndpoint<S
   'url'
 >;
 
-/** Extract typed events map for an SSE endpoint. */
-export type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = NonNullable<
-  Schema[T]['sse']
-> extends { events: infer Events extends SSEEventSchemas }
+/** Exact typed event union for an SSE endpoint (discriminated by `type`). */
+export type SSEDataReturnDefinition<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = [
+  NonNullable<Schema[T]['sse']>,
+] extends [{ events: infer Events extends SSEEventSchemas }]
   ? {
       [EventName in keyof Events & string]: SSEMessageEnvelope<
         EventName,
@@ -288,6 +295,26 @@ export type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoi
       >;
     }[keyof Events & string]
   : never;
+
+/**
+ * Typed SSE event payload (discriminated union).
+ *
+ * User code can narrow via `if (event.type === '...')` and get correctly narrowed `event.data`.
+ */
+export type SSEDataReturn<Schema extends RequestDefinitions, T extends SSEEndpoint<Schema>> = SSEDataReturnDefinition<
+  Schema,
+  T
+>;
+
+/**
+ * Loose SSE event envelope (non-discriminated).
+ *
+ * Intended for internal stream parsing when the `event:` name is only known as a runtime `string`.
+ */
+export type SSEDataReturnInferable<
+  Schema extends RequestDefinitions,
+  T extends SSEEndpoint<Schema>,
+> = SSEMessageEnvelope<SSEDataReturnDefinition<Schema, T>['type'], SSEDataReturnDefinition<Schema, T>['data']>;
 
 /** Function returned from `sse` requests that closes the stream. */
 export type SSEReturn = () => void;

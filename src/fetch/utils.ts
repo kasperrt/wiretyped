@@ -8,20 +8,17 @@ function headerOptionsToObject(h?: HeaderOptions): Record<string, string | undef
     return {};
   }
 
-  if (h instanceof Headers) {
-    const result: Record<string, string> = {};
-    for (const [key, value] of h.entries()) {
-      result[key.toLowerCase()] = value;
-    }
-    return result;
+  let headers = h;
+  if (headers instanceof Headers) {
+    headers = Object.fromEntries(headers.entries());
   }
 
-  if (Array.isArray(h)) {
-    h = Object.fromEntries(h);
+  if (Array.isArray(headers)) {
+    headers = Object.fromEntries(headers);
   }
 
   const result: Record<string, string | undefined> = {};
-  for (const [key, value] of Object.entries(h)) {
+  for (const [key, value] of Object.entries(headers)) {
     if (value === undefined || value === null) {
       result[key.toLowerCase()] = undefined;
       continue;

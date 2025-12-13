@@ -18,5 +18,6 @@ export function unwrapErrorType<T extends Error>(
     }
     current = current.cause as Error;
   }
+
   return null;
 }
