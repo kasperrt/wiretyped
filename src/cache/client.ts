@@ -160,50 +160,26 @@ export class CacheClient {
    * The key is sha256 or base64-encoded using built-in primitives.
    */
   public async key(url: string, headers: Headers): Promise<string> {
-    const header = Array.from(headers.entries())
-      .sort()
-      .map(([key, value]) => `${key}:${value}`)
-      .join('|');
-
-    const input = `${url}|${header}`;
+    const input =
+      url +
+      '|' +
+      [...headers]
+        .sort()
+        .map(([k, v]) => `${k}:${v}`)
+        .join('|');
     const data = new TextEncoder().encode(input);
 
-    let [errHasher, hasher] = safeWrap(() => globalThis.crypto);
-    if (errHasher) {
-      // Safeguard, in reality should never be hit
-      /* v8 ignore next -- @preserve */
-      [errHasher, hasher] = safeWrap(() => crypto);
+    const c = safeWrap(() => globalThis.crypto)[1] ?? safeWrap(() => crypto)[1];
+    if (c?.subtle) {
+      const buf = await c.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
     }
 
-    if (typeof hasher !== 'undefined' && hasher && 'subtle' in hasher) {
-      const hashBuffer = await hasher.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    const encode = safeWrap(() => globalThis.btoa)[1] ?? safeWrap(() => btoa)[1];
+    if (typeof encode === 'function') return encode(String.fromCharCode(...data));
 
-      return hashHex;
-    }
-
-    let [errEncoder, encoder] = safeWrap(() => globalThis.btoa);
-    if (errEncoder) {
-      // Safeguard, in reality should never be hit
-      /* v8 ignore next -- @preserve */
-      [errEncoder, encoder] = safeWrap(() => btoa);
-    }
-
-    if (typeof encoder === 'function') {
-      return encoder(Array.from(data, (v) => String.fromCharCode(v)).join(''));
-    }
-
-    let [errBuffer, buffer] = safeWrap(() => globalThis.Buffer);
-    if (errBuffer) {
-      // Safeguard, in reality should never be hit
-      /* v8 ignore next -- @preserve */
-      [errBuffer, buffer] = safeWrap(() => Buffer);
-    }
-
-    if (!!buffer && typeof buffer !== 'undefined' && 'from' in buffer) {
-      return buffer.from(input, 'utf-8').toString('base64');
-    }
+    const buffer = safeWrap(() => globalThis.Buffer)[1] ?? safeWrap(() => Buffer)[1];
+    if (buffer?.from) return buffer.from(input, 'utf-8').toString('base64');
 
     return input;
   }
