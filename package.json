@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.3.1-alpha.1",
+  "version": "0.3.1",
   "description": "Universal fetch-based HTTP client with robust error handling, retries, caching, SSE, and Standard Schema validation.",
   "type": "module",
   "keywords": [
@@ -117,11 +117,11 @@
     "@hono/node-server": "^1.19.7",
     "@types/node": "^24.10.2",
     "@vitest/coverage-v8": "^4.0.15",
-    "hono": "^4.10.8",
+    "hono": "^4.11.0",
     "playwright": "^1.57.0",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5.9.3",
-    "vite": "^8.0.0-beta.1",
+    "vite": "^8.0.0-beta.2",
     "vitepress": "2.0.0-alpha.15",
     "vitest": "^4.0.15",
     "vue": "^3.5.25",

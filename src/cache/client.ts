@@ -1,5 +1,5 @@
 import type { Interval } from '../types/timeout.js';
-import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap.js';
+import { type SafeWrapAsync, safeWrap, safeWrapAsync } from '../utils/wrap.js';
 
 /** Options for cache-client */
 export interface CacheClientOptions {
@@ -166,22 +166,44 @@ export class CacheClient {
       .join('|');
 
     const input = `${url}|${header}`;
-    const data = new TextEncoder().encode(input);
+    let [errTextEncoder, TextEncoderCtor] = safeWrap(() => globalThis.TextEncoder);
+    if (errTextEncoder || typeof TextEncoderCtor !== 'function') {
+      [errTextEncoder, TextEncoderCtor] = safeWrap(() => TextEncoder);
+    }
+    const data = typeof TextEncoderCtor === 'function' ? new TextEncoderCtor().encode(input) : null;
 
-    if (typeof globalThis.crypto?.subtle?.digest === 'function') {
-      const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-
-      return hashHex;
+    let [errCrypto, cryptoImpl] = safeWrap(() => globalThis.crypto);
+    if (errCrypto || !cryptoImpl) {
+      [errCrypto, cryptoImpl] = safeWrap(() => crypto);
+    }
+    const subtle = (cryptoImpl as Crypto | undefined)?.subtle;
+    if (data && typeof subtle?.digest === 'function') {
+      const [errHash, hashBuffer] = await safeWrapAsync(() => subtle.digest('SHA-256', data));
+      if (!errHash) {
+        return Array.from(new Uint8Array(hashBuffer))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('');
+      }
     }
 
-    if (typeof globalThis.btoa === 'function') {
-      return globalThis.btoa(input);
+    let [errEncoder, encoder] = safeWrap(() => globalThis.btoa);
+    if (errEncoder) {
+      [errEncoder, encoder] = safeWrap(() => btoa);
     }
 
-    if (typeof Buffer !== 'undefined') {
-      return Buffer.from(input, 'utf-8').toString('base64');
+    if (typeof encoder === 'function') {
+      const payload = data ? Array.from(data, (v) => String.fromCharCode(v)).join('') : input;
+      const [errEncoded, encoded] = safeWrap(() => encoder(payload));
+      if (!errEncoded) return encoded;
+    }
+
+    let [errBuffer, buffer] = safeWrap(() => globalThis.Buffer);
+    if (errBuffer) {
+      [errBuffer, buffer] = safeWrap(() => Buffer);
+    }
+
+    if (!!buffer && typeof buffer !== 'undefined' && 'from' in buffer) {
+      return buffer.from(input, 'utf-8').toString('base64');
     }
 
     return input;

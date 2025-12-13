@@ -8,6 +8,6 @@
     "outDir": "./dist/types",
     "rootDir": "./src"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "exclude": ["**/*.test.ts", "**/*.spec.ts", "coverage", "dist", "node_modules", "vitest.config.ts"]
 }
