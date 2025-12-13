@@ -397,16 +397,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
     this.#log(`RESULTING URL: ${absoluteUrl}`);
 
-    if (validate === false || (this.#validation === false && !validate) || !schemas.response) {
-      return [null, absoluteUrl];
-    }
-
-    const [errValidate, validated] = await validator(absoluteUrl, schemas.response);
-    if (errValidate) {
-      return [new Error('error validating response in url', { cause: errValidate }), null];
-    }
-
-    return [null, validated];
+    return [null, absoluteUrl];
   }
 
   /**
