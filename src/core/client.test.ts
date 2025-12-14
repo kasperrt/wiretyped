@@ -76,9 +76,6 @@ describe('RequestClient', () => {
 
   describe('Create', () => {
     test('Constructs http provider with expected params, and class has expected properties', () => {
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
@@ -86,7 +83,6 @@ describe('RequestClient', () => {
         endpoints: defaultEndpoints,
         validation: true,
         fetchOpts: { timeout: 10_000, retry: { limit: 0 }, credentials: 'include', mode: 'cors' },
-        debug: true,
       });
 
       expect(MOCK_FETCH_PROVIDER).toHaveBeenCalledOnce();
@@ -107,10 +103,6 @@ describe('RequestClient', () => {
       expect(requestClient).toHaveProperty('delete');
       expect(requestClient).toHaveProperty('config');
       expect(requestClient).toHaveProperty('download');
-
-      consoleLogSpy.mockRestore();
-      consoleDebugSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
     });
   });
 
@@ -966,15 +958,8 @@ describe('RequestClient', () => {
     } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockEndpoints>;
-    let consoleLogSpy: MockedFunction<VoidFunction>;
-    let consoleDebugSpy: MockedFunction<VoidFunction>;
-    let consoleWarnSpy: MockedFunction<VoidFunction>;
 
     beforeEach(() => {
-      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: '/base',
@@ -982,15 +967,10 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockEndpoints,
         validation: true,
-        debug: true,
       });
     });
 
-    afterEach(() => {
-      consoleLogSpy.mockRestore();
-      consoleDebugSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
-    });
+    afterEach(() => {});
 
     test('No endpoint: errors if endpoint dont exit', async () => {
       //@ts-expect-error
@@ -1032,15 +1012,8 @@ describe('RequestClient', () => {
     } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockGetEndpoints>;
-    let consoleLogSpy: MockedFunction<VoidFunction>;
-    let consoleDebugSpy: MockedFunction<VoidFunction>;
-    let consoleWarnSpy: MockedFunction<VoidFunction>;
 
     beforeEach(() => {
-      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
@@ -1048,15 +1021,10 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockGetEndpoints,
         validation: true,
-        debug: true,
       });
     });
 
-    afterEach(() => {
-      consoleLogSpy.mockRestore();
-      consoleDebugSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
-    });
+    afterEach(() => {});
 
     test('No endpoint: errors if endpoint dont exit', async () => {
       const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() => null);
@@ -1235,13 +1203,8 @@ describe('RequestClient', () => {
 
     describe('Without caching', () => {
       let requestClient: RequestClient<typeof mockGetEndpoints>;
-      let consoleLogSpy: MockedFunction<VoidFunction>;
-      let consoleDebugSpy: MockedFunction<VoidFunction>;
 
       beforeEach(() => {
-        consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-        consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-
         requestClient = new RequestClient({
           fetchProvider: MOCK_FETCH_PROVIDER,
           baseUrl: 'https://api.example.com/base',
@@ -1249,13 +1212,7 @@ describe('RequestClient', () => {
           fetchOpts: DEFAULT_REQUEST_OPTS,
           endpoints: mockGetEndpoints,
           validation: true,
-          debug: true,
         });
-      });
-
-      afterEach(() => {
-        consoleLogSpy.mockRestore();
-        consoleDebugSpy.mockRestore();
       });
 
       test('No endpoint: errors if endpoint dont exit', async () => {
@@ -1328,7 +1285,6 @@ describe('RequestClient', () => {
           fetchOpts: DEFAULT_REQUEST_OPTS,
           endpoints: mockGetEndpoints,
           validation: false,
-          debug: false,
         });
         const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(async () =>
           asyncOk({
@@ -1584,10 +1540,6 @@ describe('RequestClient', () => {
 
     describe('With cacheRequest: true', () => {
       test('Calls get() to fetch fresh data if key was not in cache and returns data', async () => {
-        const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-        const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
         const requestClientWithCache = new RequestClient({
           fetchProvider: MOCK_FETCH_PROVIDER,
           baseUrl: 'https://api.example.com/base',
@@ -1595,7 +1547,6 @@ describe('RequestClient', () => {
           fetchOpts: DEFAULT_REQUEST_OPTS,
           endpoints: mockGetEndpoints,
           validation: true,
-          debug: true,
         });
 
         const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(async () =>
@@ -1621,9 +1572,6 @@ describe('RequestClient', () => {
         expect(res).toStrictEqual({
           data: 'GET request data with cacheRequest',
         });
-        consoleLogSpy.mockRestore();
-        consoleDebugSpy.mockRestore();
-        consoleWarnSpy.mockRestore();
       });
 
       test('Does not call get() if key was in cache, and returns cached value', async () => {
@@ -1744,15 +1692,7 @@ describe('RequestClient', () => {
 
     let requestClient: RequestClient<typeof mockPostEndpoints>;
 
-    let consoleLogSpy: MockedFunction<VoidFunction>;
-    let consoleDebugSpy: MockedFunction<VoidFunction>;
-    let consoleWarnSpy: MockedFunction<VoidFunction>;
-
     beforeEach(() => {
-      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
@@ -1760,15 +1700,10 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPostEndpoints,
         validation: true,
-        debug: true,
       });
     });
 
-    afterEach(() => {
-      consoleLogSpy.mockRestore();
-      consoleDebugSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
-    });
+    afterEach(() => {});
 
     test('No endpoint: errors if endpoint dont exit', async () => {
       const postSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'post').mockImplementation(() => null);
@@ -1929,7 +1864,6 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPostEndpoints,
         validation: false,
-        debug: false,
       });
 
       const postSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'post').mockImplementation(async () =>
@@ -2068,15 +2002,7 @@ describe('RequestClient', () => {
 
     let requestClient: RequestClient<typeof mockPutEndpoints>;
 
-    let consoleLogSpy: MockedFunction<VoidFunction>;
-    let consoleDebugSpy: MockedFunction<VoidFunction>;
-    let consoleWarnSpy: MockedFunction<VoidFunction>;
-
     beforeEach(() => {
-      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
@@ -2084,15 +2010,10 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPutEndpoints,
         validation: true,
-        debug: true,
       });
     });
 
-    afterEach(() => {
-      consoleLogSpy.mockRestore();
-      consoleDebugSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
-    });
+    afterEach(() => {});
 
     test('No endpoint: errors if endpoint dont exit', async () => {
       const putSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'put').mockImplementation(() => null);
@@ -2259,7 +2180,6 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPutEndpoints,
         validation: false,
-        debug: false,
       });
 
       const putSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'put').mockImplementation(async () =>
@@ -2387,15 +2307,8 @@ describe('RequestClient', () => {
     } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockPatchEndpoints>;
-    let consoleLogSpy: MockedFunction<VoidFunction>;
-    let consoleDebugSpy: MockedFunction<VoidFunction>;
-    let consoleWarnSpy: MockedFunction<VoidFunction>;
 
     beforeEach(() => {
-      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
@@ -2403,15 +2316,10 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPatchEndpoints,
         validation: true,
-        debug: true,
       });
     });
 
-    afterEach(() => {
-      consoleLogSpy.mockRestore();
-      consoleDebugSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
-    });
+    afterEach(() => {});
 
     test('No endpoint: errors if endpoint dont exit', async () => {
       const patchSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'patch').mockImplementation(() => null);
@@ -2588,7 +2496,6 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockPatchEndpoints,
         validation: false,
-        debug: false,
       });
 
       const patchSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'patch').mockImplementation(async () =>
@@ -2717,15 +2624,8 @@ describe('RequestClient', () => {
     } satisfies RequestDefinitions;
 
     let requestClient: RequestClient<typeof mockDeleteEndpoints>;
-    let consoleLogSpy: MockedFunction<VoidFunction>;
-    let consoleDebugSpy: MockedFunction<VoidFunction>;
-    let consoleWarnSpy: MockedFunction<VoidFunction>;
 
     beforeEach(() => {
-      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
       requestClient = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
         baseUrl: 'https://api.example.com/base',
@@ -2733,15 +2633,10 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockDeleteEndpoints,
         validation: true,
-        debug: true,
       });
     });
 
-    afterEach(() => {
-      consoleLogSpy.mockRestore();
-      consoleDebugSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
-    });
+    afterEach(() => {});
 
     test('No endpoint: errors if endpoint dont exit', async () => {
       const deleteSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'delete').mockImplementation(() => null);
@@ -2876,7 +2771,6 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockDeleteEndpoints,
         validation: false,
-        debug: false,
       });
       const deleteSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'delete').mockImplementation(async () =>
         asyncOk({
@@ -3692,12 +3586,10 @@ describe('RequestClient', () => {
 
     test('silently ignores non-mapped events', async () => {
       const handler = vi.fn();
-      const logger = vi.fn();
+
       vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
         asyncOk(makeSseResponse(['event: event-name\ndata: not-json\n\n'])),
       );
-
-      vi.spyOn(console, 'debug').mockImplementation(logger);
 
       const client = new RequestClient({
         fetchProvider: MOCK_FETCH_PROVIDER,
@@ -3706,7 +3598,6 @@ describe('RequestClient', () => {
         fetchOpts: DEFAULT_REQUEST_OPTS,
         endpoints: mockSseEndpoints,
         validation: true,
-        debug: true,
       });
 
       const [err, close] = await client.sse('/api/stream', null, handler);
@@ -3715,8 +3606,6 @@ describe('RequestClient', () => {
 
       expect(err).toBeNull();
       expect(handler).toHaveBeenCalledTimes(0);
-      expect(logger).toHaveBeenCalledTimes(2);
-      expect(logger.mock.calls[1][0]).toEqual('error unknown event-type event-name in sse stream');
 
       close?.();
     });

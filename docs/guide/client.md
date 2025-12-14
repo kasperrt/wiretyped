@@ -30,7 +30,6 @@ const client = new RequestClient({
 - `hostname` (required): Absolute hostname used when building URLs (keeps `url()` outputs absolute).
 - `endpoints` (required): Your typed endpoint definitions (`RequestDefinitions`).
 - `validation` (default `true`): Validate bodies using your schema definitions; can be overridden per call/stream.
-- `debug` (default `false`): Log internal client debug info.
 - `cacheOpts`: In-memory cache defaults (used when `cacheRequest` is enabled for GET). See [`cacheOpts`](#cacheopts).
 - `fetchOpts`: Default request options (headers/credentials/mode + WireTyped `timeout`/`retry`). See [`fetchOpts`](#fetchopts).
 - `fetchProvider`: Optional custom fetch provider (transport). See [`/reference/providers`](/reference/providers).
