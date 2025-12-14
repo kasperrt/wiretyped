@@ -643,7 +643,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     if (cacheRequest && method === 'get') {
-      const cacheKey = await this.#cacheClient.key(url, mergeHeaderOptions(this.#defaultHeaders, options.headers));
+      const cacheKey = this.#cacheClient.key(url, mergeHeaderOptions(this.#defaultHeaders, options.headers));
       const [errCacheClient, result] = await this.#cacheClient.get<ResponseType>(
         cacheKey,
         async () => {
