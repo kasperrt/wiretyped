@@ -160,20 +160,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       headers: this.#defaultHeaders,
     });
 
-    this.#log(
-      `RequestClient: ${JSON.stringify(
-        {
-          fetchProvider,
-          baseUrl,
-          cacheOpts,
-          fetchOpts,
-          debug,
-          validation,
-        },
-        null,
-        4,
-      )}`,
-    );
+    this.#log('RequestClient', { fetchProvider, baseUrl, cacheOpts, fetchOpts, debug, validation });
   }
 
   /**
@@ -380,11 +367,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
     const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
-      this.#log(`URL ERR: ${errUrl}`);
+      this.#log('URL ERR', errUrl);
       return [new Error('error constructing url in url', { cause: errUrl }), null];
     }
 
-    this.#log(`URL: ${url}`);
+    this.#log('URL', url);
 
     let absoluteUrl = this.#baseUrl;
     if (!absoluteUrl.endsWith('/')) {
@@ -395,7 +382,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     if (!absoluteUrl.startsWith('http')) {
       absoluteUrl = `${this.#hostname}${absoluteUrl}`;
     }
-    this.#log(`RESULTING URL: ${absoluteUrl}`);
+    this.#log('RESULTING URL', absoluteUrl);
 
     return [null, absoluteUrl];
   }
@@ -617,17 +604,17 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    this.#log(`${op} OPTIONS: ${JSON.stringify(opts, null, 4)}`);
+    this.#log(op, 'opts', opts);
 
     let data = rawData;
     const { validate, cacheRequest, cacheTimeToLive, ...options } = opts;
     const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
-      this.#log(`${op} ERRURL: ${errUrl}`);
+      this.#log(op, 'ERRURL', errUrl);
       return [new Error(`error constructing URL in ${op}`, { cause: errUrl }), null];
     }
 
-    this.#log(`${op} URL: ${url}`);
+    this.#log(op, 'URL', url);
 
     if (
       'request' in schemas &&
@@ -677,7 +664,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         ];
       }
 
-      this.#log(`${op} CACHE: `, result);
+      this.#log(op, 'CACHE', result);
 
       return [null, result];
     }
