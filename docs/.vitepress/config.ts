@@ -1,4 +1,9 @@
+import { createRequire } from 'node:module';
 import { defineConfig } from 'vitepress';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../../package.json') as { version?: string };
+const versionLabel = pkg.version ? `v${pkg.version}` : 'v?';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -20,7 +25,7 @@ export default defineConfig({
       { text: 'Changelog', link: '/changelog' },
       { text: 'FAQ', link: '/faq' },
       {
-        text: 'v0.3.2-alpha.0',
+        text: versionLabel,
         items: [
           { text: 'v0.3.1', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.1' },
           { text: 'v0.3.0', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.0' },

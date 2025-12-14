@@ -87,7 +87,6 @@
     "fix": "pnpm exec biome check --write",
     "fix:format": "pnpm exec biome format --write",
     "fix:lint": "pnpm exec biome lint --write",
-    "prepare": "pnpm exec simple-git-hooks",
     "prepublishOnly": "pnpm check && pnpm run test && pnpm run build",
     "smoke:bun": "bun run scripts/smoke-bun.ts",
     "smoke:deno": "deno run --allow-read scripts/smoke-deno.ts",
