@@ -1,5 +1,5 @@
 import type { Interval } from '../types/timeout.js';
-import { type SafeWrapAsync, safeWrap, safeWrapAsync } from '../utils/wrap.js';
+import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap.js';
 
 /** Options for cache-client */
 export interface CacheClientOptions {
@@ -31,8 +31,8 @@ export class CacheClient {
   #ttl: number;
   #cleanupInterval: number;
   #intervalId: Interval;
-  #cache: Record<string, CacheItem> = {};
-  #pending: Record<string, SafeWrapAsync<Error, unknown>> = {};
+  #cache: Map<string, CacheItem> = new Map();
+  #pending: Map<string, SafeWrapAsync<Error, unknown>> = new Map();
 
   /**
    * Creates a cache client with in-memory TTL-based storage.
@@ -52,8 +52,8 @@ export class CacheClient {
   public config(opts: Partial<CacheClientOptions>) {
     if (opts.ttl !== undefined && opts.ttl !== this.#ttl) {
       this.#ttl = opts.ttl;
-      this.#cache = {};
-      this.#pending = {};
+      this.#cache = new Map();
+      this.#pending = new Map();
     }
 
     if (opts.cleanupInterval !== undefined) {
@@ -70,8 +70,8 @@ export class CacheClient {
   public dispose() {
     clearInterval(this.#intervalId);
     this.#intervalId = undefined;
-    this.#cache = {};
-    this.#pending = {};
+    this.#cache = new Map();
+    this.#pending = new Map();
   }
 
   /**
@@ -81,11 +81,7 @@ export class CacheClient {
    */
   #add<T = unknown>(key: string, data: T, ttl: number) {
     const expires = Date.now() + ttl;
-    this.#cache[key] = {
-      key,
-      data,
-      expires,
-    };
+    this.#cache.set(key, { key, data, expires });
   }
 
   /**
@@ -93,7 +89,7 @@ export class CacheClient {
    * @param {string} key - Cache key
    */
   #getItem<T>(key: string) {
-    const item = this.#cache[key];
+    const item = this.#cache.get(key);
     if (!item) {
       return null;
     }
@@ -102,8 +98,8 @@ export class CacheClient {
       return item as T;
     }
 
-    delete this.#cache[key];
-    delete this.#pending[key];
+    this.#cache.delete(key);
+    this.#pending.delete(key);
     return null;
   }
 
@@ -114,22 +110,24 @@ export class CacheClient {
    * @param {Promise} request - http request to put in the pending object
    */
   #addPendingRequest = <T = unknown>(key: string, request: () => SafeWrapAsync<Error, T>, ttl: number) => {
-    this.#pending[key] = (async (): SafeWrapAsync<Error, T> => {
+    const pending = (async (): SafeWrapAsync<Error, T> => {
       const [errWrapped, wrapped] = await safeWrapAsync(() => request());
       if (errWrapped) {
-        delete this.#pending[key];
+        this.#pending.delete(key);
         return [new Error('error thrown on cache wrapping request', { cause: errWrapped }), null];
       }
 
       const [errData, data] = wrapped;
       if (errData) {
-        delete this.#pending[key];
+        this.#pending.delete(key);
         return [new Error('error getting cached request', { cause: errData }), null];
       }
 
       this.#add(key, data, ttl);
       return [null, data];
     })();
+
+    this.#pending.set(key, pending);
   };
 
   /**
@@ -147,41 +145,34 @@ export class CacheClient {
       return Promise.resolve([null, cachedData.data]);
     }
 
-    if (this.#pending[key] !== undefined) {
-      return this.#pending[key] as SafeWrapAsync<Error, T>;
+    const pending = this.#pending.get(key);
+    if (pending !== undefined) {
+      return pending as SafeWrapAsync<Error, T>;
     }
 
     this.#addPendingRequest(key, res, ttl);
-    return this.#pending[key];
+    return this.#pending.get(key) as SafeWrapAsync<Error, T>;
   };
 
   /**
-   * Constructs a deterministic cache key that incorporates the URL and merged headers.
-   * The key is sha256 or base64-encoded using built-in primitives.
+   * Constructs a deterministic, unambiguous cache key based on URL + headers.
+   *
+   * - Unambiguous: uses JSON.stringify over a structured tuple.
+   * - Deterministic: lowercases header names and sorts (name, then value).
+   *
    */
-  public async key(url: string, headers: Headers): Promise<string> {
-    const input =
-      url +
-      '|' +
-      [...headers]
-        .sort()
-        .map(([k, v]) => `${k}:${v}`)
-        .join('|');
-    const data = new TextEncoder().encode(input);
+  public key(url: string, headers: Headers): string {
+    const normalizedHeaders = [...headers]
+      .map(([k, v]) => [k.toLowerCase(), v] as const)
+      .sort(([ak, av], [bk, bv]) => {
+        if (ak === bk) {
+          return av < bv ? -1 : av > bv ? 1 : 0;
+        }
 
-    const c = safeWrap(() => globalThis.crypto)[1] ?? safeWrap(() => crypto)[1];
-    if (c?.subtle) {
-      const buf = await c.subtle.digest('SHA-256', data);
-      return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
-    }
+        return ak < bk ? -1 : 1;
+      });
 
-    const encode = safeWrap(() => globalThis.btoa)[1] ?? safeWrap(() => btoa)[1];
-    if (typeof encode === 'function') return encode(String.fromCharCode(...data));
-
-    const buffer = safeWrap(() => globalThis.Buffer)[1] ?? safeWrap(() => Buffer)[1];
-    if (buffer?.from) return buffer.from(input, 'utf-8').toString('base64');
-
-    return input;
+    return JSON.stringify([url, normalizedHeaders]);
   }
 
   /**
@@ -192,7 +183,7 @@ export class CacheClient {
     clearInterval(this.#intervalId);
 
     this.#intervalId = setInterval(() => {
-      for (const key of Object.keys(this.#cache)) {
+      for (const key of this.#cache.keys()) {
         this.#getItem(key);
       }
     }, this.#cleanupInterval);

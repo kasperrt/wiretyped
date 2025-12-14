@@ -1,4 +1,9 @@
+import { createRequire } from 'node:module';
 import { defineConfig } from 'vitepress';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../../package.json') as { version?: string };
+const versionLabel = pkg.version ? `v${pkg.version}` : 'v?';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -11,6 +16,9 @@ export default defineConfig({
     'Universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.',
   base: process.env.DOCS_BASE ?? '/',
   appearance: 'force-dark',
+  markdown: {
+    theme: 'one-dark-pro',
+  },
   themeConfig: {
     logo: '/logo.png',
     // https://vitepress.dev/reference/default-theme-config
@@ -18,9 +26,11 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Reference', link: '/reference/entrypoints' },
       { text: 'Changelog', link: '/changelog' },
+      { text: 'FAQ', link: '/faq' },
       {
-        text: 'v0.3.1',
+        text: versionLabel,
         items: [
+          { text: 'v0.3.1', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.1' },
           { text: 'v0.3.0', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.0' },
           { text: 'v0.2.5', link: 'https://github.com/kasperrt/wiretyped/tree/v0.2.5' },
           { text: 'v0.1.2', link: 'https://github.com/kasperrt/wiretyped/tree/v0.1.2' },
@@ -48,10 +58,6 @@ export default defineConfig({
             { text: 'SSE', link: '/guide/sse' },
             { text: 'Error Handling', link: '/guide/errors' },
           ],
-        },
-        {
-          text: 'More',
-          items: [{ text: 'FAQ', link: '/guide/faq' }],
         },
       ],
       '/reference/': [

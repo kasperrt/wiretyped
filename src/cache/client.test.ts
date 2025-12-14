@@ -308,59 +308,52 @@ describe('CacheClient', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  describe('key hashing fallbacks', () => {
+  describe('key getting', () => {
     const url = 'https://example.com';
     const headers = new Headers([['x-test', '123']]);
-    const input = `${url}|x-test:123`;
 
-    it('uses crypto.subtle digest when available', async () => {
+    it('gets key normally', () => {
       const client = new CacheClient();
-      const digestMock = vi.fn().mockResolvedValue(Uint8Array.from([0, 1, 255]).buffer);
 
-      vi.stubGlobal('crypto', { subtle: { digest: digestMock } } as unknown as Crypto);
-      vi.stubGlobal('btoa', undefined as unknown as typeof btoa);
-      vi.stubGlobal('Buffer', undefined as unknown as typeof Buffer);
-
-      const key = await client.key(url, headers);
-      expect(digestMock).toHaveBeenCalledTimes(1);
-      expect(digestMock).toHaveBeenCalledWith('SHA-256', new TextEncoder().encode(input));
-      expect(key).toBe('0001ff');
+      const key = client.key(url, headers);
+      expect(key).toBe('["https://example.com",[["x-test","123"]]]');
     });
 
-    it('falls back to btoa when crypto is unavailable', async () => {
+    it('gets key with multi-header', () => {
       const client = new CacheClient();
-      const btoaMock = vi.fn().mockImplementation((input: string) => {
-        return `base64:${input}`;
-      });
 
-      vi.stubGlobal('crypto', undefined as unknown as Crypto);
-      vi.stubGlobal('btoa', btoaMock);
-      vi.stubGlobal('Buffer', undefined as unknown as typeof Buffer);
-
-      const key = await client.key(url, headers);
-      expect(btoaMock).toHaveBeenCalledTimes(1);
-      expect(btoaMock).toHaveBeenCalledWith(input);
-      expect(key).toBe(`base64:${input}`);
+      const key = client.key(
+        url,
+        new Headers([
+          ['x-1', '1'],
+          ['x-2', '2'],
+        ]),
+      );
+      expect(key).toBe('["https://example.com",[["x-1","1"],["x-2","2"]]]');
     });
 
-    it('falls back to Buffer when crypto and btoa are unavailable', async () => {
+    it('orders duplicate header names by value for deterministic key', () => {
       const client = new CacheClient();
-      vi.stubGlobal('crypto', undefined as unknown as Crypto);
-      vi.stubGlobal('btoa', undefined as unknown as typeof btoa);
-      vi.stubGlobal('Buffer', Buffer);
+      const duplicateHeaders = [
+        ['x', 'b'],
+        ['x', 'a'],
+      ] as unknown as Headers;
+      const key = client.key('https://example.com', duplicateHeaders);
 
-      const key = await client.key(url, headers);
-      expect(key).toBe(Buffer.from(input, 'utf-8').toString('base64'));
+      expect(key).toBe('["https://example.com",[["x","a"],["x","b"]]]');
     });
 
-    it('returns input when crypto, btoa, and Buffer are all unavailable', async () => {
+    it('gets key with multi-header still same sort', () => {
       const client = new CacheClient();
-      vi.stubGlobal('crypto', undefined as unknown as Crypto);
-      vi.stubGlobal('btoa', undefined as unknown as typeof btoa);
-      vi.stubGlobal('Buffer', undefined as unknown as typeof Buffer);
 
-      const key = await client.key(url, headers);
-      expect(key).toBe(input);
+      const key = client.key(
+        url,
+        new Headers([
+          ['x-2', '2'],
+          ['x-1', '1'],
+        ]),
+      );
+      expect(key).toBe('["https://example.com",[["x-1","1"],["x-2","2"]]]');
     });
   });
 });
