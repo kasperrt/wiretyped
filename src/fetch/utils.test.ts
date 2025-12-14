@@ -20,14 +20,14 @@ describe('mergeHeaderOptions', () => {
     expect(merged).toEqual(new Headers({ a: 'b', c: 'd' }));
   });
 
-  test('merge objects with bad values', () => {
+  test('merge objects with non-string values coerces to strings', () => {
     // @ts-expect-error
     const merged = mergeHeaderOptions({ a: 1 }, { c: true });
 
     expect(merged).toEqual(new Headers({ a: '1', c: 'true' }));
   });
 
-  test('merge objects with bad values', () => {
+  test('merge objects drops non-primitive values', () => {
     // @ts-expect-error
     const merged = mergeHeaderOptions({ a: 1 }, { c: true, badValue: { nested: 'data' } });
 
