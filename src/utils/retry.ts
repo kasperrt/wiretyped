@@ -5,8 +5,6 @@ import type { SafeWrapAsync } from './wrap.js';
 
 /** Options for retry-function */
 export interface RetryOptions<R> {
-  /** Name used for debug logging when retries occur. */
-  name: string;
   /** Function to execute; must return a tuple-style result. */
   fn: () => SafeWrapAsync<Error, R>;
   /**
@@ -21,8 +19,6 @@ export interface RetryOptions<R> {
    * Return true to stop retrying and surface the error, false to continue.
    */
   errFn?: (e: Error) => boolean;
-  /** Whether to log retry decisions to the console. */
-  log?: boolean;
 }
 
 /**
@@ -37,12 +33,10 @@ export interface RetryOptions<R> {
  * @param errFn optional errorFunction on whether we want to skip retrying and propagate the error (true = stop, false = retry and move on)
  */
 export function retry<R = unknown>({
-  name,
   fn,
   attempts = 10,
   timeout = 1000,
   errFn,
-  log = true,
 }: RetryOptions<R>): SafeWrapAsync<Error, R> {
   const retrier = async (fn: () => SafeWrapAsync<Error, R>, attempt = 1): SafeWrapAsync<Error, R> => {
     const [err, data] = await fn();
@@ -51,19 +45,11 @@ export function retry<R = unknown>({
     }
 
     if (typeof errFn === 'function' && errFn(err)) {
-      if (log) {
-        console.debug(`${name} retrier: Didn't match error-condition for retrier, aborting subsequent retries.`);
-      }
-
-      return [new RetrySuppressedError('error further retries suppressed', attempt, { cause: err }), null];
+      return [new RetrySuppressedError(`error further retries suppressed`, attempt, { cause: err }), null];
     }
 
     if (attempt > attempts) {
-      if (log) {
-        console.debug(`${name} retrier: Attempts exceeded allowed number of retries.`);
-      }
-
-      return [new RetryExhaustedError('error retries exhausted', attempt, { cause: err }), null];
+      return [new RetryExhaustedError(`error retries exhausted`, attempt, { cause: err }), null];
     }
 
     await sleep(timeout);

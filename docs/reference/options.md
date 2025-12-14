@@ -16,12 +16,9 @@ These are the options passed to `new RequestClient({ ... })`:
   hostname: string;
   baseUrl: string;
   endpoints: RequestDefinitions;
-
   validation?: boolean;
-  debug?: boolean;
-
   fetchProvider?: FetchClientProvider;
-
+  
   cacheOpts?: {
     ttl?: number;
     cleanupInterval?: number;

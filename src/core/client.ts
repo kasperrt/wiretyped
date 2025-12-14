@@ -62,11 +62,6 @@ export interface RequestClientProps<Schema extends RequestDefinitions> extends C
   /** Absolute hostname used to build urls (e.g. `https://api.example.com`) */
   hostname: string;
   /**
-   * Whether to log debug information to the console.
-   * @default false
-   */
-  debug?: boolean;
-  /**
    * Global validation flag.
    *
    * When `true`, request and response payloads are validated with the
@@ -103,8 +98,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
   #defaultRetryCodes: StatusCode[] = [408, 429, 500, 501, 502, 503, 504];
   /** Default request timeout in milliseconds. */
   #defaultTimeout = 60_000;
-  /** When true, emits debug logging. */
-  #debug = false;
   /** Base URL prefix applied to all endpoints. */
   #baseUrl: string;
   /** Absolute hostname used to build URLs. */
@@ -131,7 +124,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
     fetchProvider = FetchClient,
     baseUrl,
     cacheOpts,
-    debug = false,
     validation = true,
     fetchOpts,
     hostname,
@@ -144,7 +136,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
     this.#endpoints = endpoints;
     this.#baseUrl = baseUrl;
     this.#hostname = hostname;
-    this.#debug = debug;
     this.#validation = validation;
     this.#credentials = fetchClientOpts.credentials;
     this.#abortController = new AbortController();
@@ -159,8 +150,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
       ...fetchClientOpts,
       headers: this.#defaultHeaders,
     });
-
-    this.#log('RequestClient', { fetchProvider, baseUrl, cacheOpts, fetchOpts, debug, validation });
   }
 
   /**
@@ -367,11 +356,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
     const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
-      this.#log('URL ERR', errUrl);
       return [new Error('error constructing url in url', { cause: errUrl }), null];
     }
-
-    this.#log('URL', url);
 
     let absoluteUrl = this.#baseUrl;
     if (!absoluteUrl.endsWith('/')) {
@@ -382,7 +368,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
     if (!absoluteUrl.startsWith('http')) {
       absoluteUrl = `${this.#hostname}${absoluteUrl}`;
     }
-    this.#log('RESULTING URL', absoluteUrl);
 
     return [null, absoluteUrl];
   }
@@ -474,11 +459,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
       }
 
       if (!hasEventSchema(eventName)) {
-        if (errorUnknownType) {
-          return handler([new Error(`error unknown event-type ${eventName} in sse stream`), null]);
+        if (!errorUnknownType) {
+          return;
         }
 
-        return this.#log(`error unknown event-type ${eventName} in sse stream`);
+        return handler([new Error(`error unknown event-type ${eventName} in sse stream`), null]);
       }
 
       // This is likely a double-data lined message so we should combine with newlines
@@ -604,17 +589,12 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    this.#log(op, 'opts', opts);
-
     let data = rawData;
     const { validate, cacheRequest, cacheTimeToLive, ...options } = opts;
     const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
     if (errUrl) {
-      this.#log(op, 'ERRURL', errUrl);
       return [new Error(`error constructing URL in ${op}`, { cause: errUrl }), null];
     }
-
-    this.#log(op, 'URL', url);
 
     if (
       'request' in schemas &&
@@ -663,8 +643,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
           null,
         ];
       }
-
-      this.#log(op, 'CACHE', result);
 
       return [null, result];
     }
@@ -751,10 +729,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     return retry<ResponseType>({
-      name: 'requestRetrier',
       attempts: retryAttempts,
       timeout: retryTimeout,
-      log: this.#debug,
       errFn: (err) => {
         if (isTimeoutError(err)) {
           return false;
@@ -809,14 +785,5 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return [null, result];
       },
     });
-  }
-
-  // biome-ignore lint/suspicious/noExplicitAny: Logger
-  #log(...args: any) {
-    if (!this.#debug) {
-      return;
-    }
-
-    console.debug(...args);
   }
 }
