@@ -18,6 +18,7 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Reference', link: '/reference/entrypoints' },
       { text: 'Changelog', link: '/changelog' },
+      { text: 'FAQ', link: '/faq' },
       {
         text: 'v0.3.2-alpha.0',
         items: [
@@ -49,10 +50,6 @@ export default defineConfig({
             { text: 'SSE', link: '/guide/sse' },
             { text: 'Error Handling', link: '/guide/errors' },
           ],
-        },
-        {
-          text: 'More',
-          items: [{ text: 'FAQ', link: '/guide/faq' }],
         },
       ],
       '/reference/': [
