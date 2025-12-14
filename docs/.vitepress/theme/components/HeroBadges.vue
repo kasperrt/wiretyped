@@ -12,8 +12,8 @@ const topRow = [
   },
   {
     alt: 'minzip',
-    href: 'https://bundlephobia.com/package/wiretyped@latest',
-    src: 'https://badgen.net/bundlephobia/minzip/wiretyped',
+    href: 'https://bundlejs.com/?q=wiretyped@latest',
+    src: 'https://deno.bundlejs.com/badge?q=wiretyped@latest',
   },
 ] as const;
 
