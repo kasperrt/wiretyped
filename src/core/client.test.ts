@@ -8,12 +8,7 @@ import { getRetryExhaustedError, RetryExhaustedError } from '../error/retryExhau
 import { getRetrySuppressedError, RetrySuppressedError } from '../error/retrySuppressedError.js';
 import { TimeoutError } from '../error/timeoutError.js';
 import { ValidationError } from '../error/validationError.js';
-import type {
-  FetchClientProvider,
-  FetchClientProviderDefinition,
-  Options,
-  RequestOptions,
-} from '../types/request.js';
+import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request.js';
 import * as signals from '../utils/signals.js';
 import { RequestClient } from './client.js';
 import type { RequestDefinitions } from './types.js';
@@ -1068,7 +1063,7 @@ describe('RequestClient', () => {
       );
     });
 
-    test("No params: returns error when response.blob() throws", async () => {
+    test('No params: returns error when response.blob() throws', async () => {
       const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() => {
         const response = {
           blob: () => {
