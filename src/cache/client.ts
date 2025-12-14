@@ -151,7 +151,7 @@ export class CacheClient {
     }
 
     this.#addPendingRequest(key, res, ttl);
-    return this.#pending.get(key);
+    return this.#pending.get(key) as SafeWrapAsync<Error, T>;
   };
 
   /**
