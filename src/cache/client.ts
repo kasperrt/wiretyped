@@ -160,7 +160,6 @@ export class CacheClient {
    * - Unambiguous: uses JSON.stringify over a structured tuple.
    * - Deterministic: lowercases header names and sorts (name, then value).
    *
-   * NOTE: This intentionally does *not* hash/encode the key (since this cache is in-memory).
    */
   public key(url: string, headers: Headers): string {
     const normalizedHeaders = [...headers]
