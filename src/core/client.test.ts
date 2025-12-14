@@ -3792,5 +3792,286 @@ describe('RequestClient', () => {
 
       close?.();
     });
+
+    test('defaults event type to message when event field missing', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['data: {"foo":"bar"}\n\n'])),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: { foo: 'bar' } }]);
+
+      close?.();
+    });
+
+    test('does not split CRLF-delimited blocks incorrectly', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(
+          makeSseResponse([
+            'id: 1\r\nevent: message\r\ndata: {"foo":"bar"}\r\n\r\nevent: update\r\ndata: {"bar":2}\r\n\r\n',
+          ]),
+        ),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+      await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+
+      expect(handler).toHaveBeenNthCalledWith(1, [null, { type: 'message', data: { foo: 'bar' } }]);
+      expect(handler).toHaveBeenNthCalledWith(2, [null, { type: 'update', data: { bar: 2 } }]);
+
+      close?.();
+    });
+
+    test('buffers multi-line data across chunks into a single event', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: message\ndata: "first line"\n', 'data: "second line"\n\n'])),
+      );
+
+      const endpoints = {
+        '/api/stream': {
+          sse: {
+            events: {
+              message: z.string(),
+            },
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: '"first line"\n"second line"' }]);
+
+      close?.();
+    });
+
+    test('buffers multi-line data across chunks into a single event without quotes', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: message\ndata: first line\n', 'data: second line\n\n'])),
+      );
+
+      const endpoints = {
+        '/api/stream': {
+          sse: {
+            events: {
+              message: z.string(),
+            },
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: 'first line\nsecond line' }]);
+
+      close?.();
+    });
+
+    test('emits empty string for empty data field', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: message\ndata:\n\n'])),
+      );
+
+      const endpoints = {
+        '/api/stream': {
+          sse: {
+            events: {
+              message: z.string(),
+            },
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: '' }]);
+
+      close?.();
+    });
+
+    test('streams SSE number events through handler with validation', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['data: 123\n\n'])),
+      );
+
+      const endpoints = {
+        '/api/stream': {
+          sse: {
+            events: {
+              message: z.number(),
+            },
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: 123 }]);
+
+      close?.();
+    });
+
+    test('streams SSE null events through handler with validation', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['data: null\n\n'])),
+      );
+
+      const endpoints = {
+        '/api/stream': {
+          sse: {
+            events: {
+              message: z.null(),
+            },
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: null }]);
+
+      close?.();
+    });
+
+    test('streams SSE array events through handler with validation', async () => {
+      const handler = vi.fn();
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk(makeSseResponse(['event: message\ndata: [1,2,3]\n\n'])),
+      );
+
+      const endpoints = {
+        '/api/stream': {
+          sse: {
+            events: {
+              message: z.array(z.number()),
+            },
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler);
+      expect(err).toBeNull();
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([null, { type: 'message', data: [1, 2, 3] }]);
+
+      close?.();
+    });
   });
 });

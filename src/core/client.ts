@@ -418,6 +418,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       let eventName = 'message';
       let data = '';
+      let sawData = false;
       for (const line of block.split(/\r?\n/)) {
         // Safeguard, in reality should never be hit
         /* v8 ignore next -- @preserve */
@@ -450,12 +451,14 @@ export class RequestClient<Schema extends RequestDefinitions> {
         }
 
         if (line.startsWith('data:')) {
-          data += (data ? '\n' : '') + line.slice(5).trim();
+          const value = line.slice(5).trim();
+          data += (sawData ? '\n' : '') + value;
+          sawData = true;
         }
       }
 
       // Extra safeguard in case the above breaks in some absurd way
-      if (!data) {
+      if (!sawData) {
         return;
       }
 
@@ -513,6 +516,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
       while (true) {
         const [errRead, chunk] = await safeWrapAsync(() => reader.read());
         if (errRead) {
@@ -524,11 +528,20 @@ export class RequestClient<Schema extends RequestDefinitions> {
           break;
         }
 
-        const text = decoder.decode(value, { stream: true });
-        for (const part of text.split(/\n\n/)) {
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split(/\r?\n\r?\n/);
+        // Safeguard, as the split above, technically can never return
+        // something we cannot pop from
+        /* v8 ignore next -- @preserve */
+        buffer = parts.pop() ?? '';
+        for (const part of parts) {
           await parseBlock(part.trim());
         }
       }
+
+      // Handles any blocks that wasn't "correctly" ended
+      // with a newline
+      await parseBlock(buffer.trim());
     };
 
     const listen = async () => {
