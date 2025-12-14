@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.3.2",
+  "version": "0.3.2-alpha.2",
   "description": "Universal fetch-based HTTP client with robust error handling, retries, caching, SSE, and Standard Schema validation.",
   "type": "module",
   "keywords": [
@@ -26,7 +26,7 @@
     "type-safe",
     "standard-schema"
   ],
-  "author": "Kasper Rynning-Tønnesen <kasper@rynning-toennesen.email> (https://github.com/kasperrt)",
+  "author": "Kasper Rynning-Tønnesen <kasperrt@users.noreply.github.com> (https://github.com/kasperrt)",
   "license": "MIT",
   "repository": {
     "type": "git",
