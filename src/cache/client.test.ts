@@ -343,6 +343,39 @@ describe('CacheClient', () => {
       expect(key).toBe('["https://example.com",[["x","a"],["x","b"]]]');
     });
 
+    it('orders duplicate header names by value for deterministic key, with correct from start', () => {
+      const client = new CacheClient();
+      const duplicateHeaders = [
+        ['x', 'a'],
+        ['x', 'b'],
+      ] as unknown as Headers;
+      const key = client.key('https://example.com', duplicateHeaders);
+
+      expect(key).toBe('["https://example.com",[["x","a"],["x","b"]]]');
+    });
+
+    it('orders duplicate header names by value for deterministic key, with duplicate values', () => {
+      const client = new CacheClient();
+      const duplicateHeaders = [
+        ['x', 'a'],
+        ['x', 'a'],
+      ] as unknown as Headers;
+      const key = client.key('https://example.com', duplicateHeaders);
+
+      expect(key).toBe('["https://example.com",[["x","a"],["x","a"]]]');
+    });
+
+    it('orders header names by value for deterministic key', () => {
+      const client = new CacheClient();
+      const duplicateHeaders = [
+        ['b', 'a'],
+        ['a', 'a'],
+      ] as unknown as Headers;
+      const key = client.key('https://example.com', duplicateHeaders);
+
+      expect(key).toBe('["https://example.com",[["a","a"],["b","a"]]]');
+    });
+
     it('gets key with multi-header still same sort', () => {
       const client = new CacheClient();
 

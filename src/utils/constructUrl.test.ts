@@ -36,6 +36,32 @@ describe('constructUrl', () => {
     expect(url).toBe('integrations/slack%20github/files/file%2Fname?q=query+param&tag=a%2Bb');
   });
 
+  it('URI-encodes bool in path and bool in $path', async () => {
+    const schema = {
+      '/thing/{value1}/{value2}': {
+        get: {
+          $path: z.object({
+            value1: z.boolean(),
+          }),
+          response: z.string(),
+        },
+      },
+    } satisfies RequestDefinitions;
+
+    const [err, url] = await constructUrl<'get', typeof schema, '/thing/{value1}/{value2}'>(
+      '/thing/{value1}/{value2}',
+      {
+        $path: { value1: true },
+        value2: false,
+      },
+      schema['/thing/{value1}/{value2}'].get,
+      false,
+    );
+
+    expect(err).toBeNull();
+    expect(url).toBe('thing/true/false');
+  });
+
   it('errors when required path params are missing', async () => {
     const schema = {
       '/users/{id}': {

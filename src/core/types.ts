@@ -63,9 +63,10 @@ export type RequestDefinitions = {
 };
 
 /** Parse `{param}` segments from a path template into a typed object. */
-export type ParsePathParams<Path extends string | number> = Path extends `${infer _Start}{${infer Param}}${infer Rest}`
-  ? { [K in Param]: string | number } & ParsePathParams<Rest>
-  : EmptyObject;
+export type ParsePathParams<Path extends string | number | boolean> =
+  Path extends `${infer _Start}{${infer Param}}${infer Rest}`
+    ? { [K in Param]: string | number | boolean } & ParsePathParams<Rest>
+    : EmptyObject;
 
 /** Extract endpoints that support a given HTTP method. */
 export type EndpointsWithMethod<Method extends ClientOperation, Schema extends RequestDefinitions> = {

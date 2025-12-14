@@ -78,7 +78,8 @@ export async function constructUrl<
     if (key === '$search' || key === '$path') {
       continue;
     }
-    if (typeof value === 'string' || typeof value === 'number') {
+
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
       result = result.replace(new RegExp(`{${key}}`, 'g'), encodeURIComponent(String(value)));
     }
   }
