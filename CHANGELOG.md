@@ -64,6 +64,7 @@ const [err, close] = await client.sse(
   { credentials: 'include' },
 );
 ```
+
 - SSE handler remains error-first; unknown event types can be ignored or surfaced via `errorUnknownType`.
 - Added README docs and e2e coverage for multi-event SSE streams and validation behavior.
 - Allow SSE events to parse string-only data.
