@@ -312,11 +312,37 @@ describe('CacheClient', () => {
     const url = 'https://example.com';
     const headers = new Headers([['x-test', '123']]);
 
-    it('uses crypto.subtle digest when available', async () => {
+    it('gets key normally', () => {
       const client = new CacheClient();
 
-      const key = await client.key(url, headers);
+      const key = client.key(url, headers);
       expect(key).toBe('["https://example.com",[["x-test","123"]]]');
+    });
+
+    it('gets key with multi-header', () => {
+      const client = new CacheClient();
+
+      const key = client.key(
+        url,
+        new Headers([
+          ['x-1', '1'],
+          ['x-2', '2'],
+        ]),
+      );
+      expect(key).toBe('["https://example.com",[["x-1","1"],["x-2","2"]]]');
+    });
+
+    it('gets key with multi-header still same sort', () => {
+      const client = new CacheClient();
+
+      const key = client.key(
+        url,
+        new Headers([
+          ['x-2', '2'],
+          ['x-1', '1'],
+        ]),
+      );
+      expect(key).toBe('["https://example.com",[["x-1","1"],["x-2","2"]]]');
     });
   });
 });
