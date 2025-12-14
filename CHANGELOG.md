@@ -1,10 +1,7 @@
 # Releases
 
 ## Contents
-- [v0.3.2-alpha.3](#v0-3-2-alpha-3)
-- [v0.3.2-alpha.2](#v0-3-2-alpha-2)
-- [v0.3.2-alpha.1](#v0-3-2-alpha-1)
-- [v0.3.2-alpha.0](#v0-3-2-alpha-0)
+- [v0.3.2](#v0-3-2)
 - [v0.3.1](#v0-3-1)
 - [v0.3.0](#v0-3-0)
 - [v0.2.5](#v0-2-5)
@@ -18,26 +15,22 @@
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
 
-## v0.3.2-alpha.3
-
-- Improved SSE non-JSON handling; Don't auto-wrap in "", allow type-parsing (ie. allow true/false/numbers), as well as correct multi-line support.
-
-## v0.3.2-alpha.2
-
-- Remove debug option.
-- Remove logger.
-- Remove internal retrier-name.
-
-## v0.3.2-alpha.1
-
-- Adds support for booleans in URL.
-- Simplifies logging.
-- Adds better coverage for cache-key generation.
-
-## v0.3.2-alpha.0
+## v0.3.2
 
 - Remove excessive obscurification in cache-client key generation for better universality.
 - Update tsconfig.build.json to better reflect and not inherit to reduce surface for leaking types.
+- Adds support for booleans in URL.
+- Adds better coverage for cache-key generation.
+- Remove debug option.
+- Remove logger.
+- Remove internal retrier-name.
+- Improve SSE parsing (buffering + block splitting).
+- Support CRLF (\r\n\r\n) block delimiters.
+- Buffer across chunk boundaries so events/data lines split across reads are handled.
+- Treat empty data: as an empty payload.
+- Flush the final unterminated block when the stream closes.
+- Include more tests to validate that input/output for SSE is correct.
+- Add tryParse function to try to parse JSON, if not return whatever input was from before.
 
 ## v0.3.1
 
