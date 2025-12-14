@@ -308,59 +308,15 @@ describe('CacheClient', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  describe('key hashing fallbacks', () => {
+  describe('key getting', () => {
     const url = 'https://example.com';
     const headers = new Headers([['x-test', '123']]);
-    const input = `${url}|x-test:123`;
 
     it('uses crypto.subtle digest when available', async () => {
       const client = new CacheClient();
-      const digestMock = vi.fn().mockResolvedValue(Uint8Array.from([0, 1, 255]).buffer);
-
-      vi.stubGlobal('crypto', { subtle: { digest: digestMock } } as unknown as Crypto);
-      vi.stubGlobal('btoa', undefined as unknown as typeof btoa);
-      vi.stubGlobal('Buffer', undefined as unknown as typeof Buffer);
 
       const key = await client.key(url, headers);
-      expect(digestMock).toHaveBeenCalledTimes(1);
-      expect(digestMock).toHaveBeenCalledWith('SHA-256', new TextEncoder().encode(input));
-      expect(key).toBe('0001ff');
-    });
-
-    it('falls back to btoa when crypto is unavailable', async () => {
-      const client = new CacheClient();
-      const btoaMock = vi.fn().mockImplementation((input: string) => {
-        return `base64:${input}`;
-      });
-
-      vi.stubGlobal('crypto', undefined as unknown as Crypto);
-      vi.stubGlobal('btoa', btoaMock);
-      vi.stubGlobal('Buffer', undefined as unknown as typeof Buffer);
-
-      const key = await client.key(url, headers);
-      expect(btoaMock).toHaveBeenCalledTimes(1);
-      expect(btoaMock).toHaveBeenCalledWith(input);
-      expect(key).toBe(`base64:${input}`);
-    });
-
-    it('falls back to Buffer when crypto and btoa are unavailable', async () => {
-      const client = new CacheClient();
-      vi.stubGlobal('crypto', undefined as unknown as Crypto);
-      vi.stubGlobal('btoa', undefined as unknown as typeof btoa);
-      vi.stubGlobal('Buffer', Buffer);
-
-      const key = await client.key(url, headers);
-      expect(key).toBe(Buffer.from(input, 'utf-8').toString('base64'));
-    });
-
-    it('returns input when crypto, btoa, and Buffer are all unavailable', async () => {
-      const client = new CacheClient();
-      vi.stubGlobal('crypto', undefined as unknown as Crypto);
-      vi.stubGlobal('btoa', undefined as unknown as typeof btoa);
-      vi.stubGlobal('Buffer', undefined as unknown as typeof Buffer);
-
-      const key = await client.key(url, headers);
-      expect(key).toBe(input);
+      expect(key).toBe('["https://example.com",[["x-test","123"]]]');
     });
   });
 });

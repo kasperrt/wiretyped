@@ -19,8 +19,9 @@ export default defineConfig({
       { text: 'Reference', link: '/reference/entrypoints' },
       { text: 'Changelog', link: '/changelog' },
       {
-        text: 'v0.3.1',
+        text: 'v0.3.2-alpha.0',
         items: [
+          { text: 'v0.3.1', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.1' },
           { text: 'v0.3.0', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.0' },
           { text: 'v0.2.5', link: 'https://github.com/kasperrt/wiretyped/tree/v0.2.5' },
           { text: 'v0.1.2', link: 'https://github.com/kasperrt/wiretyped/tree/v0.1.2' },

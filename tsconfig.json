@@ -21,7 +21,7 @@
 
     "verbatimModuleSyntax": true,
 
-    "types": ["vitest/globals", "node"]
+    "types": ["vitest/globals"]
   },
   "exclude": ["node_modules", "**/*.spec.ts", "scripts/types-smoke/**/*.ts", "**/*.test.ts"]
 }

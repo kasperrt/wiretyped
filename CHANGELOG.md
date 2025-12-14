@@ -1,6 +1,7 @@
 # Releases
 
 ## Contents
+- [v0.3.2-alpha.0](#v032-alpha0)
 - [v0.3.1](#v031)
 - [v0.3.0](#v030)
 - [v0.2.5](#v025)
@@ -13,6 +14,11 @@
 - [v0.1.1](#v011)
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
+
+## v0.3.2-alpha.0
+
+- Remove excessive obscurification in cache-client key generation for better universality.
+- Update tsconfig.build.json to better reflect and not inherit to reduce surface for leaking types.
 
 ## v0.3.1
 
