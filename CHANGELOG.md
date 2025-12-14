@@ -1,6 +1,7 @@
 # Releases
 
 ## Contents
+- [v0.3.2-alpha.2](#v032-alpha2)
 - [v0.3.2-alpha.1](#v032-alpha1)
 - [v0.3.2-alpha.0](#v032-alpha0)
 - [v0.3.1](#v031)
@@ -15,6 +16,12 @@
 - [v0.1.1](#v011)
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
+
+## v0.3.2-alpha.2
+
+- Remove debug option.
+- Remove logger.
+- Remove internal retrier-name.
 
 ## v0.3.2-alpha.1
 
