@@ -1,9 +1,7 @@
 # Releases
 
 ## Contents
-- [v0.3.2-alpha.2](#v032-alpha2)
-- [v0.3.2-alpha.1](#v032-alpha1)
-- [v0.3.2-alpha.0](#v032-alpha0)
+- [v0.3.2](#v032)
 - [v0.3.1](#v031)
 - [v0.3.0](#v030)
 - [v0.2.5](#v025)
@@ -17,22 +15,15 @@
 - [v0.1.0](#v010)
 - [v0.0.8](#v008)
 
-## v0.3.2-alpha.2
-
-- Remove debug option.
-- Remove logger.
-- Remove internal retrier-name.
-
-## v0.3.2-alpha.1
-
-- Adds support for booleans in URL.
-- Simplifies logging.
-- Adds better coverage for cache-key generation.
-
-## v0.3.2-alpha.0
+## v0.3.2
 
 - Remove excessive obscurification in cache-client key generation for better universality.
 - Update tsconfig.build.json to better reflect and not inherit to reduce surface for leaking types.
+- Adds support for booleans in URL.
+- Adds better coverage for cache-key generation.
+- Remove debug option.
+- Remove logger.
+- Remove internal retrier-name.
 
 ## v0.3.1
 
