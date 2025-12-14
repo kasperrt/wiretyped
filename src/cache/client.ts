@@ -183,7 +183,7 @@ export class CacheClient {
     clearInterval(this.#intervalId);
 
     this.#intervalId = setInterval(() => {
-      for (const key of Object.keys(this.#cache)) {
+      for (const key of this.#cache.keys()) {
         this.#getItem(key);
       }
     }, this.#cleanupInterval);
