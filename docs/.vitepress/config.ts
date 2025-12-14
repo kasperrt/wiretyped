@@ -16,6 +16,9 @@ export default defineConfig({
     'Universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.',
   base: process.env.DOCS_BASE ?? '/',
   appearance: 'force-dark',
+  markdown: {
+    theme: 'one-dark-pro',
+  },
   themeConfig: {
     logo: '/logo.png',
     // https://vitepress.dev/reference/default-theme-config
