@@ -418,7 +418,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       let eventName = 'message';
       let data = '';
-      let sawData = false;
+      let hasData = false;
       for (const line of block.split(/\r?\n/)) {
         // Safeguard, in reality should never be hit
         /* v8 ignore next -- @preserve */
@@ -452,13 +452,13 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
         if (line.startsWith('data:')) {
           const value = line.slice(5).trim();
-          data += (sawData ? '\n' : '') + value;
-          sawData = true;
+          data += (hasData ? '\n' : '') + value;
+          hasData = true;
         }
       }
 
       // Extra safeguard in case the above breaks in some absurd way
-      if (!sawData) {
+      if (!hasData) {
         return;
       }
 
