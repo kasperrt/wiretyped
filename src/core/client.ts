@@ -20,8 +20,9 @@ import { getResponseData } from '../utils/getResponseData.js';
 import { retry } from '../utils/retry.js';
 import { createTimeoutSignal, mergeSignals } from '../utils/signals.js';
 import { sleep } from '../utils/sleep.js';
+import { tryParse } from '../utils/tryParse.js';
 import { validator } from '../utils/validator.js';
-import { type SafeWrap, type SafeWrapAsync, safeWrap, safeWrapAsync } from '../utils/wrap.js';
+import { type SafeWrap, type SafeWrapAsync, safeWrapAsync } from '../utils/wrap.js';
 import type {
   ClientOperation,
   DeleteArgs,
@@ -417,6 +418,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       let eventName = 'message';
       let data = '';
+      let hasData = false;
       for (const line of block.split(/\r?\n/)) {
         // Safeguard, in reality should never be hit
         /* v8 ignore next -- @preserve */
@@ -449,12 +451,14 @@ export class RequestClient<Schema extends RequestDefinitions> {
         }
 
         if (line.startsWith('data:')) {
-          data = data + line.slice(5).trim();
+          const value = line.slice(5).trim();
+          data += (hasData ? '\n' : '') + value;
+          hasData = true;
         }
       }
 
       // Extra safeguard in case the above breaks in some absurd way
-      if (!data) {
+      if (!hasData) {
         return;
       }
 
@@ -466,17 +470,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
         return handler([new Error(`error unknown event-type ${eventName} in sse stream`), null]);
       }
 
-      // This is likely a double-data lined message so we should combine with newlines
-      if (data?.includes('""')) {
-        data = data.replace(/""/g, '\\n');
-      }
-
-      const [errParsed, parsed] = safeWrap(() => JSON.parse(data));
-      if (errParsed) {
-        handler([new Error('error parsing in sse stream', { cause: errParsed }), null]);
-        return;
-      }
-
+      const parsed = tryParse(data);
       if (validate === false || (this.#validation === false && !validate)) {
         return handler([null, { type: eventName, data: parsed }]);
       }
@@ -522,6 +516,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
       while (true) {
         const [errRead, chunk] = await safeWrapAsync(() => reader.read());
         if (errRead) {
@@ -533,11 +528,20 @@ export class RequestClient<Schema extends RequestDefinitions> {
           break;
         }
 
-        const text = decoder.decode(value, { stream: true });
-        for (const part of text.split(/\n\n/)) {
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split(/\r?\n\r?\n/);
+        // Safeguard, as the split above, technically can never return
+        // something we cannot pop from
+        /* v8 ignore next -- @preserve */
+        buffer = parts.pop() ?? '';
+        for (const part of parts) {
           await parseBlock(part.trim());
         }
       }
+
+      // Handles any blocks that wasn't "correctly" ended
+      // with a newline
+      await parseBlock(buffer.trim());
     };
 
     const listen = async () => {
