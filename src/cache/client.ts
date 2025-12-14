@@ -113,13 +113,13 @@ export class CacheClient {
     const pending = (async (): SafeWrapAsync<Error, T> => {
       const [errWrapped, wrapped] = await safeWrapAsync(() => request());
       if (errWrapped) {
-        delete this.#pending[key];
+        this.#pending.delete(key);
         return [new Error('error thrown on cache wrapping request', { cause: errWrapped }), null];
       }
 
       const [errData, data] = wrapped;
       if (errData) {
-        delete this.#pending[key];
+        this.#pending.delete(key);
         return [new Error('error getting cached request', { cause: errData }), null];
       }
 
