@@ -25,4 +25,4 @@ interface FetchClientProviderDefinition {
 
 ## What's next
 
-- Jump back to usage examples in [`/guide/methods`](/guide/methods).
+- See frequently asked questions in [`/faq`](/faq).

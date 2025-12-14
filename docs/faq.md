@@ -28,5 +28,4 @@ It’s not currently exported as part of the public API (might be soon™ though
 
 ## What's next
 
-- Check supported imports and entrypoints in [`/reference/entrypoints`](/reference/entrypoints).
-- See provider interfaces in [`/reference/providers`](/reference/providers).
+- Jump back to usage examples in [`/guide/methods`](/guide/methods).

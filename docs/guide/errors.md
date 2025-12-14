@@ -83,4 +83,5 @@ if (validation) {
 
 ## What's next
 
-- See the general philosophy and internal `safeWrap` note in [`/guide/faq`](/guide/faq).
+- Check supported imports and entrypoints in [`/reference/entrypoints`](/reference/entrypoints).
+- See provider interfaces in [`/reference/providers`](/reference/providers).

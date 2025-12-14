@@ -59,5 +59,5 @@ console.log(user.name);
 - [Retries](https://wiretyped.io/guide/retries)
 - [SSE](https://wiretyped.io/guide/sse)
 - [Error Handling](https://wiretyped.io/guide/errors)
-- [FAQ](https://wiretyped.io/guide/faq)
+- [FAQ](https://wiretyped.io/faq)
 - [Changelog](https://wiretyped.io/changelog)
