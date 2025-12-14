@@ -20,7 +20,6 @@
 - Remove excessive obscurification in cache-client key generation for better universality.
 - Update tsconfig.build.json to better reflect and not inherit to reduce surface for leaking types.
 - Adds support for booleans in URL.
-- Simplifies logging.
 - Adds better coverage for cache-key generation.
 - Remove debug option.
 - Remove logger.
