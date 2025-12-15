@@ -123,16 +123,16 @@ jobs:
         include:
           - runtime: node
             node-version: 18
-            command: pnpm run test:e2e
+            command: pnpm run test:e2e:node
           - runtime: node
             node-version: 20
-            command: pnpm run test:e2e
+            command: pnpm run test:e2e:node
           - runtime: node
             node-version: 22
-            command: pnpm run test:e2e
+            command: pnpm run test:e2e:node
           - runtime: node
             node-version: 24
-            command: pnpm run test:e2e
+            command: pnpm run test:e2e:node
           - runtime: bun
             node-version: 22
             command: pnpm run test:e2e:bun
