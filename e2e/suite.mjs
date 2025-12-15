@@ -1,15 +1,32 @@
 import { safeWrapAsync } from '../dist/utils/wrap.mjs';
 
+/**
+ *
+ * @param {boolean} condition
+ * @param {string} message
+ */
 function assert(condition, message) {
-  if (!condition) {
-    throw new Error(message);
+  if (condition) {
+    return;
   }
+
+  throw new Error(message);
 }
 
+/**
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isObject(value) {
   return typeof value === 'object' && value !== null;
 }
 
+/**
+ * @param {unknown} a
+ * @param {unknown} b
+ * @returns {boolean}
+ */
 function deepEqual(a, b) {
   if (Object.is(a, b)) {
     return true;
@@ -59,10 +76,20 @@ function deepEqual(a, b) {
   return false;
 }
 
+/**
+ * @param {unknown} actual
+ * @param {unknown} expected
+ * @param {string} message
+ * @returns {void}
+ */
 function assertDeepEqual(actual, expected, message) {
   assert(deepEqual(actual, expected), message);
 }
 
+/**
+ * @param {{ wiretyped: any, endpoints: Record<string, any>, baseUrl: string }} opts
+ * @returns {any}
+ */
 export function createE2EClient({ wiretyped, endpoints, baseUrl }) {
   return new wiretyped.RequestClient({
     baseUrl,
@@ -75,6 +102,17 @@ export function createE2EClient({ wiretyped, endpoints, baseUrl }) {
   });
 }
 
+/**
+ * @param {{
+ *   wiretyped: any,
+ *   client: any,
+ *   admin: {
+ *     reset: () => Promise<Error | null>,
+ *     getCounts: () => Promise<[Error | null, Record<string, number> | null]>,
+ *   }
+ * }} opts
+ * @returns {{ name: string, run: () => Promise<void> }[]}
+ */
 export function getE2ETestCases({ wiretyped, client, admin }) {
   const { getHttpError, getRetryExhaustedError, getRetrySuppressedError, isHttpError, isValidationError } = wiretyped;
 
@@ -488,6 +526,12 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
   ];
 }
 
+/**
+ * Runs cases sequentially and returns a summary.
+ *
+ * @param {{ name: string, run: () => Promise<void> }[]} cases
+ * @returns {Promise<[unknown[], string[]]>}
+ */
 export async function runE2ETestCases(cases) {
   const logs = [];
   const errors = [];

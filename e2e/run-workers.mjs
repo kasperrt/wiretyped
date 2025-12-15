@@ -14,8 +14,12 @@ await new Promise((resolveBuild, rejectBuild) => {
   });
   proc.on('error', rejectBuild);
   proc.on('exit', (code) => {
-    if (code === 0) resolveBuild();
-    else rejectBuild(new Error(`vite build failed with exit code ${code ?? -1}`));
+    if (code === 0) {
+      resolveBuild();
+      return;
+    }
+
+    rejectBuild(new Error(`vite build failed with exit code ${code ?? -1}`));
   });
 });
 
@@ -39,6 +43,11 @@ if (errDispatch) {
   throw new Error('error dispatching', { cause: errDispatch });
 }
 
+/**
+ * @typedef {{ ok: boolean, logs: string[], errors: string[] }} WorkerE2EResult
+ */
+
+/** @type {WorkerE2EResult} */
 const result = await res.json();
 for (const line of result?.logs ?? []) {
   console.log(line);

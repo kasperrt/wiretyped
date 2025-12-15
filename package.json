@@ -93,7 +93,6 @@
     "smoke:resolve": "node scripts/smoke-resolve.mjs",
     "smoke:pack": "node scripts/smoke-pack.mjs",
     "smoke:types": "pnpm exec tsc -p scripts/types-smoke/tsconfig.json",
-    "smoke:worker": "node scripts/smoke-worker.mjs",
     "test": "pnpm test:integrations && pnpm test:e2e",
     "test:integrations": "vitest run --no-isolate --no-file-parallelism",
     "test:e2e": "pnpm test:e2e:node && pnpm test:e2e:bun && pnpm test:e2e:deno && pnpm test:e2e:browser && pnpm test:e2e:workers",

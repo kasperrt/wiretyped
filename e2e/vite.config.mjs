@@ -3,6 +3,13 @@ import { defineConfig } from 'vite';
 
 const e2eRoot = fileURLToPath(new URL('.', import.meta.url));
 
+/**
+ * Builds either:
+ * - the browser page bundle (default), or
+ * - the Miniflare worker bundle (`--mode worker`).
+ *
+ * @param {{ mode: string }} ctx
+ */
 export default defineConfig(({ mode }) => {
   if (mode === 'worker') {
     return {

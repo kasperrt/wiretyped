@@ -1,5 +1,14 @@
 import { safeWrapAsync } from '../dist/utils/wrap.mjs';
 
+/**
+ * Helper for interacting with the e2e server's admin endpoints.
+ *
+ * @param {string | URL} baseUrl
+ * @returns {{
+ *   reset: () => Promise<Error | null>,
+ *   getCounts: () => Promise<[Error | null, Record<string, number> | null]>,
+ * }}
+ */
 export function createRemoteAdmin(baseUrl) {
   return {
     reset: async () => {
