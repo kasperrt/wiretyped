@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.3.2",
+  "version": "0.3.3-alpha.0",
   "description": "Universal fetch-based HTTP client with robust error handling, retries, caching, SSE, and Standard Schema validation.",
   "type": "module",
   "keywords": [
