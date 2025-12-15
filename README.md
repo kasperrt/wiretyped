@@ -25,9 +25,8 @@ WireTyped is a small, composable HTTP client for fetch-based runtimes (browser, 
 ## Quick taste
 
 ```ts
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 import { RequestClient, type RequestDefinitions } from 'wiretyped';
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
 
 const endpoints = {
   '/users/{id}': {

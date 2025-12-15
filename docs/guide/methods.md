@@ -241,6 +241,7 @@ For more details (type narrowing, reconnection behavior, `Last-Event-ID`), see [
 
 ## What's next
 
+- Check how to contribute and builde the pacakge in [`/guide/development`](/guide/development).
 - Add GET caching in [`/guide/caching`](/guide/caching) (TTL, cache keys, safety notes).
 - Tune retry/timeout behavior in [`/guide/retries`](/guide/retries).
 - Handle errors and unwrap causes in [`/guide/errors`](/guide/errors).
