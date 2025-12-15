@@ -1,9 +1,7 @@
 import { readFile } from 'node:fs/promises';
-import { extname, join, resolve } from 'node:path';
+import { createServer } from 'node:http';
+import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
-import { streamSSE } from 'hono/streaming';
 import { sleep } from '../dist/utils/sleep.mjs';
 import { validator } from '../dist/utils/validator.mjs';
 import { safeWrap, safeWrapAsync } from '../dist/utils/wrap.mjs';
@@ -13,18 +11,134 @@ const flakyEndpoint = '/flaky';
 const sseEndpoint = '/sse';
 
 /**
+ * @param {import('node:http').IncomingMessage} req
+ * @returns {URL}
+ */
+function getRequestUrl(req) {
+  const raw = req.url ?? '/';
+  return new URL(raw, 'http://127.0.0.1');
+}
+
+/**
+ * @param {string} root Absolute root directory.
+ * @param {string} candidate Absolute file path.
+ * @returns {boolean}
+ */
+function ensureInside(root, candidate) {
+  const rel = relative(root, candidate);
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+}
+
+/**
+ * @param {string} pathOrExt
+ * @returns {string | undefined}
+ */
+function contentTypeFor(pathOrExt) {
+  const ext = pathOrExt.startsWith('.') ? pathOrExt : extname(pathOrExt);
+  switch (ext) {
+    case '.js':
+      return 'application/javascript';
+    case '.html':
+      return 'text/html';
+  }
+}
+
+/**
+ * @param {import('node:http').ServerResponse} res
+ * @param {number} status
+ * @param {string} text
+ * @param {Record<string, string>} [headers]
+ * @returns {void}
+ */
+function sendText(res, status, text, headers = {}) {
+  res.statusCode = status;
+  res.setHeader('Content-Type', headers['Content-Type'] ?? 'text/plain; charset=utf-8');
+  for (const [k, v] of Object.entries(headers)) {
+    if (k.toLowerCase() === 'content-type') {
+      continue;
+    }
+    res.setHeader(k, v);
+  }
+  res.end(text);
+}
+
+/**
+ * @param {import('node:http').ServerResponse} res
+ * @param {number} status
+ * @param {unknown} value
+ * @param {Record<string, string>} [headers]
+ * @returns {void}
+ */
+function json(res, status, value, headers = {}) {
+  const [errStringify, body] = safeWrap(() => JSON.stringify(value));
+  if (errStringify) {
+    sendText(res, 500, 'error stringifying json', headers);
+    return;
+  }
+  sendText(res, status, body, { ...headers, 'Content-Type': 'application/json; charset=utf-8' });
+}
+
+/**
+ * @param {import('node:http').IncomingMessage} req
+ * @returns {Promise<[Error | null, any | null]>}
+ */
+async function read(req) {
+  const chunks = [];
+
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  const text = Buffer.concat(chunks).toString('utf8');
+  const [errParse, value] = safeWrap(() => JSON.parse(text));
+  if (errParse) {
+    return [errParse, null];
+  }
+
+  return [null, value];
+}
+
+/**
+ * Writes a Server-Sent Event (SSE) block to the response.
+ *
+ * @param {import('node:http').ServerResponse} res
+ * @param {{ event?: string, data: string, id?: string, retry?: number }} message
+ * @returns {void}
+ */
+function sse(res, { event, data, id, retry }) {
+  if (id) {
+    res.write(`id: ${id}\n`);
+  }
+
+  if (event) {
+    res.write(`event: ${event}\n`);
+  }
+
+  if (typeof retry === 'number') {
+    res.write(`retry: ${retry.toString()}\n`);
+  }
+
+  const str = typeof data === 'string' ? data : String(data);
+  const lines = str.split(/\r?\n/);
+  for (const line of lines) {
+    res.write(`data: ${line}\n`);
+  }
+
+  res.write('\n');
+}
+
+/**
  * Starts an HTTP server implementing the endpoints used by the e2e suite.
  *
  * @param {Record<string, any>} endpoints
- * @returns {Promise<[Error | null, E2EServer | null]>}
+ * @param {{ port?: number, hostname?: string }} [opts]
+ * @returns {Promise<[Error | null, Server | null]>}
  */
 export async function startE2EServer(endpoints, opts = {}) {
-  const counts = {};
+  const counts = new Map();
   const okSchemas = endpoints?.[okEndpoint];
   const flakySchemas = endpoints?.[flakyEndpoint];
   const sseSchemas = endpoints?.[sseEndpoint];
-  const app = new Hono();
-  const sockets = new Set();
 
   if (!okSchemas || !flakySchemas || !sseSchemas) {
     return [new Error('missing required endpoints for e2e server'), null];
@@ -36,158 +150,238 @@ export async function startE2EServer(endpoints, opts = {}) {
     'Access-Control-Allow-Headers': 'Content-Type, x-client, x-type, Last-Event-ID',
   };
 
-  app.use('*', async (c, next) => {
-    for (const [key, value] of Object.entries(corsHeaders)) {
-      c.header(key, value);
-    }
-    await next();
-  });
-
-  app.options('*', (c) => {
-    for (const [key, value] of Object.entries(corsHeaders)) {
-      c.header(key, value);
-    }
-    return c.body(null, 204);
-  });
-
+  /**
+   * @param {string} key
+   * @returns {number}
+   */
   function increment(key) {
-    counts[key] = (counts[key] ?? 0) + 1;
-    return counts[key];
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    return counts.get(key);
   }
 
-  app.get('/__counts', (c) => c.json(counts));
-  app.post('/__reset', (c) => {
-    for (const k of Object.keys(counts)) {
-      delete counts[k];
-    }
-    return c.json({ ok: true });
-  });
+  function reset() {
+    counts.clear();
+  }
 
-  const distDir = fileURLToPath(new URL('../dist', import.meta.url));
   const browserDistDir = fileURLToPath(new URL('./dist', import.meta.url));
 
-  const contentTypeFor = (ext) => {
-    switch (ext) {
-      case '.mjs':
-      case '.js':
-        return 'application/javascript';
-      case '.html':
-        return 'text/html';
-      default:
-        return 'text/plain';
-    }
-  };
-
-  const ensureInside = (root, candidate) => candidate.startsWith(root);
-
-  app.get('/', (c) => c.redirect('/browser-test.html'));
-
-  app.get('/browser-test.html', async (c) => {
-    const targetPath = resolve(join(browserDistDir, 'browser-test.html'));
-    if (!ensureInside(browserDistDir, targetPath)) {
-      return c.text('Forbidden', 403);
+  const server = createServer(async (req, res) => {
+    for (const [k, v] of Object.entries(corsHeaders)) {
+      res.setHeader(k, v);
     }
 
-    const [err, data] = await safeWrapAsync(() => readFile(targetPath));
-    if (err) {
-      return c.text('Not found', 404);
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
     }
 
-    c.header('Content-Type', 'text/html');
-    c.header('Cache-Control', 'no-store');
-    return c.body(data, 200);
-  });
+    const url = getRequestUrl(req);
+    const pathname = url.pathname;
+    const method = (req.method ?? 'GET').toUpperCase();
 
-  app.get('/assets/*', async (c) => {
-    const pathname = c.req.path;
-    const rel = pathname.replace(/^\/+/, '');
-    const targetPath = resolve(join(browserDistDir, rel));
-    if (!ensureInside(browserDistDir, targetPath)) {
-      return c.text('Forbidden', 403);
+    if (method === 'GET' && pathname === '/__counts') {
+      json(res, 200, Object.fromEntries(counts.entries()));
+      return;
     }
 
-    const [err, data] = await safeWrapAsync(() => readFile(targetPath));
-    if (err) {
-      return c.text('Not found', 404);
+    if (method === 'POST' && pathname === '/__reset') {
+      reset();
+      json(res, 200, { ok: true });
+      return;
     }
 
-    c.header('Content-Type', contentTypeFor(extname(targetPath)));
-    c.header('Cache-Control', 'no-store');
-    return c.body(data, 200);
-  });
-
-  app.get('/dist/*', async (c) => {
-    const pathname = c.req.path;
-    const rel = pathname.replace(/^\/dist\/+/, '');
-    const targetPath = resolve(join(distDir, rel));
-    if (!ensureInside(distDir, targetPath)) {
-      return c.text('Forbidden', 403);
-    }
-
-    const [err, data] = await safeWrapAsync(() => readFile(targetPath));
-    if (err) {
-      return c.text('Not found', 404);
-    }
-
-    c.header('Content-Type', contentTypeFor(extname(targetPath)));
-    c.header('Cache-Control', 'no-store');
-    return c.body(data, 200);
-  });
-
-  function registerOk(method) {
-    const httpMethod = method === 'download' ? 'GET' : method.toUpperCase();
-    const counterMethod = method.toUpperCase();
-
-    app.on(httpMethod, '/ok/:integration', async (c) => {
-      const schemas = okSchemas[method];
-      if (!schemas) {
-        return c.notFound();
+    if (method === 'GET' && pathname === '/browser-test.html') {
+      const targetPath = resolve(join(browserDistDir, 'browser-test.html'));
+      if (!ensureInside(browserDistDir, targetPath)) {
+        sendText(res, 403, 'Forbidden');
+        return;
       }
 
-      const headers = c.req.header();
+      const [err, data] = await safeWrapAsync(() => readFile(targetPath));
+      if (err) {
+        sendText(res, 404, 'Not found');
+        return;
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.statusCode = 200;
+      res.end(data);
+      return;
+    }
+
+    if (method === 'GET' && pathname.startsWith('/assets/')) {
+      const rel = pathname.replace(/^\/+/, '');
+      const targetPath = resolve(join(browserDistDir, rel));
+      if (!ensureInside(browserDistDir, targetPath)) {
+        sendText(res, 403, 'Forbidden');
+        return;
+      }
+
+      const [err, data] = await safeWrapAsync(() => readFile(targetPath));
+      if (err) {
+        sendText(res, 404, 'Not found');
+        return;
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Content-Type', `${contentTypeFor(targetPath)}; charset=utf-8`);
+      res.statusCode = 200;
+      res.end(data);
+      return;
+    }
+
+    if (pathname === '/bad' && method === 'GET') {
+      json(res, 200, { data: 'wrong-format', etc: 'test' });
+      return;
+    }
+
+    if (pathname === '/flaky' && method === 'GET') {
+      const schemas = flakySchemas.get;
+      if (!schemas) {
+        json(res, 500, { error: 'missing schema for flaky' });
+        return;
+      }
+
+      const headers = req.headers ?? {};
       if (headers['x-client'] !== 'e2e-scoped') {
-        return c.json({ error: 'missing inlined header' }, 500);
+        json(res, 500, { error: 'missing inlined header' });
+        return;
       }
 
       if (headers['x-type'] !== 'e2e-global') {
-        return c.json({ error: 'missing global header' }, 500);
+        json(res, 500, { error: 'missing global header' });
+        return;
       }
 
-      const integration = c.req.param('integration');
+      const attempt = increment(`GET ${flakyEndpoint}`);
+      const failTimes = Number(url.searchParams.get('failTimes') ?? '1');
+      const ok = attempt > failTimes;
+      const responseData = { ok, attempt };
+      const [errResponse, validatedResponse] = await validator(responseData, schemas.response);
+      if (errResponse) {
+        json(res, 500, { error: 'response failed validation', details: errResponse.message });
+        return;
+      }
+
+      json(res, ok ? 200 : 500 + (attempt - 1), validatedResponse);
+      return;
+    }
+
+    if (pathname === '/sse' && method === 'GET') {
+      const schemas = sseSchemas.sse;
+      if (!schemas) {
+        json(res, 500, { error: 'missing schema for sse' });
+        return;
+      }
+
+      increment(`SSE ${sseEndpoint}`);
+
+      const mode = url.searchParams.get('error') ?? 'never';
+
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders?.();
+
+      let closed = false;
+      req.on('close', () => {
+        closed = true;
+      });
+
+      for (let i = 1; i <= 3; i++) {
+        if (closed) {
+          return;
+        }
+
+        if (mode === 'sometimes' && i === 2) {
+          sse(res, { data: 'not-json' });
+          await sleep(1);
+          continue;
+        }
+
+        const payload = { i };
+        const [errValidate, validated] = await validator(payload, schemas.events.message);
+        if (errValidate) {
+          res.end();
+          return;
+        }
+
+        sse(res, { data: JSON.stringify(validated), ...(i === 1 ? { retry: 25 } : {}) });
+        await sleep(1);
+      }
+
+      const statusPayload = { ok: true };
+      const [errStatus, validatedStatus] = await validator(statusPayload, schemas.events.status);
+      if (!errStatus) {
+        sse(res, { event: 'status', data: JSON.stringify(validatedStatus) });
+      }
+
+      sse(res, { event: 'done', data: JSON.stringify('[DONE]') });
+      res.end();
+      return;
+    }
+
+    const okMatch = pathname.match(/^\/ok\/([^/]+)$/);
+    if (okMatch) {
+      const integration = decodeURIComponent(okMatch[1]);
+      const methodKey = method.toLowerCase();
+      const schemas = okSchemas[methodKey];
+      if (!schemas) {
+        sendText(res, 404, 'Not found');
+        return;
+      }
+
+      const headers = req.headers ?? {};
+      if (headers['x-client'] !== 'e2e-scoped') {
+        json(res, 500, { error: 'missing inlined header' });
+        return;
+      }
+
+      if (headers['x-type'] !== 'e2e-global') {
+        json(res, 500, { error: 'missing global header' });
+        return;
+      }
+
       const counterPath = `/ok/${integration}`;
-      increment(`${counterMethod} ${counterPath}`);
+      increment(`${method.toUpperCase()} ${counterPath}`);
 
       const pathParams = { integration };
-      const searchParams = c.req.query();
+      const searchParams = Object.fromEntries(url.searchParams.entries());
 
       if (schemas.$path) {
         const [errPath, validatedPath] = await validator(pathParams, schemas.$path);
         if (errPath) {
-          return c.json({ error: 'invalid path params', details: errPath.message }, 400);
+          json(res, 400, { error: 'invalid path params', details: errPath.message });
+          return;
         }
-
         Object.assign(pathParams, validatedPath ?? {});
       }
 
       if (schemas.$search) {
         const [errSearch, validatedSearch] = await validator(searchParams, schemas.$search);
         if (errSearch) {
-          return c.json({ error: 'invalid search params', details: errSearch.message }, 400);
+          json(res, 400, { error: 'invalid search params', details: errSearch.message });
+          return;
         }
-
         Object.assign(searchParams, validatedSearch ?? {});
       }
 
       let requestBody;
       if ('request' in schemas && schemas.request) {
-        const [err, parsed] = await safeWrapAsync(() => c.req.json());
-        if (err) {
-          return c.json({ error: 'invalid json', details: err?.message ?? String(err) }, 400);
+        const [errBody, parsed] = await read(req);
+        if (errBody) {
+          json(res, 400, { error: 'invalid json', details: errBody?.message ?? String(errBody) });
+          return;
         }
 
         const [errValidate, validated] = await validator(parsed, schemas.request);
         if (errValidate) {
-          return c.json({ error: 'invalid request body', details: errValidate.message }, 400);
+          json(res, 400, { error: 'invalid request body', details: errValidate.message });
+          return;
         }
 
         requestBody = validated;
@@ -197,122 +391,36 @@ export async function startE2EServer(endpoints, opts = {}) {
         const responseData = requestBody ? { success: true, received: requestBody } : { success: true };
         const [errResponse, validatedResponse] = await validator(responseData, schemas.response);
         if (errResponse) {
-          return c.json({ error: 'response failed validation', details: errResponse.message }, 500);
-        }
-
-        return c.json(validatedResponse);
-      }
-
-      return c.json({ error: 'missing schema' }, 500);
-    });
-  }
-
-  app.get('/bad', (c) => {
-    return c.json({ data: 'wrong-format', etc: 'test' }, 200);
-  });
-
-  app.get('/flaky', async (c) => {
-    const schemas = flakySchemas.get;
-    if (!schemas) {
-      return c.json({ error: 'missing schema for flaky' }, 500);
-    }
-
-    const headers = c.req.header();
-    if (headers['x-client'] !== 'e2e-scoped') {
-      return c.json({ error: 'missing inlined header' }, 500);
-    }
-
-    if (headers['x-type'] !== 'e2e-global') {
-      return c.json({ error: 'missing global header' }, 500);
-    }
-
-    const searchParams = c.req.query();
-    const attempt = increment(`GET ${flakyEndpoint}`);
-
-    const failTimes = Number(searchParams.failTimes ?? '1');
-    const ok = attempt > failTimes;
-    const responseData = { ok, attempt };
-    const [errResponse, validatedResponse] = await validator(responseData, schemas.response);
-    if (errResponse) {
-      return c.json({ error: 'response failed validation', details: errResponse.message }, 500);
-    }
-
-    return c.json(validatedResponse, ok ? 200 : 500 + (attempt - 1));
-  });
-
-  app.get('/sse', (c) => {
-    const schemas = sseSchemas.sse;
-    if (!schemas) {
-      return c.json({ error: 'missing schema for sse' }, 500);
-    }
-
-    increment(`SSE ${sseEndpoint}`);
-
-    const searchParams = c.req.query();
-    const mode = searchParams.error ?? 'never';
-
-    return streamSSE(c, async (stream) => {
-      for (let i = 1; i <= 3; i++) {
-        if (mode === 'sometimes' && i === 2) {
-          await stream.writeSSE({ data: 'not-json' });
-          await sleep(1);
-          continue;
-        }
-
-        const payload = { i };
-        const [errValidate, validated] = await validator(payload, schemas.events.message);
-        if (errValidate) {
-          await stream.close();
+          json(res, 500, { error: 'response failed validation', details: errResponse.message });
           return;
         }
-
-        await stream.writeSSE({ data: JSON.stringify(validated), ...(i === 1 ? { retry: 25 } : {}) });
-        await sleep(1);
+        json(res, 200, validatedResponse);
+        return;
       }
 
-      const statusPayload = { ok: true };
-      const [errStatus, validatedStatus] = await validator(statusPayload, schemas.events.status);
-      if (!errStatus) {
-        await stream.writeSSE({ event: 'status', data: JSON.stringify(validatedStatus) });
-      }
+      json(res, 500, { error: 'missing schema' });
+      return;
+    }
 
-      await stream.writeSSE({ event: 'done', data: JSON.stringify('[DONE]') });
-      await stream.close();
-    });
+    sendText(res, 404, 'Not found');
   });
 
-  for (const method of Object.keys(okSchemas)) {
-    registerOk(method);
-  }
+  const port = Number.isFinite(opts.port) ? opts.port : 0;
+  const hostname = typeof opts.hostname === 'string' ? opts.hostname : '127.0.0.1';
 
-  const [err, serverAndPort] = await safeWrapAsync(
-    () =>
-      new Promise((resolve) => {
-        const port = Number.isFinite(opts.port) ? opts.port : 0;
-        const hostname = typeof opts.hostname === 'string' ? opts.hostname : '127.0.0.1';
-        const srv = serve({ fetch: app.fetch, port, hostname, autoCleanupIncoming: false }, (serverInfo) => {
-          resolve([srv, serverInfo.port]);
-        });
-      }),
+  const [errListen] = await safeWrapAsync(
+    () => new Promise((resolve) => server.listen(port, hostname, () => resolve(null))),
   );
-  if (err) {
-    return [new Error('error starting server', { cause: err }), null];
+  if (errListen) {
+    return [new Error('error starting server', { cause: errListen }), null];
   }
 
-  if (!serverAndPort) {
-    return [new Error('error starting server'), null];
-  }
-
-  let [server, port] = serverAndPort;
-  server.on('connection', (socket) => {
-    sockets.add(socket);
-    socket.on('close', () => sockets.delete(socket));
-  });
   const address = server.address();
-  if (address && typeof address !== 'string') {
-    port = address.port;
-  }
+  const actualPort = address && typeof address !== 'string' ? address.port : port;
 
+  /**
+   * @returns {Promise<Error | null>}
+   */
   function close() {
     // Ensure we don't hang on lingering keep-alive / SSE connections.
     const [errCloseIdle] = safeWrap(() => server.closeIdleConnections?.());
@@ -323,13 +431,6 @@ export async function startE2EServer(endpoints, opts = {}) {
     const [errCloseAll] = safeWrap(() => server.closeAllConnections?.());
     if (errCloseAll) {
       console.error('err close-all:', errCloseAll);
-    }
-
-    for (const socket of sockets) {
-      const [errDestroy] = safeWrap(() => socket.destroy());
-      if (errDestroy) {
-        console.error('err destroy:', errDestroy);
-      }
     }
 
     return new Promise((resolve) =>
@@ -347,7 +448,7 @@ export async function startE2EServer(endpoints, opts = {}) {
   return [
     null,
     {
-      url: `http://127.0.0.1:${port}`,
+      url: `http://127.0.0.1:${actualPort}`,
       close,
     },
   ];
@@ -363,6 +464,9 @@ if (err || !server) {
 }
 
 let shuttingDown = false;
+/**
+ * @returns {Promise<void>}
+ */
 const shutdown = async () => {
   if (shuttingDown) {
     return;
@@ -374,5 +478,3 @@ const shutdown = async () => {
 
 process.on('SIGINT', () => shutdown());
 process.on('SIGTERM', () => shutdown());
-
-setInterval(() => {}, 1 << 30);

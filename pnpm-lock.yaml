@@ -18,18 +18,12 @@ importers:
       '@codecov/vite-plugin':
         specifier: ^1.9.1
         version: 1.9.1(vite@8.0.0-beta.2(@types/node@24.10.2)(esbuild@0.25.12)(terser@5.44.1))
-      '@hono/node-server':
-        specifier: ^1.19.7
-        version: 1.19.7(hono@4.11.0)
       '@types/node':
         specifier: ^24.10.2
         version: 24.10.2
       '@vitest/coverage-v8':
         specifier: ^4.0.15
         version: 4.0.15(vitest@4.0.15(@types/node@24.10.2)(lightningcss@1.30.2)(terser@5.44.1))
-      hono:
-        specifier: ^4.11.0
-        version: 4.11.0
       playwright:
         specifier: ^1.57.0
         version: 1.57.0
@@ -330,12 +324,6 @@ packages:
   '@fastify/busboy@2.1.1':
     resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
     engines: {node: '>=14'}
-
-  '@hono/node-server@1.19.7':
-    resolution: {integrity: sha512-vUcD0uauS7EU2caukW8z5lJKtoGMokxNbJtBiwHgpqxEXokaHCBkQUmCHhjFB1VUTWdqj25QoMkMKzgjq+uhrw==}
-    engines: {node: '>=18.14.1'}
-    peerDependencies:
-      hono: ^4
 
   '@iconify-json/simple-icons@1.2.62':
     resolution: {integrity: sha512-GpWQ294d4lraB3D2eBSSMROh1x9uKgpmyereLlGzVQjGZ7lbeFzby2ywXxyp4vEODmTDyf1/4WcOYs/yH4rJ5Q==}
@@ -952,10 +940,6 @@ packages:
 
   hast-util-whitespace@3.0.0:
     resolution: {integrity: sha512-88JUN06ipLwsnv+dVn+OIYOvAuvBMy/Qoi6O7mQHxdPXpjy+Cd6xRkWwux7DKO+4sYILtLBRIKgsdpS2gQc7qw==}
-
-  hono@4.11.0:
-    resolution: {integrity: sha512-Jg8uZzN2ul8/qlyid5FO8O624F3AK0wKtkgoeEON1qBum1rM1itYBxoMKu/1SPJC7F1+xlIZsJMmc4HHhJ1AWg==}
-    engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
     resolution: {integrity: sha512-Yc+BQe8SvoXH1643Qez1zqLRmbA5rCL+sSmk6TVos0LWVfNIB7PGncdlId77WzLGSIB5KaWgTaNTs2lNVEI6VQ==}
@@ -1646,10 +1630,6 @@ snapshots:
 
   '@fastify/busboy@2.1.1': {}
 
-  '@hono/node-server@1.19.7(hono@4.11.0)':
-    dependencies:
-      hono: 4.11.0
-
   '@iconify-json/simple-icons@1.2.62':
     dependencies:
       '@iconify/types': 2.0.0
@@ -2232,8 +2212,6 @@ snapshots:
   hast-util-whitespace@3.0.0:
     dependencies:
       '@types/hast': 3.0.4
-
-  hono@4.11.0: {}
 
   hookable@5.5.3: {}
 
