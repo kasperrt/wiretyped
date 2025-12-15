@@ -10,6 +10,14 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }],
     ['link', { rel: 'shortcut icon', href: '/favicon.ico' }],
+    [
+      'script',
+      {
+        defer: 'true',
+        'data-domain': 'wiretyped.io',
+        src: 'https://analytics.egreb.net/js/script.js',
+      },
+    ],
   ],
   title: 'WireTyped',
   description:
