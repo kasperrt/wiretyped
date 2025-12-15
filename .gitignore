@@ -4,7 +4,9 @@ node_modules
 tsconfig.tsbuildinfo
 .DS_Store
 .idea
-.vscode
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .githooks
 pnpm-debug.log*
 npm-debug.log*
