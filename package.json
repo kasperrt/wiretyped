@@ -87,7 +87,7 @@
     "fix": "pnpm exec biome check --write",
     "fix:format": "pnpm exec biome format --write",
     "fix:lint": "pnpm exec biome lint --write",
-    "prepublishOnly": "pnpm check && pnpm run test && pnpm run build",
+    "prepublishOnly": "pnpm check && pnpm run test:integrations && pnpm run build",
     "smoke:entrypoints": "node scripts/smoke-entrypoints.mjs",
     "smoke:dts": "node scripts/smoke-dts.mjs",
     "smoke:resolve": "node scripts/smoke-resolve.mjs",
