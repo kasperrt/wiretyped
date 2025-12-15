@@ -20,7 +20,7 @@ importers:
         version: 1.9.1(vite@8.0.0-beta.2(@types/node@24.10.2)(esbuild@0.25.12)(terser@5.44.1))
       '@hono/node-server':
         specifier: ^1.19.7
-        version: 1.19.7(hono@4.11.0)
+        version: 1.19.7(hono@4.11.1)
       '@types/node':
         specifier: ^24.10.2
         version: 24.10.2
@@ -29,7 +29,7 @@ importers:
         version: 4.0.15(vitest@4.0.15(@types/node@24.10.2)(lightningcss@1.30.2)(terser@5.44.1))
       hono:
         specifier: ^4.11.0
-        version: 4.11.0
+        version: 4.11.1
       playwright:
         specifier: ^1.57.0
         version: 1.57.0
@@ -953,8 +953,8 @@ packages:
   hast-util-whitespace@3.0.0:
     resolution: {integrity: sha512-88JUN06ipLwsnv+dVn+OIYOvAuvBMy/Qoi6O7mQHxdPXpjy+Cd6xRkWwux7DKO+4sYILtLBRIKgsdpS2gQc7qw==}
 
-  hono@4.11.0:
-    resolution: {integrity: sha512-Jg8uZzN2ul8/qlyid5FO8O624F3AK0wKtkgoeEON1qBum1rM1itYBxoMKu/1SPJC7F1+xlIZsJMmc4HHhJ1AWg==}
+  hono@4.11.1:
+    resolution: {integrity: sha512-KsFcH0xxHes0J4zaQgWbYwmz3UPOOskdqZmItstUG93+Wk1ePBLkLGwbP9zlmh1BFUiL8Qp+Xfu9P7feJWpGNg==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -1646,9 +1646,9 @@ snapshots:
 
   '@fastify/busboy@2.1.1': {}
 
-  '@hono/node-server@1.19.7(hono@4.11.0)':
+  '@hono/node-server@1.19.7(hono@4.11.1)':
     dependencies:
-      hono: 4.11.0
+      hono: 4.11.1
 
   '@iconify-json/simple-icons@1.2.62':
     dependencies:
@@ -2233,7 +2233,7 @@ snapshots:
     dependencies:
       '@types/hast': 3.0.4
 
-  hono@4.11.0: {}
+  hono@4.11.1: {}
 
   hookable@5.5.3: {}
 
