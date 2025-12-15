@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const typeRoot = resolve(repoRoot, 'dist/types');
 
+/**
+ * @param {string} dir
+ * @returns {string[]}
+ */
 function findTypeFiles(dir) {
   const files = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

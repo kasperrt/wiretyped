@@ -5,6 +5,10 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const typesRoot = path.resolve(__dirname, '../dist/types');
 
+/**
+ * @param {string} dir
+ * @returns {Promise<string[]>}
+ */
 const walk = async (dir) => {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const files = await Promise.all(

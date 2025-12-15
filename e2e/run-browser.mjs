@@ -12,8 +12,12 @@ await new Promise((resolveBuild, rejectBuild) => {
   });
   proc.on('error', rejectBuild);
   proc.on('exit', (code) => {
-    if (code === 0) resolveBuild();
-    else rejectBuild(new Error(`vite build failed with exit code ${code ?? -1}`));
+    if (code === 0) {
+      resolveBuild();
+      return;
+    }
+
+    rejectBuild(new Error(`vite build failed with exit code ${code ?? -1}`));
   });
 });
 

@@ -23,7 +23,9 @@ if (errors.length > 0) {
   for (const err of errors) {
     console.error(err?.stack ?? String(err));
   }
-} else {
+}
+
+if (!errors?.length) {
   console.log('e2e successfully run in bun');
 }
 

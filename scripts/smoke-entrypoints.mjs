@@ -1,5 +1,3 @@
-// Runtime smoke: ensure built entrypoints load for both CJS and ESM bundles.
-
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

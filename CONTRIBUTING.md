@@ -11,7 +11,7 @@ Thanks for your interest in improving WireTyped! This guide covers the basics fo
    - Tests: `pnpm test` (unit/integration + Node e2e) and `pnpm test:coverage` for coverage
    - Build: `pnpm run build` (types only: `pnpm run build:types`)
    - E2E (all runtimes): `pnpm run test:e2e:node`, `pnpm run test:e2e:bun`, `pnpm run test:e2e:deno`, `pnpm run test:e2e:browser`
-   - Smoke (non-overlapping): `pnpm run smoke:worker`, `pnpm run smoke:entrypoints`, `pnpm run smoke:resolve`, `pnpm run smoke:pack`, `pnpm run smoke:dts`, and always `pnpm run smoke:types`
+   - Smoke (non-overlapping): `pnpm run smoke:entrypoints`, `pnpm run smoke:resolve`, `pnpm run smoke:pack`, `pnpm run smoke:dts`, and always `pnpm run smoke:types`
 
 Note: GitHub Actions will run lint/format/types, tests, e2e (all runtimes), and the remaining smoke checks on PRs. All of these are required to pass before changes can be merged.
 

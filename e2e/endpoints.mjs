@@ -2,6 +2,12 @@ import { z } from 'zod';
 
 const payloadSchema = z.object({ test: z.literal('yes') });
 
+/**
+ * Endpoints used by the shared e2e suite.
+ *
+ * The e2e server (`e2e/server.mjs`) implements these routes and validates
+ * request/response bodies using the schema objects provided here.
+ */
 export const endpoints = {
   '/ok/{integration}': {
     get: {
