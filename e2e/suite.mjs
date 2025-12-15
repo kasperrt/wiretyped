@@ -80,6 +80,24 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
 
   return [
     {
+      name: 'URL helper returns absolute URL',
+      run: async () => {
+        const errReset = await admin.reset();
+        assert(errReset === null, 'reset failed');
+
+        const [err, url] = await client.url('/ok/{integration}', {
+          $path: { integration: 'slack' },
+          $search: { q: 'test' },
+        });
+
+        assert(err === null, 'expected err to be null');
+        assert(typeof url === 'string', 'expected url to be a string');
+        assert(url.startsWith('http://127.0.0.1:'), 'expected absolute url with localhost base');
+        assert(url.includes('/ok/slack'), 'expected url to include path');
+        assert(url.includes('q=test'), 'expected url to include search params');
+      },
+    },
+    {
       name: 'GET /ok returns data and no error',
       run: async () => {
         const errReset = await admin.reset();

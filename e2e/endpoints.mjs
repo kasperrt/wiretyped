@@ -15,6 +15,15 @@ export const endpoints = {
         success: z.boolean(),
       }),
     },
+    url: {
+      $search: z.object({
+        q: z.string(),
+      }),
+      $path: z.object({
+        integration: z.enum(['slack', 'github']),
+      }),
+      response: z.url(),
+    },
     download: {
       $search: z.object({
         q: z.string(),
