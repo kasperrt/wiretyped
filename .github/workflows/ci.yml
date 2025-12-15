@@ -144,6 +144,9 @@ jobs:
           - runtime: browser
             node-version: 25
             command: pnpm run test:e2e:browser
+          - runtime: workers
+            node-version: 25
+            command: pnpm run test:e2e:workers
 
     permissions:
       contents: read
