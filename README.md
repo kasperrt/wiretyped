@@ -2,13 +2,21 @@
 
 # WireTyped
 
-<img src="./docs/public/wiretyped.png" alt="WireTyped logo" width="200" />
+<img src="./docs/public/wiretyped.png" alt="WireTyped logo" width="200" style="padding-bottom: 24px;" />
 
 </div>
 
+> Small and easy-to-use fetch based client with runtime validation
+
+[![CI](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml/badge.svg)](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/kasperrt/wiretyped/branch/main/graph/badge.svg)](https://codecov.io/gh/kasperrt/wiretyped)
+[![minzip](https://deno.bundlejs.com/badge?q=wiretyped@latest)](https://bundlejs.com/?q=wiretyped@latest)
+
+
 Universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.
 
-Docs: https://wiretyped.io
+https://wiretyped.io
+
 
 ## Installation
 
