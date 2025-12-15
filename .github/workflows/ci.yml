@@ -77,19 +77,75 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime:
-          [bun, deno, worker, types, browser, entrypoints, resolve, pack, dts]
+        runtime: [worker, types, entrypoints, resolve, pack, dts]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-build
+          path: dist
+
+      - name: Run smoke for ${{ matrix.runtime }}
+        run: |
+          case "${{ matrix.runtime }}" in
+            worker) pnpm run smoke:worker ;;
+            types) pnpm run smoke:types ;;
+            entrypoints) pnpm run smoke:entrypoints ;;
+            resolve) pnpm run smoke:resolve ;;
+            pack) pnpm run smoke:pack ;;
+            dts) pnpm run smoke:dts ;;
+            *) echo "Unknown runtime"; exit 1 ;;
+          esac
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
         include:
           - runtime: node
             node-version: 18
+            command: pnpm run test:e2e
           - runtime: node
             node-version: 20
+            command: pnpm run test:e2e
           - runtime: node
             node-version: 22
+            command: pnpm run test:e2e
           - runtime: node
             node-version: 24
+            command: pnpm run test:e2e
+          - runtime: bun
+            node-version: 22
+            command: pnpm run test:e2e:bun
+          - runtime: deno
+            node-version: 22
+            command: pnpm run test:e2e:deno
+          - runtime: browser
+            node-version: 22
+            command: pnpm run test:e2e:browser
+
     permissions:
       contents: read
+
     steps:
       - uses: actions/checkout@v4
 
@@ -126,47 +182,5 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Run smoke for ${{ matrix.runtime }}
-        run: |
-          case "${{ matrix.runtime }}" in
-            node) pnpm run smoke:node ;;
-            bun) bun run scripts/smoke-bun.ts ;;
-            deno) deno run --allow-read scripts/smoke-deno.ts ;;
-            worker) pnpm run smoke:worker ;;
-            types) pnpm run smoke:types ;;
-            browser) pnpm run smoke:browser ;;
-            entrypoints) pnpm run smoke:entrypoints ;;
-            resolve) pnpm run smoke:resolve ;;
-            pack) pnpm run smoke:pack ;;
-            dts) pnpm run smoke:dts ;;
-            *) echo "Unknown runtime"; exit 1 ;;
-          esac
-
-  e2e:
-    runs-on: ubuntu-latest
-    needs: test
-
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.25.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm run build
-
-      - name: Run e2e tests
-        run: pnpm run test:e2e
+      - name: Run e2e for ${{ matrix.runtime }}
+        run: ${{ matrix.command }}
