@@ -20,6 +20,9 @@ export default defineConfig({
     theme: 'one-dark-pro',
   },
   themeConfig: {
+    search: {
+      provider: 'local',
+    },
     logo: '/logo.png',
     // https://vitepress.dev/reference/default-theme-config
     nav: [
