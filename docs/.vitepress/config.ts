@@ -42,6 +42,9 @@ export default defineConfig({
       },
     ],
 
+    footer: {
+      message: "lil' guy says hi",
+    },
     sidebar: {
       '/guide/': [
         {
@@ -51,6 +54,7 @@ export default defineConfig({
             { text: 'Endpoints', link: '/guide/endpoints' },
             { text: 'Client', link: '/guide/client' },
             { text: 'Methods', link: '/guide/methods' },
+            { text: 'Development', link: '/guide/development' },
           ],
         },
         {

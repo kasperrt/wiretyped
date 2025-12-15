@@ -20,8 +20,7 @@ WireTyped supports typed SSE streams via `client.sse(endpoint, params, handler, 
 Define structured events:
 
 ```ts
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 import type { RequestDefinitions } from 'wiretyped';
 
 const endpoints = {
