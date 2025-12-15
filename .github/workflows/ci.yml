@@ -133,14 +133,17 @@ jobs:
           - runtime: node
             node-version: 24
             command: pnpm run test:e2e:node
+          - runtime: node
+            node-version: 25
+            command: pnpm run test:e2e:node
           - runtime: bun
-            node-version: 22
+            node-version: 25
             command: pnpm run test:e2e:bun
           - runtime: deno
-            node-version: 22
+            node-version: 25
             command: pnpm run test:e2e:deno
           - runtime: browser
-            node-version: 22
+            node-version: 25
             command: pnpm run test:e2e:browser
 
     permissions:

@@ -113,7 +113,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "@codecov/vite-plugin": "^1.9.1",
-    "@types/node": "^24.10.2",
+    "@types/node": "^25.0.2",
     "@vitest/coverage-v8": "^4.0.15",
     "playwright": "^1.57.0",
     "typescript": "^5.9.3",
