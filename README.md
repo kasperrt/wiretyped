@@ -1,8 +1,10 @@
 <div align="center">
 
 # WireTyped
-
-<img src="./docs/public/wiretyped.png" alt="WireTyped logo" width="200" style="padding-bottom: 24px;" />
+<br />
+<img src="./docs/public/wiretyped.png" alt="WireTyped logo" width="200" />
+<br />
+<br />
 
 </div>
 
