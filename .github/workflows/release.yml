@@ -18,13 +18,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  ci:
+  detect:
     if: github.repository == 'kasperrt/wiretyped'
-    uses: ./.github/workflows/ci.yml
-
-  tag:
-    if: github.repository == 'kasperrt/wiretyped'
-    needs: [ci]
     runs-on: ubuntu-latest
 
     outputs:
@@ -86,12 +81,67 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Export job outputs
+        id: out
+        shell: bash
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          EXISTS: ${{ steps.exists.outputs.exists }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EXISTS" = "false" ]; then
+            CREATED="true"
+          else
+            CREATED="false"
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "created=$CREATED" >> "$GITHUB_OUTPUT"
+
+  ci:
+    if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.created == 'true'
+    needs: [detect]
+    uses: ./.github/workflows/ci.yml
+
+  tag:
+    if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.created == 'true'
+    needs: [detect, ci]
+    runs-on: ubuntu-latest
+
+    outputs:
+      tag: ${{ steps.out.outputs.tag }}
+      version: ${{ steps.out.outputs.version }}
+      created: ${{ steps.out.outputs.created }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if tag exists
+        id: exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.detect.outputs.tag }}"
+          git fetch --tags
+
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create and push tag
         if: steps.exists.outputs.exists == 'false'
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ steps.ver.outputs.tag }}"
+          TAG="${{ needs.detect.outputs.tag }}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -103,8 +153,8 @@ jobs:
         id: out
         shell: bash
         env:
-          TAG: ${{ steps.ver.outputs.tag }}
-          VERSION: ${{ steps.ver.outputs.version }}
+          TAG: ${{ needs.detect.outputs.tag }}
+          VERSION: ${{ needs.detect.outputs.version }}
           EXISTS: ${{ steps.exists.outputs.exists }}
         run: |
           set -euo pipefail
@@ -178,17 +228,11 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: "pnpm"
 
-      - name: Update npm
-        run: npm install -g npm@latest
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build (if present)
-        run: npm run build --if-present
-
-      - name: Test
-        run: npm run test:integrations
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-build
+          path: dist
 
       - name: Determine npm dist-tag
         id: npm_tag
