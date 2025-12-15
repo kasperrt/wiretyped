@@ -36,7 +36,9 @@
   "sideEffects": false,
   "main": "./dist/index.mjs",
   "types": "./dist/types/index.d.mts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -122,7 +124,7 @@
     "vitepress": "2.0.0-alpha.15",
     "vitest": "^4.0.15",
     "vue": "^3.5.25",
-    "zod": "^4.1.13"
+    "zod": "^4.2.0"
   },
   "simple-git-hooks": {
     "pre-commit": "sh scripts/pre-commit.sh"
