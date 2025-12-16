@@ -28,6 +28,7 @@
   ],
   "author": "Kasper Rynning-Tønnesen <kasperrt@users.noreply.github.com> (https://github.com/kasperrt)",
   "license": "MIT",
+  "homepage": "https://wiretyped.io",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kasperrt/wiretyped.git"
