@@ -26,8 +26,7 @@ If `$search` is optional in the schema and you want to omit query params, you mu
 - If an endpoint doesn’t accept any params, pass `null` for the `params` argument to be explicit and readable (“no variables/params here”).
 
 ```ts
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 import type { RequestDefinitions } from 'wiretyped';
 
 export const endpoints = {
@@ -84,8 +83,7 @@ For HTTP methods that accept a body (`post`, `put`, `patch`), `request` describe
 
 ```ts
 import { RequestClient, type RequestDefinitions } from 'wiretyped';
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 
 const endpoints = {
   // No params -> pass `null`
@@ -134,8 +132,7 @@ await client.post('/integrations/{provider}', { $path: { provider: 'slack' } }, 
 You’ll typically spread operations across multiple URL templates. This example shows all supported operations:
 
 ```ts
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 import type { RequestDefinitions } from 'wiretyped';
 
 export const exampleEndpoints = {

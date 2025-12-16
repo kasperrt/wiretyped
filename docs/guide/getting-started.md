@@ -26,8 +26,7 @@ Define your endpoints (with the schema of your choice) and create a `RequestClie
 
 ```ts
 import { RequestClient, type RequestDefinitions } from 'wiretyped';
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 
 const endpoints = {
   '/users/{id}': {
@@ -71,3 +70,4 @@ import { RequestClient, type RequestDefinitions } from 'wiretyped';
 - Define your API shape in [`/guide/endpoints`](/guide/endpoints) (URL templates, `$path`/`$search`, request/response schemas).
 - Configure defaults in [`/guide/client`](/guide/client) (`fetchOpts`, `cacheOpts`, validation).
 - Learn call signatures and special operations in [`/guide/methods`](/guide/methods) (HTTP methods, `url`, `download`, `sse`).
+- Want to contribute? See [`/guide/development`](/guide/development) (tests, scripts, docs).

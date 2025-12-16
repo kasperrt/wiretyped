@@ -6,6 +6,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
+
+/**
+ * @param {string} relative
+ * @returns {string}
+ */
 const toFileUrl = (relative) => pathToFileURL(path.join(repoRoot, relative)).href;
 
 const importExpectations = [
@@ -23,7 +28,7 @@ const requireExpectations = [
 ];
 
 for (const { spec, expected } of importExpectations) {
-  const resolved = await import.meta.resolve(spec, import.meta.url);
+  const resolved = import.meta.resolve(spec, import.meta.url);
   assert.strictEqual(resolved, expected, `import.meta.resolve(${spec}) -> ${resolved}`);
 }
 

@@ -23,5 +23,5 @@
 
     "types": ["vitest/globals"]
   },
-  "exclude": ["node_modules", "**/*.spec.ts", "scripts/types-smoke/**/*.ts", "**/*.test.ts"]
+  "exclude": ["node_modules", "e2e", "**/*.spec.ts", "scripts/types-smoke/**/*.ts", "**/*.test.ts"]
 }

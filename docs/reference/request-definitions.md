@@ -39,8 +39,7 @@ Each key is a URL template string:
 Use `$path` to validate and type path params (useful for enums):
 
 ```ts
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 import type { RequestDefinitions } from 'wiretyped';
 
 export const endpoints = {
@@ -58,8 +57,7 @@ export const endpoints = {
 Use `$search` to validate and type query params:
 
 ```ts
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 import type { RequestDefinitions } from 'wiretyped';
 
 export const endpoints = {
@@ -81,8 +79,7 @@ If `$search` is optional in the schema and you want to omit query params, you mu
 For HTTP methods that accept a body (`post`, `put`, `patch`), `request` describes the body you send:
 
 ```ts
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 import type { RequestDefinitions } from 'wiretyped';
 
 export const endpoints = {
@@ -106,8 +103,7 @@ All methods have a `response` schema:
 - For `url`, it is a string schema (usually `z.string().url()`), and WireTyped validates the final generated URL string against it.
 
 ```ts
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 import type { RequestDefinitions } from 'wiretyped';
 
 export const endpoints = {
@@ -128,8 +124,7 @@ export const endpoints = {
 For `sse`, you define an `events` map of event name to schema:
 
 ```ts
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 import type { RequestDefinitions } from 'wiretyped';
 
 export const endpoints = {

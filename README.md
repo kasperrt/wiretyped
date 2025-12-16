@@ -1,14 +1,24 @@
 <div align="center">
 
 # WireTyped
-
+<br />
 <img src="./docs/public/wiretyped.png" alt="WireTyped logo" width="200" />
+<br />
+<br />
 
 </div>
 
+> Small and easy-to-use fetch based client with runtime validation
+
+[![CI](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml/badge.svg)](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/kasperrt/wiretyped/branch/main/graph/badge.svg)](https://codecov.io/gh/kasperrt/wiretyped)
+[![minzip](https://deno.bundlejs.com/badge?q=wiretyped@latest)](https://bundlejs.com/?q=wiretyped@latest)
+
+
 Universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.
 
-Docs: https://wiretyped.io
+https://wiretyped.io
+
 
 ## Installation
 
@@ -25,9 +35,8 @@ WireTyped is a small, composable HTTP client for fetch-based runtimes (browser, 
 ## Quick taste
 
 ```ts
+import { z } from 'zod'; // Or your standard-schema/spec of choice
 import { RequestClient, type RequestDefinitions } from 'wiretyped';
-import { z } from 'zod';
-// Or your standard-schema/spec of choice
 
 const endpoints = {
   '/users/{id}': {

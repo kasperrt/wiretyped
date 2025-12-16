@@ -8,9 +8,12 @@ Thanks for your interest in improving WireTyped! This guide covers the basics fo
 2. Install deps: `pnpm install --frozen-lockfile`
 3. Run checks locally:
    - Lint/format/types: `pnpm run check`
-   - Tests: `pnpm test` (and `pnpm test:coverage` to verify coverage)
+   - Tests: `pnpm test` (unit/integration + Node e2e) and `pnpm test:coverage` for coverage
    - Build: `pnpm run build` (types only: `pnpm run build:types`)
-   - Smokes: run per runtime (e.g., `pnpm run smoke:node`, `pnpm run smoke:worker`, `bun run scripts/smoke-bun.ts`, `deno run --allow-read scripts/smoke-deno.ts`) and always `pnpm run smoke:types`
+   - E2E (all runtimes): `pnpm run test:e2e:node`, `pnpm run test:e2e:bun`, `pnpm run test:e2e:deno`, `pnpm run test:e2e:browser`
+   - Smoke (non-overlapping): `pnpm run smoke:entrypoints`, `pnpm run smoke:resolve`, `pnpm run smoke:pack`, `pnpm run smoke:dts`, and always `pnpm run smoke:types`
+
+Note: GitHub Actions will run lint/format/types, tests, e2e (all runtimes), and the remaining smoke checks on PRs. All of these are required to pass before changes can be merged.
 
 ## Workflow
 

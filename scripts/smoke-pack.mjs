@@ -15,6 +15,9 @@ await fs.promises.access(distDir).catch(() => {
 
 const tmpDir = fs.mkdtempSync(path.join(repoRoot, '.smoke-pack-'));
 
+/**
+ * @returns {void}
+ */
 const cleanup = () => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 };

@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.3.2",
+  "version": "0.3.3-alpha.0",
   "description": "Universal fetch-based HTTP client with robust error handling, retries, caching, SSE, and Standard Schema validation.",
   "type": "module",
   "keywords": [
@@ -32,7 +32,7 @@
     "type": "git",
     "url": "git+https://github.com/kasperrt/wiretyped.git"
   },
-  "packageManager": "pnpm@10.25.0",
+  "packageManager": "pnpm@10.26.0",
   "sideEffects": false,
   "main": "./dist/index.mjs",
   "types": "./dist/types/index.d.mts",
@@ -87,20 +87,20 @@
     "fix": "pnpm exec biome check --write",
     "fix:format": "pnpm exec biome format --write",
     "fix:lint": "pnpm exec biome lint --write",
-    "prepublishOnly": "pnpm check && pnpm run test && pnpm run build",
-    "smoke:bun": "bun run scripts/smoke-bun.ts",
-    "smoke:deno": "deno run --allow-read scripts/smoke-deno.ts",
-    "smoke:browser": "node scripts/smoke-browser.mjs",
+    "prepublishOnly": "pnpm check && pnpm run test:integrations && pnpm run build",
     "smoke:entrypoints": "node scripts/smoke-entrypoints.mjs",
     "smoke:dts": "node scripts/smoke-dts.mjs",
     "smoke:resolve": "node scripts/smoke-resolve.mjs",
     "smoke:pack": "node scripts/smoke-pack.mjs",
-    "smoke:node": "node scripts/smoke-node.mjs",
     "smoke:types": "pnpm exec tsc -p scripts/types-smoke/tsconfig.json",
-    "smoke:worker": "node scripts/smoke-worker.mjs",
     "test": "pnpm test:integrations && pnpm test:e2e",
     "test:integrations": "vitest run --no-isolate --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts --no-isolate --no-file-parallelism",
+    "test:e2e": "pnpm test:e2e:node && pnpm test:e2e:bun && pnpm test:e2e:deno && pnpm test:e2e:browser && pnpm test:e2e:workers",
+    "test:e2e:node": "node e2e/run-node.mjs",
+    "test:e2e:bun": "bun run e2e/run-bun.mjs",
+    "test:e2e:deno": "deno run --allow-net --allow-read --allow-run=node e2e/run-deno.ts",
+    "test:e2e:browser": "node e2e/run-browser.mjs",
+    "test:e2e:workers": "node e2e/run-workers.mjs",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "docs:dev": "vitepress dev docs",
@@ -108,25 +108,19 @@
     "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
-    "@standard-schema/spec": "^1.0.0"
+    "@standard-schema/spec": "^1.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "@codecov/vite-plugin": "^1.9.1",
-    "@hono/node-server": "^1.19.7",
-    "@types/node": "^24.10.2",
+    "@types/node": "^25.0.2",
     "@vitest/coverage-v8": "^4.0.15",
-    "hono": "^4.11.0",
+    "miniflare": "^3.0.0",
     "playwright": "^1.57.0",
-    "simple-git-hooks": "^2.13.1",
     "typescript": "^5.9.3",
     "vite": "^8.0.0-beta.2",
     "vitepress": "2.0.0-alpha.15",
     "vitest": "^4.0.15",
-    "vue": "^3.5.25",
-    "zod": "^4.1.13"
-  },
-  "simple-git-hooks": {
-    "pre-commit": "sh scripts/pre-commit.sh"
+    "zod": "^4.2.0"
   }
 }

@@ -151,10 +151,6 @@
   justify-content: center;
 }
 
-.wt-hero-badges-row--bottom {
-  margin-top: 8px;
-}
-
 @media (min-width: 960px) {
   .wt-hero-badges-row {
     justify-content: flex-start;
@@ -162,17 +158,8 @@
 }
 
 .wt-hero-badges-wrap {
-  margin-top: 12px;
-  margin-bottom: 12px;
   text-align: left;
-}
-
-.wt-hero-badges-intro {
-  padding-bottom: 18px;
-  margin: 0 0 10px;
-  font-size: 16px;
-  line-height: 1.35;
-  color: var(--vp-c-text-2);
+  line-height: 12px;
 }
 
 /* Default theme centers hero text on small screens when a hero image exists.
