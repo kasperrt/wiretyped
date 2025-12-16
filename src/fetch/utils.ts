@@ -1,66 +1,49 @@
 import type { HeaderOptions } from '../types/request.js';
 
 /**
- * Normalizes various header representations into a lowercase string map.
+ * Filters out unsupported values and turns remaining into strings.
  */
-function headerOptionsToObject(h?: HeaderOptions): Record<string, string | undefined> {
-  if (!h) {
-    return {};
+function sanitize(value: unknown): string | null {
+  const type = typeof value;
+  return type === 'object' || type === 'function' || type === 'symbol' ? null : String(value);
+}
+
+/**
+ * Normalizes the different header container shapes into a consistent iterable.
+ */
+function toEntries(headers?: HeaderOptions): Iterable<[string, unknown]> {
+  if (!headers) {
+    return [];
   }
 
-  let headers = h;
   if (headers instanceof Headers) {
-    headers = Object.fromEntries(headers.entries());
+    return headers.entries();
   }
 
   if (Array.isArray(headers)) {
-    headers = Object.fromEntries(headers);
+    return headers;
   }
 
-  const result: Record<string, string | undefined> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    if (value === undefined || value === null) {
-      result[key.toLowerCase()] = undefined;
-      continue;
-    }
-
-    if (
-      typeof value !== 'string' &&
-      typeof value !== 'bigint' &&
-      typeof value !== 'boolean' &&
-      typeof value !== 'number'
-    ) {
-      continue;
-    }
-    result[key.toLowerCase()] = `${value}`;
-  }
-
-  return result;
+  return Object.entries(headers);
 }
 
 /**
  * Merge global and local headers into a single `Headers` instance, normalizing keys.
  */
 export function mergeHeaderOptions(globalHeaders?: HeaderOptions, localHeaders?: HeaderOptions): Headers {
-  const mergedObj = {
-    ...headerOptionsToObject(globalHeaders),
-  };
+  const merged = new Headers();
 
-  for (const [key, value] of Object.entries(headerOptionsToObject(localHeaders))) {
-    if (value === undefined) {
-      delete mergedObj[key];
+  for (const [key, value] of [...toEntries(globalHeaders), ...toEntries(localHeaders)]) {
+    if (value == null) {
+      merged.delete(key);
       continue;
     }
-    mergedObj[key] = value;
-  }
 
-  const cleaned: Record<string, string> = {};
-  for (const [key, value] of Object.entries(mergedObj)) {
-    if (value === undefined) {
-      continue;
+    const clean = sanitize(value);
+    if (clean !== null) {
+      merged.set(key, clean);
     }
-    cleaned[key] = value;
   }
 
-  return new Headers(cleaned);
+  return merged;
 }
