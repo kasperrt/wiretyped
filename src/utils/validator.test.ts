@@ -1,4 +1,5 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
+import { describe, expect, it } from 'vitest';
 import z from 'zod';
 import { ValidationError } from '../error/validationError.js';
 import { validator } from './validator.js';
@@ -61,7 +62,7 @@ describe('validate', () => {
 
     expect(value).toBeNull();
     expect(err).toBeInstanceOf(ValidationError);
-    expect(err?.message.startsWith('error validating data empty resulting validation')).toBe(true);
+    expect(err?.message).toBe('error validation failed with empty results; issues: []');
   });
 
   it('returns error when validation returns truthy result', async () => {
@@ -76,7 +77,7 @@ describe('validate', () => {
 
     expect(value).toBeNull();
     expect(err).toBeInstanceOf(ValidationError);
-    expect(err?.message.startsWith('error validation result of wrong type')).toBe(true);
+    expect(err?.message).toBe('error validation failed with empty results; issues: []');
   });
 
   it('returns string when valid when async validation returns result', async () => {

@@ -501,7 +501,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     };
 
     const open = async () => {
-      const timeoutSignal = timeout ? createTimeoutSignal(timeout) : null;
+      const timeoutSignal = createTimeoutSignal(timeout);
       const mergedSignal = mergeSignals([signal, controller.signal, timeoutSignal, this.#abortController.signal]);
 
       if (mergedSignal?.aborted) {
@@ -603,7 +603,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
     parser: (response: FetchResponse) => SafeWrapAsync<Error, ResponseType>,
     rawData?: unknown,
   ): SafeWrapAsync<Error, ResponseType> {
-    const op = operation.toUpperCase();
     const method: HttpMethod = operation === 'download' ? 'get' : operation;
     const schemas = this.#endpoints[endpoint]?.[operation];
     if (!schemas) {
@@ -614,13 +613,13 @@ export class RequestClient<Schema extends RequestDefinitions> {
     const { validate = this.#validation, cacheRequest, cacheTimeToLive, ...options } = opts;
     const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate);
     if (errUrl) {
-      return [new Error(`error constructing URL in ${op}`, { cause: errUrl }), null];
+      return [new Error(`error constructing URL in ${operation}`, { cause: errUrl }), null];
     }
 
     if ('request' in schemas && schemas.request && validate === true) {
       const [errParse, parsed] = await validator(data, schemas.request);
       if (errParse) {
-        return [new Error(`error parsing request in ${op}`, { cause: errParse }), null];
+        return [new Error(`error parsing request in ${operation}`, { cause: errParse }), null];
       }
 
       data = parsed;
@@ -686,7 +685,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
     const [errParse, parsed] = await validator(result, schemas.response);
     if (errParse) {
-      return [new Error(`error parsing response in ${op}`, { cause: errParse }), null];
+      return [new Error(`error parsing response in ${operation}`, { cause: errParse }), null];
     }
 
     return [null, parsed];
