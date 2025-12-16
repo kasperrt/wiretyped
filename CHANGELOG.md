@@ -1,6 +1,7 @@
 # Releases
 
 ## Contents
+- [v0.3.3-alpha.1](#v0-3-3-alpha-1)
 - [v0.3.3-alpha.0](#v0-3-3-alpha-0)
 - [v0.3.2](#v0-3-2)
 - [v0.3.1](#v0-3-1)
@@ -15,6 +16,11 @@
 - [v0.1.1](#v0-1-1)
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
+
+## v0.3.3-alpha.1
+
+- Make response optional for both `url` and `download`, but at the same time enforce `string` for `url`, and `Blob` for download if defined.
+- Add validation before `url` and `download` return.
 
 ## v0.3.3-alpha.0
 

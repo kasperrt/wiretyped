@@ -349,13 +349,13 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A tuple `[error, url]` where `url` is the resolved absolute URL.
    */
   async url<Endpoint extends UrlEndpoint<Schema>>(...args: UrlArgs<Schema, Endpoint>): SafeWrapAsync<Error, string> {
-    const [endpoint, params, { validate } = {}] = args;
+    const [endpoint, params, { validate = this.#validation } = {}] = args;
     const schemas = this.#endpoints[endpoint]?.url;
     if (!schemas) {
       return [new Error(`error no schemas found for ${endpoint}`), null];
     }
 
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate);
     if (errUrl) {
       return [new Error('error constructing url in url', { cause: errUrl }), null];
     }
@@ -370,7 +370,16 @@ export class RequestClient<Schema extends RequestDefinitions> {
       absoluteUrl = `${this.#hostname}${absoluteUrl}`;
     }
 
-    return [null, absoluteUrl];
+    if (!validate || !schemas.response) {
+      return [null, absoluteUrl];
+    }
+
+    const [errValidate, validated] = await validator(absoluteUrl, schemas.response);
+    if (errValidate) {
+      return [new Error('error validating result in url', { cause: errValidate }), null];
+    }
+
+    return [null, validated];
   }
 
   /**
@@ -391,7 +400,15 @@ export class RequestClient<Schema extends RequestDefinitions> {
     ...args: SSEArgs<Schema, Endpoint, SSEDataReturn<Schema, Endpoint>>
   ): SafeWrapAsync<Error, SSEReturn> {
     const [endpoint, params, handler, opts = {}]: SSEArgs<Schema, Endpoint> = args;
-    const { validate, timeout, headers, signal, errorUnknownType, credentials = this.#credentials, ...options } = opts;
+    const {
+      validate = this.#validation,
+      timeout,
+      headers,
+      signal,
+      errorUnknownType,
+      credentials = this.#credentials,
+      ...options
+    } = opts;
 
     const schemas = this.#endpoints[endpoint].sse;
     if (!schemas?.events) {
@@ -399,7 +416,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     const eventSchemas = schemas.events;
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate);
     if (errUrl) {
       return [new Error('error constructing url in sse', { cause: errUrl }), null];
     }
@@ -471,7 +488,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       }
 
       const parsed = tryParse(data);
-      if (validate === false || (this.#validation === false && !validate)) {
+      if (validate === false) {
         return handler([null, { type: eventName, data: parsed }]);
       }
 
@@ -594,17 +611,13 @@ export class RequestClient<Schema extends RequestDefinitions> {
     }
 
     let data = rawData;
-    const { validate, cacheRequest, cacheTimeToLive, ...options } = opts;
-    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate ?? this.#validation);
+    const { validate = this.#validation, cacheRequest, cacheTimeToLive, ...options } = opts;
+    const [errUrl, url] = await constructUrl(endpoint, params, schemas, validate);
     if (errUrl) {
       return [new Error(`error constructing URL in ${op}`, { cause: errUrl }), null];
     }
 
-    if (
-      'request' in schemas &&
-      schemas.request &&
-      (validate === true || (this.#validation === true && validate !== false))
-    ) {
+    if ('request' in schemas && schemas.request && validate === true) {
       const [errParse, parsed] = await validator(data, schemas.request);
       if (errParse) {
         return [new Error(`error parsing request in ${op}`, { cause: errParse }), null];
@@ -667,7 +680,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       return [new Error(`error doing request in ${operation}`, { cause: errReq }), null];
     }
 
-    if (operation === 'download' || validate === false || (this.#validation === false && !validate)) {
+    if (validate === false || !schemas.response) {
       return [null, result];
     }
 

@@ -7,7 +7,7 @@ import { isErrorType } from '../error/isErrorType.js';
 import { getRetryExhaustedError, RetryExhaustedError } from '../error/retryExhaustedError.js';
 import { getRetrySuppressedError, RetrySuppressedError } from '../error/retrySuppressedError.js';
 import { TimeoutError } from '../error/timeoutError.js';
-import { ValidationError } from '../error/validationError.js';
+import { isValidationError, ValidationError } from '../error/validationError.js';
 import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request.js';
 import * as signals from '../utils/signals.js';
 import { RequestClient } from './client.js';
@@ -933,7 +933,14 @@ describe('RequestClient', () => {
           $search: z.object({
             a: z.string(),
           }),
-          response: z.string(),
+          response: z.url(),
+        },
+      },
+      '/api/my-endpoint/no-response': {
+        url: {
+          $search: z.object({
+            a: z.string(),
+          }),
         },
       },
       '/api/my-endpoint/{integration}': {
@@ -984,6 +991,45 @@ describe('RequestClient', () => {
       expect(res).toBe('https://api.example.com/base/api/my-endpoint?a=b');
     });
 
+    test('Returns full url for endpoint with search params without defined response', async () => {
+      const [err, res] = await requestClient.url('/api/my-endpoint/no-response', {
+        $search: { a: 'b' },
+      });
+
+      expect(err).toBeNull();
+      expect(res).toBe('https://api.example.com/base/api/my-endpoint/no-response?a=b');
+    });
+
+    test('Validation error on url for validate + bad response override', async () => {
+      const endpoints = {
+        '/api/my-endpoint/bad-response-type': {
+          url: {
+            // @ts-expect-error: Overriding to break stuff
+            response: z.object({
+              test: z.boolean(),
+            }),
+          },
+        },
+      } satisfies RequestDefinitions;
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: '/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        // @ts-expect-error: Overriding to break stuff
+        endpoints: endpoints,
+        validation: true,
+      });
+
+      // @ts-expect-error: Overriding to break stuff
+      const [err, url] = await client.url('/api/my-endpoint/bad-response-type', null);
+
+      expect(isValidationError(err)).toBe(true);
+      expect(url).toBeNull();
+      expect(err).toStrictEqual(new Error('error validating result in url'));
+    });
+
     test('Returns error and null data when constructUrl errors due to bad url', async () => {
       const [err, res] = await requestClient.url('/api/my-bad-endpoint/{ye}}', {
         $search: { a: 'b' },
@@ -998,6 +1044,7 @@ describe('RequestClient', () => {
   describe('Download', () => {
     const mockGetEndpoints = {
       '/api/my-endpoint': { download: { response: z.instanceof(Blob) } },
+      '/api/my-endpoint/no-response': { download: {} },
       '/api/my-endpoint/{my-param}': {
         download: { response: z.instanceof(Blob) },
       },
@@ -1109,6 +1156,34 @@ describe('RequestClient', () => {
       expect(getSpy).toHaveBeenCalledOnce();
       expect(getSpy).toHaveBeenCalledWith(
         'api/my-endpoint',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      expect(res?.type).toBe('application/pdf');
+
+      const blobText = await res?.text();
+      expect(blobText).toBe('hello');
+    });
+
+    test("No response object: returns blob data from provider's get when request was successful", async () => {
+      const dummyBlob = new Blob(['hello'], { type: 'application/pdf' });
+
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() => {
+        const response = {
+          blob: (() => Promise.resolve(dummyBlob)) as () => Promise<Blob>,
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+        };
+
+        return [null, response];
+      });
+
+      const [err, res] = await requestClient.download('/api/my-endpoint/no-response', null);
+
+      expect(err).toBeNull();
+      expect(getSpy).toHaveBeenCalledOnce();
+      expect(getSpy).toHaveBeenCalledWith(
+        'api/my-endpoint/no-response',
         expect.objectContaining({ signal: expect.any(AbortSignal) }),
       );
       expect(res?.type).toBe('application/pdf');

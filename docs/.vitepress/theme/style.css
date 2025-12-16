@@ -144,45 +144,12 @@
   display: none;
 }
 
-.wt-hero-badges-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-}
-
-@media (min-width: 960px) {
-  .wt-hero-badges-row {
-    justify-content: flex-start;
-  }
-}
-
-.wt-hero-badges-wrap {
-  text-align: left;
-  line-height: 12px;
-}
-
 /* Default theme centers hero text on small screens when a hero image exists.
    Keep this site left-aligned across breakpoints. */
 .VPHero.has-image .container {
   text-align: left;
 }
 
-.wt-hero-badge {
-  display: inline-flex;
-  line-height: 0;
-}
-
-.wt-hero-badge img {
-  height: 20px;
-  border-radius: 0;
-  opacity: 0.95;
-  transition:
-    opacity 140ms ease,
-    transform 140ms ease;
-}
-
-.wt-hero-badge:hover img {
-  opacity: 1;
-  transform: translateY(-1px);
+.vp-doc a {
+  display: inline-block;
 }

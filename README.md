@@ -15,6 +15,8 @@
 [![minzip](https://deno.bundlejs.com/badge?q=wiretyped@latest)](https://bundlejs.com/?q=wiretyped@latest)
 
 
+[![npm](https://img.shields.io/npm/v/wiretyped.svg)](https://www.npmjs.com/package/wiretyped) [![JSR](https://jsr.io/badges/@kasperrt/wiretyped)](https://jsr.io/@kasperrt/wiretyped)
+
 Universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.
 
 https://wiretyped.io
