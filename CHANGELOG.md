@@ -1,8 +1,7 @@
 # Releases
 
 ## Contents
-- [v0.3.3-alpha.1](#v0-3-3-alpha-1)
-- [v0.3.3-alpha.0](#v0-3-3-alpha-0)
+- [v0.3.3](#v0-3-3)
 - [v0.3.2](#v0-3-2)
 - [v0.3.1](#v0-3-1)
 - [v0.3.0](#v0-3-0)
@@ -17,8 +16,9 @@
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
 
-## v0.3.3-alpha.1
+## v0.3.3
 
+- Bump @standard-schema/spec@1.1.0.
 - Make response optional for both `url` and `download`, but at the same time enforce `string` for `url`, and `Blob` for download if defined.
 - Add validation before `url` and `download` return.
 - Add more and better examples to guide for download + url.
@@ -28,12 +28,8 @@
 - Internal; More iteratively merging headers for nicer readability and sanitization.
 - Internal; Add AbortSignal.any execution attempt.
 - Internal; Reduce excessive checks and variables in validator function.
-
-## v0.3.3-alpha.0
-
-- Bump @standard-schema/spec@1.1.0.
 - Internal; Remove hono, simple-git-hooks, (direct) vue dependencies.
-- Internal; "Native" e2e-tests for node, bun, deno, cloudflare workers, browser.
+- Internal; 'Native' e2e-tests for node, bun, deno, cloudflare workers, browser.
 
 ## v0.3.2
 
