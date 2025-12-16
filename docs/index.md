@@ -45,7 +45,7 @@ features:
 
 WireTyped is a small, composable HTTP client for fetch-based runtimes (browser, Node, Bun, Deno, workers). You define your API as typed endpoint definitions and call it with a consistent, error-first API.
 
-It keeps a tiny runtime surface area: one dependency, `@standard-schema/spec`, so you can bring your own validator (Zod, Valibot, ArkType, etc.) without dragging in a whole framework or a pile of transitive deps. Grab it wherever you ship JS/TS and keep an eye on the health stats: 
+It keeps a tiny runtime surface area: one dependency, `@standard-schema/spec`, so you can bring your own validator (Zod, Valibot, ArkType, etc.) without dragging in a whole framework or a pile of transitive deps. 
 
 I built it because I got tired of the same three problems: surprise runtime errors, wrapping every request in `try/catch`, and threading schemas + type inference through every call just to keep types strict and consistent. WireTyped centralizes that work in your endpoint definitions, so using the client stays predictable and pretty.
 

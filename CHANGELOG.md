@@ -21,6 +21,13 @@
 
 - Make response optional for both `url` and `download`, but at the same time enforce `string` for `url`, and `Blob` for download if defined.
 - Add validation before `url` and `download` return.
+- Add more and better examples to guide for download + url.
+- Internal; Improve default destructuring in RequestClient.
+- Internal; More direct cache-pending return.
+- Internal; Cleanup pending cache faster.
+- Internal; More iteratively merging headers for nicer readability and sanitization.
+- Internal; Add AbortSignal.any execution attempt.
+- Internal; Reduce excessive checks and variables in validator function.
 
 ## v0.3.3-alpha.0
 
