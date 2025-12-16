@@ -7,6 +7,8 @@ import type { SafeWrap } from '../utils/wrap.js';
 export type SchemaType = StandardSchemaV1<unknown, any>;
 /** Schema representing string */
 export type SchemaString = StandardSchemaV1<string, string>;
+/** Schema representing Blob */
+export type SchemaBlob = StandardSchemaV1<unknown, Blob>;
 /** Empty object definition */
 export type EmptyObject = Record<never, never>;
 
@@ -47,12 +49,20 @@ export type SSEEndpointDefinition<Events extends SSEEventSchemas = SSEEventSchem
  */
 export type RequestDefinitions = {
   [path: string]: RequireAtLeastOne<{
-    [M in ClientOperation]: M extends 'url'
-      ? { $search?: SchemaType; $path?: SchemaType; response: SchemaString }
-      : M extends 'sse'
-        ? SSEEndpointDefinition
-        : M extends 'get' | 'delete' | 'download'
-          ? { $search?: SchemaType; $path?: SchemaType; response: SchemaType }
+    [M in ClientOperation]: M extends 'sse'
+      ? SSEEndpointDefinition
+      : M extends 'get' | 'delete'
+        ? {
+            $search?: SchemaType;
+            $path?: SchemaType;
+            response: SchemaType;
+          }
+        : M extends 'download' | 'url'
+          ? {
+              $search?: SchemaType;
+              $path?: SchemaType;
+              response?: M extends 'download' ? StandardSchemaV1<unknown, Blob> : SchemaString;
+            }
           : {
               $search?: SchemaType;
               $path?: SchemaType;

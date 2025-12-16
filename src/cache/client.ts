@@ -80,8 +80,7 @@ export class CacheClient {
    * @param {Object} data - cache data
    */
   #add<T = unknown>(key: string, data: T, ttl: number) {
-    const expires = Date.now() + ttl;
-    this.#cache.set(key, { key, data, expires });
+    this.#cache.set(key, { key, data, expires: Date.now() + ttl });
   }
 
   /**
@@ -124,10 +123,12 @@ export class CacheClient {
       }
 
       this.#add(key, data, ttl);
+      this.#pending.delete(key);
       return [null, data];
     })();
 
     this.#pending.set(key, pending);
+    return pending;
   };
 
   /**
@@ -150,8 +151,7 @@ export class CacheClient {
       return pending as SafeWrapAsync<Error, T>;
     }
 
-    this.#addPendingRequest(key, res, ttl);
-    return this.#pending.get(key) as SafeWrapAsync<Error, T>;
+    return this.#addPendingRequest(key, res, ttl);
   };
 
   /**

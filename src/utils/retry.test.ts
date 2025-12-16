@@ -1,4 +1,3 @@
-// retry.test.ts
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getRetryExhaustedError, isRetryExhaustedError, RetryExhaustedError } from '../error/retryExhaustedError.js';
 import {

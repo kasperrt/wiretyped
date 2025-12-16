@@ -150,12 +150,16 @@ const [err, deletion] = await client.delete('/users/{id}', { id: '123' });
 
 ### DOWNLOAD
 
-`download` performs an HTTP `GET` request under the hood, but handles the response as binary and returns a `Blob` instance (it uses `response.blob()` internally instead of JSON parsing).
+`download` performs an HTTP `GET` request under the hood, but handles the response as binary and returns a `Blob` instance (it uses `response.blob()` internally instead of JSON parsing). `response` is optional and only accepts Blob.
 
 ```ts
 const endpoints = {
+  // Response not strictly needed, but only accepts Blob instances
   '/files/{id}/download': {
     download: { response: z.instanceof(Blob) },
+  },
+  '/files/{id}/download/{type}': {
+    download: { $path: z.object({ type: z.enum(['pdf', 'png']) }) },
   },
 } satisfies RequestDefinitions;
 
@@ -164,10 +168,21 @@ const [err, file] = await client.download('/files/{id}/download', { id: 'file-1'
 
 ### URL
 
+Structured similarly to other operations, but `response` is optional and only accepts strings.
+
 ```ts
 const endpoints = {
-  '/links': { url: { response: z.string().url() } },
+  // Response not strictly needed, but only accepts string derivatives
+  '/links': { 
+    url: { response: z.url() }
+  },
+  '/links/{integration}': { 
+    url: { 
+      $path: z.object({ integration: z.enum(['slack', 'github']) }) 
+    } 
+  },
 } satisfies RequestDefinitions;
+
 
 const [err, link] = await client.url('/links', null);
 ```
@@ -178,7 +193,7 @@ Use `url()` when you want a validated, parsed URL without making a request, e.g.
 
 #### Why async?
 
-`url()` generates a URL from the endpoint template + params and validates/parses the final result using the endpoint’s `url.response` schema. The “response” schema here is simply used to express that the return type is a string (and lets you attach extra validation like `z.string().url()`).
+`url()` generates a URL from the endpoint template + params and validates/parses the final result using the endpoint’s `url.response` schema. The “response” schema here is simply used to express that the return type is a string (and lets you attach extra validation like `z.url()`).
 
 It’s async because Standard Schema validators can be async, so the API is async even though it doesn’t hit the network.
 
