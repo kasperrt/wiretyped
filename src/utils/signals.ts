@@ -1,5 +1,6 @@
 import { AbortError } from '../error/abortError.js';
 import { TimeoutError } from '../error/timeoutError.js';
+import { safeWrap } from './wrap.js';
 
 /**
  * Creates an {@link AbortSignal} that will automatically abort after
@@ -16,7 +17,6 @@ export function createTimeoutSignal(timeoutMs?: number | false): AbortSignal | n
   }
 
   const controller = new AbortController();
-
   const timeout = setTimeout(
     () => controller.abort(new TimeoutError(`error request timed out after ${timeoutMs}ms`)),
     timeoutMs,
@@ -44,7 +44,7 @@ export function createTimeoutSignal(timeoutMs?: number | false): AbortSignal | n
  * @returns A single `AbortSignal` or `null` if all inputs are nullish.
  */
 export function mergeSignals(signals: Array<AbortSignal | null | undefined>): AbortSignal | null {
-  const active: AbortSignal[] = signals.filter((s): s is AbortSignal => s !== null && s !== undefined);
+  const active = signals.filter((s): s is AbortSignal => s != null);
 
   if (active.length === 0) {
     return null;
@@ -54,8 +54,14 @@ export function mergeSignals(signals: Array<AbortSignal | null | undefined>): Ab
     return active[0];
   }
 
+  if (typeof AbortSignal.any === 'function') {
+    const [err, signal] = safeWrap(() => AbortSignal.any(active));
+    if (!err) {
+      return signal;
+    }
+  }
+
   const controller = new AbortController();
-  const listeners: VoidFunction[] = [];
   const abortFrom = (source: AbortSignal) => {
     if ('reason' in source) {
       controller.abort(source.reason);
@@ -65,12 +71,6 @@ export function mergeSignals(signals: Array<AbortSignal | null | undefined>): Ab
     controller.abort(new AbortError('error signal triggered with unknown reason'));
   };
 
-  controller.signal.addEventListener('abort', () => {
-    for (const remove of listeners) {
-      remove();
-    }
-  });
-
   for (const signal of active) {
     if (signal.aborted) {
       abortFrom(signal);
@@ -78,8 +78,9 @@ export function mergeSignals(signals: Array<AbortSignal | null | undefined>): Ab
     }
 
     const abort = () => abortFrom(signal);
+    const { signal: merged } = controller;
     signal.addEventListener('abort', abort, { once: true });
-    listeners.push(() => signal.removeEventListener('abort', abort));
+    merged.addEventListener('abort', () => signal.removeEventListener('abort', abort), { once: true });
   }
 
   return controller.signal;

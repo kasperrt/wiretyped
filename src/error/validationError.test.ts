@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { getValidationError, isValidationError, ValidationError } from './validationError.js';
 
 describe('isErrorType', () => {

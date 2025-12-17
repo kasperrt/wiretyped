@@ -164,9 +164,15 @@ export const exampleEndpoints = {
       response: z.instanceof(Blob),
     },
   },
-  '/links': {
+  '/authorization/{provider}': {
     url: {
-      response: z.string().url(),
+      $search: z.object({
+        popup: z.boolean(),
+      }).optional(),
+      $path: z.object({
+        provider: z.enum(['microsoft', 'google']),
+      }),
+      response: z.url(),
     },
   },
   '/events': {

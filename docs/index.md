@@ -6,30 +6,6 @@ hero:
   name: WireTyped
   text: Typed HTTP client for fetch runtimes
   tagline: Universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.
-
-    <!-- All this to avoid a vue direct package -->
-    <!-- But at least you read this, so that's fun -->
-    <div class="wt-hero-badges-wrap">
-      <div class="wt-hero-badges-row">
-        <a class="wt-hero-badge" href="https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml" target="_blank" rel="noreferrer">
-          <img src="https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml/badge.svg" alt="CI" loading="lazy" decoding="async" />
-        </a>
-        <a class="wt-hero-badge" href="https://codecov.io/gh/kasperrt/wiretyped" target="_blank" rel="noreferrer">
-          <img src="https://codecov.io/gh/kasperrt/wiretyped/branch/main/graph/badge.svg" alt="Coverage" loading="lazy" decoding="async" />
-        </a>
-        <a class="wt-hero-badge" href="https://bundlejs.com/?q=wiretyped@latest" target="_blank" rel="noreferrer">
-          <img src="https://deno.bundlejs.com/badge?q=wiretyped@latest" alt="minzip" loading="lazy" decoding="async" />
-        </a>
-      </div>
-      <div class="wt-hero-badges-row">
-        <a class="wt-hero-badge" href="https://www.npmjs.com/package/wiretyped" target="_blank" rel="noreferrer">
-          <img src="https://img.shields.io/npm/v/wiretyped.svg" alt="npm" loading="lazy" decoding="async" />
-        </a>
-        <a class="wt-hero-badge" href="https://jsr.io/@kasperrt/wiretyped" target="_blank" rel="noreferrer">
-          <img src="https://jsr.io/badges/@kasperrt/wiretyped" alt="JSR" loading="lazy" decoding="async">
-        </a>
-      </div>
-    </div>
     
   actions:
     - theme: brand
@@ -60,13 +36,20 @@ features:
 
 ## What is it?
 
+> Small and easy-to-use fetch based client with runtime validation
+
+
+[![CI](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml/badge.svg)](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml) &nbsp; [![Coverage](https://codecov.io/gh/kasperrt/wiretyped/branch/main/graph/badge.svg)](https://codecov.io/gh/kasperrt/wiretyped) &nbsp; [![minzip](https://badgen.net/bundlephobia/minzip/wiretyped@latest)](https://bundlephobia.com/package/wiretyped@latest)
+
+[![npm](https://img.shields.io/npm/v/wiretyped.svg)](https://www.npmjs.com/package/wiretyped) &nbsp; [![JSR](https://jsr.io/badges/@kasperrt/wiretyped)](https://jsr.io/@kasperrt/wiretyped)
+
 WireTyped is a small, composable HTTP client for fetch-based runtimes (browser, Node, Bun, Deno, workers). You define your API as typed endpoint definitions and call it with a consistent, error-first API.
 
-It has a tiny runtime surface area: one dependency, `@standard-schema/spec`, so you can bring your own validator (Zod, Valibot, ArkType, etc.) without dragging in a whole framework or a pile of transitive deps.
+It keeps a tiny runtime surface area: one dependency, `@standard-schema/spec`, so you can bring your own validator (Zod, Valibot, ArkType, etc.) without dragging in a whole framework or a pile of transitive deps. 
 
 I built it because I got tired of the same three problems: surprise runtime errors, wrapping every request in `try/catch`, and threading schemas + type inference through every call just to keep types strict and consistent. WireTyped centralizes that work in your endpoint definitions, so using the client stays predictable and pretty.
 
-## Quick example
+## Basic example
 
 Define your endpoints once, then call them with a consistent `[err, data]` shape with convenient type-narrowing:
 
@@ -96,6 +79,4 @@ console.log(user.name);
 
 ## Okay, wow
 
-This is the part where you pause for a second and go: okay, yeah. This is kinda beautiful. Let’s keep going.
-
-I got you: [`/guide/getting-started`](/guide/getting-started)
+If you’re nodding along and want to keep moving, jump into the quickstart: [`/guide/getting-started`](/guide/getting-started)
