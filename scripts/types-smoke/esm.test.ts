@@ -1,7 +1,7 @@
 // ESM types smoke: ensure declarations resolve for the package root
 
 import type { RequestClient, RequestDefinitions } from 'wiretyped';
-import { HTTPError, isHttpError } from 'wiretyped';
+import { HTTPError, isHttpError } from 'wiretyped/error';
 import { z } from 'zod';
 
 const endpoints = {

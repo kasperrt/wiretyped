@@ -2,7 +2,7 @@
 
 import type { RequestClient, RequestDefinitions } from 'wiretyped';
 
-const _root = require('wiretyped') as typeof import('wiretyped');
+const _error = require('wiretyped/error') as typeof import('wiretyped/error');
 const { z } = require('zod') as typeof import('zod');
 
 const endpoints = {
@@ -20,5 +20,5 @@ type RootPing = Awaited<ReturnType<RequestClient<typeof endpoints>['get']>>;
 export type _AssertRootPingCjs = RootPing;
 
 // Error helpers should be available from root
-const _httpError = new _root.HTTPError(new Response(null, { status: 500 }));
-export const _assertIsHttpErrorCjs: boolean = _root.isHttpError(_httpError);
+const _httpError = new _error.HTTPError(new Response(null, { status: 500 }));
+export const _assertIsHttpErrorCjs: boolean = _error.isHttpError(_httpError);
