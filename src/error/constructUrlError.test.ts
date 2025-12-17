@@ -36,4 +36,3 @@ describe('getConstructURLError', () => {
     expect(getConstructURLError(wrapped)).toBeNull();
   });
 });
-

@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  getRetrySuppressedError,
-  isRetrySuppressedError,
-  RetrySuppressedError,
-} from './retrySuppressedError.js';
+import { getRetrySuppressedError, isRetrySuppressedError, RetrySuppressedError } from './retrySuppressedError.js';
 
 describe('RetrySuppressedError', () => {
   it('exposes attempts via getter', () => {
@@ -40,4 +36,3 @@ describe('getRetrySuppressedError', () => {
     expect(getRetrySuppressedError(wrapped)).toBeNull();
   });
 });
-

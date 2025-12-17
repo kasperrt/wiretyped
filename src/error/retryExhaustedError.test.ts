@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  getRetryExhaustedError,
-  isRetryExhaustedError,
-  RetryExhaustedError,
-} from './retryExhaustedError.js';
+import { getRetryExhaustedError, isRetryExhaustedError, RetryExhaustedError } from './retryExhaustedError.js';
 
 describe('RetryExhaustedError', () => {
   it('exposes attempts via getter', () => {
@@ -40,4 +36,3 @@ describe('getRetryExhaustedError', () => {
     expect(getRetryExhaustedError(wrapped)).toBeNull();
   });
 });
-

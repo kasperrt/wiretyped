@@ -11,4 +11,3 @@ describe('isTimeoutError', () => {
     expect(isTimeoutError(new Error('boom'))).toBe(false);
   });
 });
-
