@@ -663,7 +663,9 @@ describe('RequestClient', () => {
           json: () => {
             throw new Error('test');
           },
-          text: () => '{ "ok": true }',
+          text: () => {
+            throw new Error('test');
+          },
           ok: true,
           status: 200,
           headers: { get: () => 'application/json' },
@@ -700,7 +702,7 @@ describe('RequestClient', () => {
         new Error('error doing request in get', {
           cause: new RetryExhaustedError('error retries exhausted', 10, {
             cause: new Error('error getting response in GET', {
-              cause: new Error('error parsing json in getResponseData', { cause: new Error('test') }),
+              cause: new Error('error reading response body in getResponseData', { cause: new Error('test') }),
             }),
           }),
         }),
@@ -1381,7 +1383,7 @@ describe('RequestClient', () => {
         const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(async () =>
           asyncOk({
             json: () => null,
-            text: () => '{ "data": "GET request data no params" }',
+            text: () => '{ "foo": "GET request data no params" }',
             ok: true,
             status: 200,
             headers: { get: () => 'application/json' },

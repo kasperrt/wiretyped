@@ -1,6 +1,7 @@
 # Releases
 
 ## Contents
+- [v0.3.4-alpha.0](#v0-3-4-alpha-0)
 - [v0.3.3](#v0-3-3)
 - [v0.3.2](#v0-3-2)
 - [v0.3.1](#v0-3-1)
@@ -15,6 +16,12 @@
 - [v0.1.1](#v0-1-1)
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
+
+## v0.3.4-alpha.0
+
+- Internal; Handle 205 status-codes more gracefully by defaulting to null returned as body.
+- Internal; Reduce overhead for getResponseData to read response once through `.text()` with attempting parsing on `application/json` or `+json` in the `Content-Type` header.
+
 
 ## v0.3.3
 

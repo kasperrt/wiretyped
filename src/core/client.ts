@@ -428,6 +428,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
     const close = (): void => controller.abort('closed by user request');
     const hasEventSchema = (name: string): name is SSEDataReturn<Schema, Endpoint & string>['type'] =>
       name in eventSchemas;
+
     const parseBlock = async (block: string) => {
       if (!block) {
         return;
