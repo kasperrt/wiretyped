@@ -19,38 +19,22 @@ export { RequestClient } from './core/client.js';
  */
 export type { RequestDefinitions } from './core/types.js';
 
-/**
- * Error thrown when a request is aborted via AbortController.
- */
-export { AbortError } from './error/abortError.js';
-
-/**
- * Error representing a error constructing URL.
- */
-export { ConstructURLError } from './error/constructUrlError.js';
-
-/**
- * Error representing a non-2xx HTTP response.
- */
-export { HTTPError } from './error/httpError.js';
-/** Generic type guard that matches an error constructor against an unknown error. */
-export { isErrorType } from './error/isErrorType.js';
-/**
- * Error representing a retry attempts exhausted.
- */
-export { RetryExhaustedError } from './error/retryExhaustedError.js';
-/**
- * Error representing a retry attempt suppressed and exited from retrying further.
- */
-export { RetrySuppressedError } from './error/retrySuppressedError.js';
-/**
- * Error thrown when a request exceeds the configured timeout.
- */
-export { TimeoutError } from './error/timeoutError.js';
-
-/** Recursively unwraps nested causes to find a specific error class. */
-export { unwrapErrorType } from './error/unwrapErrorType.js';
-/**
- * Error thrown when validation of payloads fails.
- */
-export { ValidationError } from './error/validationError.js';
+/** Type guard that checks if an error is an {@link AbortError}. */
+export { isAbortError } from './error/abortError.js';
+/** Extract an {@link ConstructURLError} from an unknown error value, following nested causes. */
+/** Type guard for {@link ConstructURLError}. */
+export { getConstructURLError, isConstructURLError } from './error/constructUrlError.js';
+/** Extracts an {@link HTTPError} from an unknown error value. */
+/** Type guard that checks if an error is an {@link HTTPError}. */
+export { getHttpError, HTTPError, isHttpError } from './error/httpError.js';
+/** Extract an {@link RetryExhaustedError} from an unknown error value, following nested causes. */
+/** Type guard for {@link RetryExhaustedError}. */
+export { getRetryExhaustedError, isRetryExhaustedError } from './error/retryExhaustedError.js';
+/** Extract an {@link RetrySuppressedError} from an unknown error value, following nested causes. */
+/** Type guard for {@link RetrySuppressedError}. */
+export { getRetrySuppressedError, isRetrySuppressedError } from './error/retrySuppressedError.js';
+/** Type guard that checks if an error is a {@link TimeoutError}. */
+export { isTimeoutError } from './error/timeoutError.js';
+/** Extracts a {@link ValidationError} from an unknown error value. */
+/** Type guard that checks if an error is a {@link ValidationError}. */
+export { getValidationError, isValidationError } from './error/validationError.js';
