@@ -301,7 +301,7 @@ jobs:
         run: pnpx jsr publish
 
   docs:
-    if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.run == 'true' && needs.release.result == 'success'
+    if: github.repository == 'kasperrt/wiretyped' && github.ref == 'refs/heads/main' && needs.detect.outputs.run == 'true' && needs.release.result == 'success'
     needs: [detect, tag, release]
     runs-on: ubuntu-latest
 
