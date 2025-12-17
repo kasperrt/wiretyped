@@ -2,16 +2,17 @@ import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi 
 import { z } from 'zod';
 import { CacheClient } from '../cache/client.js';
 import { AbortError } from '../error/abortError.js';
-import { isHttpError } from '../error/httpError.js';
 import { isErrorType } from '../error/isErrorType.js';
-import { getRetryExhaustedError, RetryExhaustedError } from '../error/retryExhaustedError.js';
-import { getRetrySuppressedError, RetrySuppressedError } from '../error/retrySuppressedError.js';
+import { RetryExhaustedError } from '../error/retryExhaustedError.js';
+import { RetrySuppressedError } from '../error/retrySuppressedError.js';
 import { TimeoutError } from '../error/timeoutError.js';
-import { isValidationError, ValidationError } from '../error/validationError.js';
+import { ValidationError } from '../error/validationError.js';
 import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request.js';
 import * as signals from '../utils/signals.js';
 import { RequestClient } from './client.js';
 import type { RequestDefinitions } from './types.js';
+import { unwrapErrorType } from '../error/unwrapErrorType.js';
+import { HTTPError } from '../error/httpError.js';
 
 type MockedFetchClientProvider = MockedFunction<FetchClientProvider>;
 
@@ -523,8 +524,8 @@ describe('RequestClient', () => {
       expect(res).toBeNull();
       expect(err).toBeInstanceOf(Error);
       expect((err as Error).cause).toBeInstanceOf(RetrySuppressedError);
-      expect(isHttpError(err)).toBe(true);
-      expect(getRetrySuppressedError(err)?.attempts).toBe(1);
+      expect(isErrorType(HTTPError, err)).toBe(true);
+      expect(unwrapErrorType(RetrySuppressedError, err)?.attempts).toBe(1);
       expect(getSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -613,8 +614,8 @@ describe('RequestClient', () => {
       expect(res).toBeNull();
       expect(err).toBeInstanceOf(Error);
       expect((err as Error).cause).toBeInstanceOf(RetrySuppressedError);
-      expect(getRetrySuppressedError(err)?.attempts).toBe(1);
-      expect(isHttpError(err)).toBe(true);
+      expect(unwrapErrorType(RetrySuppressedError, err)?.attempts).toBe(1);
+      expect(isErrorType(HTTPError, err)).toBe(true);
       expect(getSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -697,7 +698,7 @@ describe('RequestClient', () => {
       await vi.advanceTimersByTimeAsync(9 * 1000);
       const [err, res] = await request;
 
-      expect(getRetryExhaustedError(err)?.attempts).toBe(10);
+      expect(unwrapErrorType(RetryExhaustedError, err)?.attempts).toBe(10);
       expect(err).toStrictEqual(
         new Error('error doing request in get', {
           cause: new RetryExhaustedError('error retries exhausted', 10, {
@@ -1027,7 +1028,7 @@ describe('RequestClient', () => {
       // @ts-expect-error: Overriding to break stuff
       const [err, url] = await client.url('/api/my-endpoint/bad-response-type', null);
 
-      expect(isValidationError(err)).toBe(true);
+      expect(isErrorType(ValidationError, err)).toBe(true);
       expect(url).toBeNull();
       expect(err).toStrictEqual(new Error('error validating result in url'));
     });
@@ -2883,7 +2884,7 @@ describe('RequestClient', () => {
         expect.objectContaining({ signal: expect.any(AbortSignal) }),
       );
       expect(err).toBeInstanceOf(Error);
-      expect(getRetryExhaustedError(err)?.attempts).toBe(1);
+      expect(unwrapErrorType(RetryExhaustedError, err)?.attempts).toBe(1);
       expect(err).toStrictEqual(
         new Error('error doing request in delete', {
           cause: new RetryExhaustedError('error retries exhausted', 1, {

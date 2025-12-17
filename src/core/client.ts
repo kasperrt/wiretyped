@@ -1,8 +1,9 @@
 import { CacheClient } from '../cache/client.js';
-import { isAbortError } from '../error/abortError.js';
-import { getHttpError, HTTPError } from '../error/httpError.js';
+import { AbortError } from '../error/abortError.js';
+import { HTTPError } from '../error/httpError.js';
 import { isErrorType } from '../error/isErrorType.js';
-import { isTimeoutError } from '../error/timeoutError.js';
+import { TimeoutError } from '../error/timeoutError.js';
+import { unwrapErrorType } from '../error/unwrapErrorType.js';
 import { FetchClient } from '../fetch/client.js';
 import { mergeHeaderOptions } from '../fetch/utils.js';
 import type {
@@ -749,11 +750,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
       attempts: retryAttempts,
       timeout: retryTimeout,
       errFn: (err) => {
-        if (isTimeoutError(err)) {
+        if (isErrorType(TimeoutError, err)) {
           return false;
         }
 
-        if (isAbortError(err)) {
+        if (isErrorType(AbortError, err)) {
           return true;
         }
 
@@ -761,7 +762,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
           return false;
         }
 
-        const httpError = getHttpError(err);
+        const httpError = unwrapErrorType(HTTPError, err);
         if (!httpError) {
           return false;
         }

@@ -1,6 +1,7 @@
 # Releases
 
 ## Contents
+- [v0.4.0-alpha.0](#v0-4-0-alpha-0)
 - [v0.3.4-alpha.0](#v0-3-4-alpha-0)
 - [v0.3.3](#v0-3-3)
 - [v0.3.2](#v0-3-2)
@@ -16,6 +17,10 @@
 - [v0.1.1](#v0-1-1)
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
+
+## v0.4.0-alpha.0
+
+- Remove getters and checkers for error abstraction, and only expose isErrorType and unwrapErrorType.
 
 ## v0.3.4-alpha.0
 

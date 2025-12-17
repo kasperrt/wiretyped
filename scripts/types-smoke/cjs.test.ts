@@ -21,4 +21,4 @@ export type _AssertRootPingCjs = RootPing;
 
 // Error helpers should be available from root
 const _httpError = new _root.HTTPError(new Response(null, { status: 500 }));
-export const _assertIsHttpErrorCjs: boolean = _root.isHttpError(_httpError);
+export const _assertIsHttpErrorCjs: boolean = _root.isErrorType(_root.HTTPError, _httpError);

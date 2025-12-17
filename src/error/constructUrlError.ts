@@ -1,12 +1,9 @@
-import { isErrorType } from './isErrorType.js';
-import { unwrapErrorType } from './unwrapErrorType.js';
-
 /**
  * Error representing a error constructing URL.
  */
 export class ConstructURLError extends Error {
   /** ConstructURLError error-name */
-  name = 'ConstructURLError';
+  static name = 'ConstructURLError';
   /** Internal URL for what it looked like */
   #url: string;
 
@@ -22,16 +19,3 @@ export class ConstructURLError extends Error {
   }
 }
 
-/**
- * Extract an {@link ConstructURLError} from an unknown error value, following nested causes.
- */
-export function getConstructURLError(error: unknown): null | ConstructURLError {
-  return unwrapErrorType(ConstructURLError, error);
-}
-
-/**
- * Type guard for {@link ConstructURLError}.
- */
-export function isConstructURLError(error: unknown, shallow?: boolean): error is ConstructURLError {
-  return isErrorType(ConstructURLError, error, shallow);
-}
