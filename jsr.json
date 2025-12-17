@@ -1,8 +1,9 @@
 {
   "name": "@kasperrt/wiretyped",
-  "version": "0.4.0-alpha.1",
+  "version": "0.4.0-alpha.2",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./error": "./src/error/index.ts"
   },
   "compatibility": {
     "deno": true,

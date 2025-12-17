@@ -6,9 +6,9 @@ const require = createRequire(import.meta.url);
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(dirname, '../dist');
 
-const cjsEntrypoints = [path.join(dist, 'index.cjs'), path.join(dist, 'core.cjs'), path.join(dist, 'error.cjs')];
+const cjsEntrypoints = [path.join(dist, 'index.cjs'), path.join(dist, 'error.cjs')];
 
-const esmEntrypoints = [path.join(dist, 'index.mjs'), path.join(dist, 'core.mjs'), path.join(dist, 'error.mjs')];
+const esmEntrypoints = [path.join(dist, 'index.mjs'), path.join(dist, 'error.mjs')];
 
 try {
   for (const entry of cjsEntrypoints) {

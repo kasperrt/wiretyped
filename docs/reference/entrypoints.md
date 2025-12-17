@@ -4,8 +4,7 @@ title: Entrypoints
 
 # Entrypoints
 
-- Root import (client, types, errors): `wiretyped`
-- Core client and types: `wiretyped/core`
+- Root import (client, types): `wiretyped`
 - Error helpers: `wiretyped/error`
 
 ## What's next

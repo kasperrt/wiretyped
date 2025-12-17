@@ -52,11 +52,7 @@ console.log(user.name);
 
 ## Imports
 
-npm + JSR:
-- Default (recommended): `import { RequestClient, ...errors } from 'wiretyped'`
-
-npm only (optional):
-- Core-only: `import { RequestClient } from 'wiretyped/core'`
+- Core-only: `import { RequestClient } from 'wiretyped'`
 - Error-only: `import { HTTPError, unwrapErrorType, ... } from 'wiretyped/error'`
 
 Prefer a single import? The root export works too:
