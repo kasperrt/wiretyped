@@ -91,7 +91,7 @@ describe('getResponseData', () => {
 
       expect(value).toBeNull();
       expect(err).toBeInstanceOf(Error);
-      expect(err?.message).toBe('error attempting string parse after json failed in getResponseData');
+      expect(err?.message).toBe('error reading response body in getResponseData');
       expect(err?.cause).toBe(textError);
     });
 
@@ -111,7 +111,7 @@ describe('getResponseData', () => {
 
       expect(value).toBeNull();
       expect(err).toBeInstanceOf(Error);
-      expect(err?.message).toBe('error json-parse string after json failed in getResponseData');
+      expect(err?.message).toBe('error parsing json response body in getResponseData');
       expect(err?.cause).toBeInstanceOf(SyntaxError);
     });
 

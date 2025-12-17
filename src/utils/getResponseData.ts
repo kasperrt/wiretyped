@@ -1,4 +1,3 @@
-import { isErrorType } from '../error/isErrorType.js';
 import type { FetchResponse } from '../types/request.js';
 import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap.js';
 
@@ -22,41 +21,31 @@ import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap.js';
  *   and `value` is the parsed body (`ReturnValue | null`).
  */
 export async function getResponseData<ReturnValue>(response: FetchResponse): SafeWrapAsync<Error, ReturnValue> {
-  if (response.status === 204) {
+  // Per HTTP spec, 204 + 205 shouldn't have a body
+  if (response.status === 204 || response.status === 205) {
     return [null, null as ReturnValue];
   }
 
-  const contentType = response.headers.get('Content-Type');
-  if (!contentType?.includes('application/json')) {
-    const [errText, text] = await safeWrapAsync(() => response.text());
-    if (errText) {
-      return [new Error('error parsing text in getResponseData', { cause: errText }), null];
-    }
-
-    return [null, (text || null) as ReturnValue];
-  }
-
-  const [errJson, json] = await safeWrapAsync(() => response.json());
-  // if we get a normal non TypeError, we want to try more aggressively at parsing this still, in case
-  // the browser fumbled and didn't supply us with a proper json method
-  if (errJson && !isErrorType(TypeError, errJson)) {
-    return [new Error('error parsing json in getResponseData', { cause: errJson }), null];
-  }
-
-  if (!isErrorType(TypeError, errJson)) {
-    return [null, json];
-  }
-
-  // If TypeError, try again, more aggressively
+  // Use .text as reader, since double reads with text -> json would cause TypeError
+  // due to the body being consumed already
   const [errText, text] = await safeWrapAsync(() => response.text());
   if (errText) {
-    return [new Error('error attempting string parse after json failed in getResponseData', { cause: errText }), null];
+    return [new Error('error reading response body in getResponseData', { cause: errText }), null];
   }
 
-  const [errParse, parsed] = safeWrap<Error, ReturnValue>(() => JSON.parse(text));
-  if (errParse) {
-    return [new Error('error json-parse string after json failed in getResponseData', { cause: errParse }), null];
+  if (!text) {
+    return [null, null as ReturnValue];
   }
 
-  return [null, parsed];
+  const contentType = response?.headers?.get('Content-Type')?.toLowerCase();
+  if (!contentType?.includes('application/json') && !contentType?.includes('+json')) {
+    return [null, text as ReturnValue];
+  }
+
+  const [errJson, json] = safeWrap(() => JSON.parse(text));
+  if (errJson) {
+    return [new Error('error parsing json response body in getResponseData', { cause: errJson }), null];
+  }
+
+  return [null, json];
 }
