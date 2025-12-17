@@ -1,4 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
+import { isErrorType } from './isErrorType.js';
+import { unwrapErrorType } from './unwrapErrorType.js';
 
 /**
  * Error representing a validation error when validating with @standard-schema
@@ -15,4 +17,18 @@ export class ValidationError extends Error {
 
     this.issues = issues;
   }
+}
+
+/**
+ * Type guard for {@link ValidationError}.
+ */
+export function isValidationError(error: unknown): error is ValidationError {
+  return isErrorType(ValidationError, error);
+}
+
+/**
+ * Extract an {@link ValidationError} from an unknown error value, following nested causes.
+ */
+export function getValidationError(error: unknown): null | ValidationError {
+  return unwrapErrorType(ValidationError, error);
 }

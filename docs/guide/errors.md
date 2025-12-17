@@ -17,6 +17,8 @@ WireTyped returns `[error, data]` tuples; the `error` half is either `null`, one
 - `RetrySuppressedError`: Retry loop stopped early (stop/ignore code/state); `.attempts` shows how many tries happened.
 - `RetryExhaustedError`: Retry loop hit its limit; `.attempts` shows total tries.
 
+Use `isX` / `getX` helpers (e.g., `isHttpError`, `getValidationError`) from `wiretyped/error` to safely narrow or unwrap errors, even when they are nested in `cause`.
+
 ## Utilities
 
 ### Helpers
@@ -24,16 +26,16 @@ WireTyped returns `[error, data]` tuples; the `error` half is either `null`, one
 `wiretyped` exports helpers for richer error handling:
 
 ```ts
-import { HTTPError, unwrapErrorType, isErrorType, TimeoutError } from 'wiretyped';
+import { getHttpError, isTimeoutError } from 'wiretyped/error';
 
 const [err, user] = await client.get('/users/{id}', { $path: { id: '123' } });
 if (err) {
-  const httpError = unwrapErrorType(HTTPError, err);
+  const httpError = getHttpError(err);
   if (httpError) {
     console.error('request failed with status', httpError.status);
     return;
   }
-  if (isErrorType(TimeoutError, err)) {
+  if (isTimeoutError(err)) {
     console.error('request timed out');
     return;
   }

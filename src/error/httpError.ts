@@ -1,4 +1,6 @@
 import type { FetchResponse } from '../types/request.js';
+import { isErrorType } from './isErrorType.js';
+import { unwrapErrorType } from './unwrapErrorType.js';
 
 /**
  * Error representing an HTTP response with a non-2xx status code.
@@ -22,4 +24,18 @@ export class HTTPError extends Error {
   get response(): FetchResponse {
     return (this.#response.clone?.() as FetchResponse) ?? this.#response;
   }
+}
+
+/**
+ * Extract an {@link HTTPError} from an unknown error value, following nested causes.
+ */
+export function getHttpError(error: unknown): null | HTTPError {
+  return unwrapErrorType(HTTPError, error);
+}
+
+/**
+ * Type guard for {@link HTTPError}.
+ */
+export function isHttpError(error: unknown): error is HTTPError {
+  return isErrorType(HTTPError, error);
 }
