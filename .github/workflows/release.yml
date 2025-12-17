@@ -3,10 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
-    paths:
-      - "jsr.json"
-      - "package.json"
-      - "CHANGELOG.md"
+    tags: ["v*"]
 
 permissions:
   id-token: write
@@ -19,13 +16,14 @@ concurrency:
 
 jobs:
   detect:
-    if: github.repository == 'kasperrt/wiretyped'
+    if: ${{ github.repository == 'kasperrt/wiretyped' && !(startsWith(github.ref, 'refs/tags/') && github.actor == 'github-actions[bot]') }}
     runs-on: ubuntu-latest
 
     outputs:
       tag: ${{ steps.out.outputs.tag }}
       version: ${{ steps.out.outputs.version }}
-      created: ${{ steps.out.outputs.created }}
+      run: ${{ steps.out.outputs.run }}
+      create_tag: ${{ steps.out.outputs.create_tag }}
 
     steps:
       - name: Checkout
@@ -33,46 +31,91 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Read and validate versions
-        id: ver
+      - name: Determine tag/version
+        id: meta
         shell: bash
         run: |
           set -euo pipefail
 
-          if [ ! -f "jsr.json" ]; then
-            echo "ERROR: jsr.json not found"
-            exit 1
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+
+            if [[ "$TAG" != v* ]]; then
+              echo "ERROR: Tag must start with 'v' (got: $TAG)"
+              exit 1
+            fi
+
+            VERSION="${TAG#v}"
+
+            if [ -z "$VERSION" ]; then
+              echo "ERROR: Tag version is empty (got: $TAG)"
+              exit 1
+            fi
+
+            JSR_VERSION="$(jq -r '.version // empty' jsr.json)"
+            PKG_VERSION="$(jq -r '.version // empty' package.json)"
+
+            if [ -z "$JSR_VERSION" ] || [ -z "$PKG_VERSION" ]; then
+              echo "ERROR: Missing version in jsr.json or package.json"
+              exit 1
+            fi
+
+            if [ "$JSR_VERSION" != "$PKG_VERSION" ]; then
+              echo "ERROR: Version mismatch!"
+              echo "  jsr.json     : $JSR_VERSION"
+              echo "  package.json : $PKG_VERSION"
+              exit 1
+            fi
+
+            if [ "$JSR_VERSION" != "$VERSION" ]; then
+              echo "ERROR: Tag does not match versions!"
+              echo "  tag          : $TAG"
+              echo "  jsr.json     : $JSR_VERSION"
+              echo "  package.json : $PKG_VERSION"
+              exit 1
+            fi
+
+            echo "is_tag_push=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            if [ ! -f "jsr.json" ]; then
+              echo "ERROR: jsr.json not found"
+              exit 1
+            fi
+
+            if [ ! -f "package.json" ]; then
+              echo "ERROR: package.json not found"
+              exit 1
+            fi
+
+            JSR_VERSION="$(jq -r '.version // empty' jsr.json)"
+            PKG_VERSION="$(jq -r '.version // empty' package.json)"
+
+            if [ -z "$JSR_VERSION" ] || [ -z "$PKG_VERSION" ]; then
+              echo "ERROR: Missing version in jsr.json or package.json"
+              exit 1
+            fi
+
+            if [ "$JSR_VERSION" != "$PKG_VERSION" ]; then
+              echo "ERROR: Version mismatch!"
+              echo "  jsr.json     : $JSR_VERSION"
+              echo "  package.json : $PKG_VERSION"
+              exit 1
+            fi
+
+            echo "is_tag_push=false" >> "$GITHUB_OUTPUT"
+            echo "tag=v$JSR_VERSION" >> "$GITHUB_OUTPUT"
+            echo "version=$JSR_VERSION" >> "$GITHUB_OUTPUT"
           fi
-
-          if [ ! -f "package.json" ]; then
-            echo "ERROR: package.json not found"
-            exit 1
-          fi
-
-          JSR_VERSION="$(jq -r '.version // empty' jsr.json)"
-          PKG_VERSION="$(jq -r '.version // empty' package.json)"
-
-          if [ -z "$JSR_VERSION" ] || [ -z "$PKG_VERSION" ]; then
-            echo "ERROR: Missing version in jsr.json or package.json"
-            exit 1
-          fi
-
-          if [ "$JSR_VERSION" != "$PKG_VERSION" ]; then
-            echo "ERROR: Version mismatch!"
-            echo "  jsr.json     : $JSR_VERSION"
-            echo "  package.json : $PKG_VERSION"
-            exit 1
-          fi
-
-          echo "version=$JSR_VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$JSR_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag exists
         id: exists
+        if: steps.meta.outputs.is_tag_push == 'false'
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ steps.ver.outputs.tag }}"
+          TAG="${{ steps.meta.outputs.tag }}"
           git fetch --tags
 
           if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
@@ -85,36 +128,40 @@ jobs:
         id: out
         shell: bash
         env:
-          TAG: ${{ steps.ver.outputs.tag }}
-          VERSION: ${{ steps.ver.outputs.version }}
+          IS_TAG_PUSH: ${{ steps.meta.outputs.is_tag_push }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
           EXISTS: ${{ steps.exists.outputs.exists }}
         run: |
           set -euo pipefail
 
-          if [ "$EXISTS" = "false" ]; then
-            CREATED="true"
+          if [ "$IS_TAG_PUSH" = "true" ]; then
+            RUN="true"
+            CREATE_TAG="false"
           else
-            CREATED="false"
+            if [ "${EXISTS:-false}" = "false" ]; then
+              RUN="true"
+              CREATE_TAG="true"
+            else
+              RUN="false"
+              CREATE_TAG="false"
+            fi
           fi
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "created=$CREATED" >> "$GITHUB_OUTPUT"
+          echo "run=$RUN" >> "$GITHUB_OUTPUT"
+          echo "create_tag=$CREATE_TAG" >> "$GITHUB_OUTPUT"
 
   ci:
-    if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.created == 'true'
+    if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.run == 'true'
     needs: [detect]
     uses: ./.github/workflows/ci.yml
 
   tag:
-    if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.created == 'true'
+    if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.run == 'true' && needs.ci.result == 'success'
     needs: [detect, ci]
     runs-on: ubuntu-latest
-
-    outputs:
-      tag: ${{ steps.out.outputs.tag }}
-      version: ${{ steps.out.outputs.version }}
-      created: ${{ steps.out.outputs.created }}
 
     steps:
       - name: Checkout
@@ -137,7 +184,7 @@ jobs:
           fi
 
       - name: Create and push tag
-        if: steps.exists.outputs.exists == 'false'
+        if: needs.detect.outputs.create_tag == 'true' && steps.exists.outputs.exists == 'false'
         shell: bash
         run: |
           set -euo pipefail
@@ -149,29 +196,9 @@ jobs:
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
 
-      - name: Export job outputs
-        id: out
-        shell: bash
-        env:
-          TAG: ${{ needs.detect.outputs.tag }}
-          VERSION: ${{ needs.detect.outputs.version }}
-          EXISTS: ${{ steps.exists.outputs.exists }}
-        run: |
-          set -euo pipefail
-
-          if [ "$EXISTS" = "false" ]; then
-            CREATED="true"
-          else
-            CREATED="false"
-          fi
-
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "created=$CREATED" >> "$GITHUB_OUTPUT"
-
   release:
-    if: github.repository == 'kasperrt/wiretyped' && needs.tag.outputs.created == 'true'
-    needs: [tag]
+    if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.run == 'true' && needs.ci.result == 'success' && needs.tag.result == 'success'
+    needs: [detect, ci, tag]
     runs-on: ubuntu-latest
 
     steps:
@@ -184,7 +211,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ needs.tag.outputs.tag }}"
+          TAG="${{ needs.detect.outputs.tag }}"
           git fetch --tags
           git checkout "$TAG"
 
@@ -209,7 +236,7 @@ jobs:
           fi
 
           EXPECTED="v$JSR_VERSION"
-          TAG="${{ needs.tag.outputs.tag }}"
+          TAG="${{ needs.detect.outputs.tag }}"
 
           if [ "$TAG" != "$EXPECTED" ]; then
             echo "ERROR: Tag does not match versions!"
@@ -237,7 +264,7 @@ jobs:
       - name: Determine npm dist-tag
         id: npm_tag
         env:
-          VERSION: ${{ needs.tag.outputs.version }}
+          VERSION: ${{ needs.detect.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
@@ -274,8 +301,8 @@ jobs:
         run: pnpx jsr publish
 
   docs:
-    if: github.repository == 'kasperrt/wiretyped' && needs.tag.outputs.created == 'true'
-    needs: [tag, release]
+    if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.run == 'true' && needs.release.result == 'success'
+    needs: [detect, tag, release]
     runs-on: ubuntu-latest
 
     environment:
@@ -291,7 +318,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ needs.tag.outputs.tag }}"
+          TAG="${{ needs.detect.outputs.tag }}"
           git fetch --tags
           git checkout "$TAG"
 

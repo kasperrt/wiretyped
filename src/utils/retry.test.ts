@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getRetryExhaustedError, isRetryExhaustedError, RetryExhaustedError } from '../error/retryExhaustedError.js';
-import {
-  getRetrySuppressedError,
-  isRetrySuppressedError,
-  RetrySuppressedError,
-} from '../error/retrySuppressedError.js';
+import { isErrorType } from '../error/isErrorType.js';
+import { RetryExhaustedError } from '../error/retryExhaustedError.js';
+import { RetrySuppressedError } from '../error/retrySuppressedError.js';
+import { unwrapErrorType } from '../error/unwrapErrorType.js';
 import { retry } from './retry.js';
 import type { SafeWrapAsync } from './wrap.js';
 
@@ -87,8 +85,8 @@ describe('retry', () => {
     expect(errFn).toHaveBeenCalledWith(fatalError);
 
     expect(data).toBeNull();
-    expect(isRetrySuppressedError(err)).toBe(true);
-    expect(getRetrySuppressedError(err)?.attempts).toBe(1);
+    expect(isErrorType(RetrySuppressedError, err)).toBe(true);
+    expect(unwrapErrorType(RetrySuppressedError, err)?.attempts).toBe(1);
     expect(err).toStrictEqual(new RetrySuppressedError('error further retries suppressed', 1, { cause: fatalError }));
   });
 
@@ -122,8 +120,8 @@ describe('retry', () => {
     const [err, data] = await promise;
 
     expect(data).toBeNull();
-    expect(isRetryExhaustedError(err)).toBe(true);
-    expect(getRetryExhaustedError(err)?.attempts).toBe(3);
+    expect(isErrorType(RetryExhaustedError, err)).toBe(true);
+    expect(unwrapErrorType(RetryExhaustedError, err)?.attempts).toBe(3);
     expect(err).toStrictEqual(new RetryExhaustedError('error retries exhausted', 3, { cause: error }));
   });
 });

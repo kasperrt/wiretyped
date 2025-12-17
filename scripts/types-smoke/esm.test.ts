@@ -1,7 +1,7 @@
 // ESM types smoke: ensure declarations resolve for the package root
 
 import type { RequestClient, RequestDefinitions } from 'wiretyped';
-import { HTTPError, isHttpError } from 'wiretyped';
+import { HTTPError, isErrorType } from 'wiretyped';
 import { z } from 'zod';
 
 const endpoints = {
@@ -29,4 +29,4 @@ type _AssertGetTupleShape = Assert<
 
 // Error entrypoint should expose error helpers
 const httpError = new HTTPError(new Response(null, { status: 500 }));
-export const _assertIsHttpError: boolean = isHttpError(httpError);
+export const _assertIsErrorType: boolean = isErrorType(HTTPError, httpError);

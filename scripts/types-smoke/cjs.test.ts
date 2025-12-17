@@ -1,6 +1,6 @@
 // CJS types smoke: ensure declarations resolve for the package root
 
-import type { RequestClient, RequestDefinitions } from 'wiretyped';
+import { HTTPError, type RequestClient, type RequestDefinitions } from 'wiretyped';
 
 const _root = require('wiretyped') as typeof import('wiretyped');
 const { z } = require('zod') as typeof import('zod');
@@ -21,4 +21,4 @@ export type _AssertRootPingCjs = RootPing;
 
 // Error helpers should be available from root
 const _httpError = new _root.HTTPError(new Response(null, { status: 500 }));
-export const _assertIsHttpErrorCjs: boolean = _root.isHttpError(_httpError);
+export const _assertIsErrorTypeCjs: boolean = _root.isErrorType(HTTPError, _httpError);

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import z from 'zod';
 import type { RequestDefinitions } from '../core/types.js';
-import { ConstructURLError, getConstructURLError, isConstructURLError } from '../error/constructUrlError.js';
+import { ConstructURLError } from '../error/constructUrlError.js';
+import { isErrorType } from '../error/isErrorType.js';
+import { unwrapErrorType } from '../error/unwrapErrorType.js';
 import { constructUrl } from './constructUrl.js';
 
 describe('constructUrl', () => {
@@ -81,8 +83,8 @@ describe('constructUrl', () => {
 
     expect(url).toBeNull();
     expect(err).toBeInstanceOf(ConstructURLError);
-    expect(getConstructURLError(err)?.url).toBe('users/{id}');
-    expect(isConstructURLError(err)).toBe(true);
+    expect(unwrapErrorType(ConstructURLError, err)?.url).toBe('users/{id}');
+    expect(isErrorType(ConstructURLError, err)).toBe(true);
     expect(err?.message).toContain('path contains {}');
   });
 
@@ -111,8 +113,8 @@ describe('constructUrl', () => {
 
     expect(url).toBeNull();
     expect(err).toBeInstanceOf(ConstructURLError);
-    expect(getConstructURLError(err)?.url).toBe('users/{id}');
-    expect(isConstructURLError(err)).toBe(true);
+    expect(unwrapErrorType(ConstructURLError, err)?.url).toBe('users/{id}');
+    expect(isErrorType(ConstructURLError, err)).toBe(true);
     expect(err?.message).toContain('error $path validation failed');
   });
 });

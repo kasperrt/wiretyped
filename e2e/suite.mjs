@@ -114,7 +114,8 @@ export function createE2EClient({ wiretyped, endpoints, baseUrl }) {
  * @returns {{ name: string, run: () => Promise<void> }[]}
  */
 export function getE2ETestCases({ wiretyped, client, admin }) {
-  const { getHttpError, getRetryExhaustedError, getRetrySuppressedError, isHttpError, isValidationError } = wiretyped;
+  const { HTTPError, RetryExhaustedError, RetrySuppressedError, isErrorType, ValidationError, unwrapErrorType } =
+    wiretyped;
 
   return [
     {
@@ -163,7 +164,7 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
 
         const [err, data] = await client.get('/bad', null);
         assert(data === null, 'expected data to be null');
-        assert(isValidationError(err) === true, 'expected validation error');
+        assert(isErrorType(ValidationError, err) === true, 'expected validation error');
       },
     },
     {
@@ -174,7 +175,7 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
 
         const [err, data] = await client.get('/bad', null, { validate: false });
         assert(err === null, 'expected err to be null');
-        assert(isValidationError(err) === false, 'expected no validation error');
+        assert(isErrorType(ValidationError, err) === false, 'expected no validation error');
         assertDeepEqual(
           data,
           {
@@ -275,9 +276,9 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
           { validate: false, headers: new Headers([['x-client', 'e2e-scoped']]) },
         );
 
-        assert(isHttpError(err) === true, 'expected http error');
-        assert(isValidationError(err) === false, 'expected no validation error');
-        assert(getHttpError(err)?.response?.status === 400, 'expected status 400');
+        assert(isErrorType(HTTPError, err) === true, 'expected http error');
+        assert(isErrorType(ValidationError, err) === false, 'expected no validation error');
+        assert(unwrapErrorType(HTTPError, err)?.response?.status === 400, 'expected status 400');
       },
     },
     {
@@ -315,7 +316,7 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
           },
         );
 
-        assert(getRetryExhaustedError(err)?.attempts === 5, 'expected exhausted after 5 attempts');
+        assert(unwrapErrorType(RetryExhaustedError, err)?.attempts === 5, 'expected exhausted after 5 attempts');
         assert(data === null, 'expected data to be null');
 
         const [errCounts, counts] = await admin.getCounts();
@@ -338,7 +339,7 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
           },
         );
 
-        assert(getRetrySuppressedError(err)?.attempts === 1, 'expected suppressed after 1 attempt');
+        assert(unwrapErrorType(RetrySuppressedError, err)?.attempts === 1, 'expected suppressed after 1 attempt');
         assert(data === null, 'expected data to be null');
 
         const [errCounts, counts] = await admin.getCounts();
@@ -361,7 +362,7 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
           },
         );
 
-        assert(getRetrySuppressedError(err)?.attempts === 3, 'expected suppressed after 3 attempts');
+        assert(unwrapErrorType(RetrySuppressedError, err)?.attempts === 3, 'expected suppressed after 3 attempts');
         assert(data === null, 'expected data to be null');
 
         const [errCounts, counts] = await admin.getCounts();

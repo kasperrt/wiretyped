@@ -1,6 +1,3 @@
-import { isErrorType } from './isErrorType.js';
-import { unwrapErrorType } from './unwrapErrorType.js';
-
 /**
  * Error representing a retry attempts exhausted.
  */
@@ -20,18 +17,4 @@ export class RetryExhaustedError extends Error {
   get attempts(): number {
     return this.#attempts;
   }
-}
-
-/**
- * Extract an {@link RetryExhaustedError} from an unknown error value, following nested causes.
- */
-export function getRetryExhaustedError(error: unknown): null | RetryExhaustedError {
-  return unwrapErrorType(RetryExhaustedError, error);
-}
-
-/**
- * Type guard for {@link RetryExhaustedError}.
- */
-export function isRetryExhaustedError(error: unknown, shallow?: boolean): error is RetryExhaustedError {
-  return isErrorType(RetryExhaustedError, error, shallow);
 }
