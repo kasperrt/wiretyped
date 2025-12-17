@@ -1,4 +1,5 @@
 import * as wiretyped from '../dist/index.mjs';
+import * as error from '../dist/error.mjs';
 import { sleep } from '../dist/utils/sleep.mjs';
 import { safeWrap, safeWrapAsync } from '../dist/utils/wrap.mjs';
 import { createRemoteAdmin } from './admin.mjs';
@@ -44,8 +45,8 @@ const child = cmd.spawn();
 await waitForReady(url);
 
 const admin = createRemoteAdmin(url);
-const client = createE2EClient({ wiretyped, endpoints, baseUrl: url });
-const cases = getE2ETestCases({ wiretyped, client, admin });
+const client = createE2EClient({ wiretyped: {...wiretyped, ...error}, endpoints, baseUrl: url });
+const cases = getE2ETestCases({ wiretyped: {...wiretyped, ...error}, client, admin });
 
 const [errors, logs] = await runE2ETestCases(cases);
 for (const line of logs) {

@@ -1,4 +1,5 @@
 import * as wiretyped from '../dist/index.mjs';
+import * as error from '../dist/error.mjs';
 import { createRemoteAdmin } from './admin.mjs';
 import { endpoints } from './endpoints.mjs';
 import { createE2EClient, getE2ETestCases, runE2ETestCases } from './suite.mjs';
@@ -13,8 +14,8 @@ const baseUrl = new URL(location.href).searchParams.get('baseUrl');
 const resolvedBaseUrl = baseUrl ?? location.origin;
 
 const admin = createRemoteAdmin(resolvedBaseUrl);
-const client = createE2EClient({ wiretyped, endpoints, baseUrl: resolvedBaseUrl });
-const cases = getE2ETestCases({ wiretyped, client, admin });
+const client = createE2EClient({ wiretyped: {...wiretyped, ...error}, endpoints, baseUrl: resolvedBaseUrl });
+const cases = getE2ETestCases({ wiretyped: {...wiretyped, ...error}, client, admin });
 
 const [errors, logs] = await runE2ETestCases(cases);
 const errorStrings = errors.map((e) => (e instanceof Error ? (e.stack ?? e.message) : String(e)));

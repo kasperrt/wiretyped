@@ -1,4 +1,5 @@
 import * as wiretyped from '../dist/index.mjs';
+import * as error from '../dist/error.mjs';
 import { createRemoteAdmin } from './admin.mjs';
 import { endpoints } from './endpoints.mjs';
 import { startE2EServer } from './server.mjs';
@@ -10,8 +11,8 @@ if (errServer || !server) {
 }
 
 const admin = createRemoteAdmin(server.url);
-const client = createE2EClient({ wiretyped, endpoints, baseUrl: server.url });
-const cases = getE2ETestCases({ wiretyped, client, admin });
+const client = createE2EClient({ wiretyped: {...wiretyped, ...error}, endpoints, baseUrl: server.url });
+const cases = getE2ETestCases({ wiretyped: {...wiretyped, ...error}, client, admin });
 
 const [errors, logs] = await runE2ETestCases(cases);
 for (const line of logs) {
