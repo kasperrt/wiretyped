@@ -15,7 +15,7 @@ export default defineConfig({
       {
         defer: 'true',
         'data-domain': 'wiretyped.io',
-        src: 'https://analytics.egreb.net/js/script.js',
+        src: 'https://analytics.wiretyped.io/js/script.js',
       },
     ],
   ],
