@@ -114,7 +114,8 @@ export function createE2EClient({ wiretyped, endpoints, baseUrl }) {
  * @returns {{ name: string, run: () => Promise<void> }[]}
  */
 export function getE2ETestCases({ wiretyped, client, admin }) {
-  const { ValidationError, RetryExhaustedError, RetrySuppressedError, unwrapErrorType, HTTPError, isErrorType } = wiretyped;
+  const { ValidationError, RetryExhaustedError, RetrySuppressedError, unwrapErrorType, HTTPError, isErrorType } =
+    wiretyped;
 
   return [
     {

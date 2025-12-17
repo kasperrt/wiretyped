@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import z from 'zod';
 import type { RequestDefinitions } from '../core/types.js';
 import { ConstructURLError } from '../error/constructUrlError.js';
-import { constructUrl } from './constructUrl.js';
 import { isErrorType } from '../error/isErrorType.js';
 import { unwrapErrorType } from '../error/unwrapErrorType.js';
+import { constructUrl } from './constructUrl.js';
 
 describe('constructUrl', () => {
   it('URI-encodes $path params, inline params, and $search params', async () => {

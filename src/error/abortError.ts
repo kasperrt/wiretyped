@@ -1,4 +1,3 @@
-
 /**
  * Error raised when a request is intentionally aborted (e.g., via AbortController).
  */

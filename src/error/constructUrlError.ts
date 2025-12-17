@@ -18,4 +18,3 @@ export class ConstructURLError extends Error {
     return this.#url;
   }
 }
-

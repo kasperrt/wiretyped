@@ -33,30 +33,24 @@ export { ConstructURLError } from './error/constructUrlError.js';
  * Error representing a non-2xx HTTP response.
  */
 export { HTTPError } from './error/httpError.js';
-
+/** Generic type guard that matches an error constructor against an unknown error. */
+export { isErrorType } from './error/isErrorType.js';
 /**
  * Error representing a retry attempts exhausted.
  */
 export { RetryExhaustedError } from './error/retryExhaustedError.js';
-
-
 /**
  * Error representing a retry attempt suppressed and exited from retrying further.
  */
 export { RetrySuppressedError } from './error/retrySuppressedError.js';
-
 /**
  * Error thrown when a request exceeds the configured timeout.
  */
 export { TimeoutError } from './error/timeoutError.js';
 
+/** Recursively unwraps nested causes to find a specific error class. */
+export { unwrapErrorType } from './error/unwrapErrorType.js';
 /**
  * Error thrown when validation of payloads fails.
  */
 export { ValidationError } from './error/validationError.js';
-
-/** Recursively unwraps nested causes to find a specific error class. */
-export { unwrapErrorType } from './error/unwrapErrorType.js';
-
-/** Generic type guard that matches an error constructor against an unknown error. */
-export { isErrorType } from './error/isErrorType.js';

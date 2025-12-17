@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, type MockedFunction, test, vi 
 import { z } from 'zod';
 import { CacheClient } from '../cache/client.js';
 import { AbortError } from '../error/abortError.js';
+import { HTTPError } from '../error/httpError.js';
 import { isErrorType } from '../error/isErrorType.js';
 import { RetryExhaustedError } from '../error/retryExhaustedError.js';
 import { RetrySuppressedError } from '../error/retrySuppressedError.js';
 import { TimeoutError } from '../error/timeoutError.js';
+import { unwrapErrorType } from '../error/unwrapErrorType.js';
 import { ValidationError } from '../error/validationError.js';
 import type { FetchClientProvider, FetchClientProviderDefinition, Options, RequestOptions } from '../types/request.js';
 import * as signals from '../utils/signals.js';
 import { RequestClient } from './client.js';
 import type { RequestDefinitions } from './types.js';
-import { unwrapErrorType } from '../error/unwrapErrorType.js';
-import { HTTPError } from '../error/httpError.js';
 
 type MockedFetchClientProvider = MockedFunction<FetchClientProvider>;
 

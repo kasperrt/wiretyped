@@ -1,12 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isErrorType } from '../error/isErrorType.js';
 import { RetryExhaustedError } from '../error/retryExhaustedError.js';
-import {
-  RetrySuppressedError,
-} from '../error/retrySuppressedError.js';
+import { RetrySuppressedError } from '../error/retrySuppressedError.js';
+import { unwrapErrorType } from '../error/unwrapErrorType.js';
 import { retry } from './retry.js';
 import type { SafeWrapAsync } from './wrap.js';
-import { isErrorType } from '../error/isErrorType.js';
-import { unwrapErrorType } from '../error/unwrapErrorType.js';
 
 describe('retry', () => {
   beforeEach(() => {
