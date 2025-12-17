@@ -19,6 +19,16 @@ class NonRecoverableError extends Error {
 }
 
 describe('unwrapErrorType', () => {
+  it('returns null for nullish and non-object errors', () => {
+    expect(unwrapErrorType(CustomError, null)).toBeNull();
+    expect(unwrapErrorType(CustomError, undefined)).toBeNull();
+    expect(unwrapErrorType(CustomError, 'boom')).toBeNull();
+    expect(unwrapErrorType(CustomError, 123)).toBeNull();
+    expect(unwrapErrorType(CustomError, true)).toBeNull();
+    expect(unwrapErrorType(CustomError, Symbol('boom'))).toBeNull();
+    expect(unwrapErrorType(CustomError, () => new Error('boom'))).toBeNull();
+  });
+
   it('non-error correctly returns false', () => {
     const nonErr = { foo: 'bar' };
 
