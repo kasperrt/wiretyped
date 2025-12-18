@@ -5,7 +5,7 @@ import { isErrorType } from './isErrorType.js';
  */
 export class AbortError extends Error {
   /** AbortError error-name */
-  name = 'AbortError';
+  static name = 'AbortError';
 }
 
 /**

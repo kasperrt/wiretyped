@@ -7,7 +7,7 @@ import { unwrapErrorType } from './unwrapErrorType.js';
  */
 export class HTTPError extends Error {
   /** HTTPError error-name */
-  name = 'HTTPError';
+  static name = 'HTTPError';
 
   /** Response causing the HTTPError */
   #response: FetchResponse;
@@ -36,6 +36,6 @@ export function getHttpError(error: unknown): null | HTTPError {
 /**
  * Type guard for {@link HTTPError}.
  */
-export function isHttpError(error: unknown, shallow?: boolean): error is HTTPError {
-  return isErrorType(HTTPError, error, shallow);
+export function isHttpError(error: unknown): error is HTTPError {
+  return isErrorType(HTTPError, error);
 }
