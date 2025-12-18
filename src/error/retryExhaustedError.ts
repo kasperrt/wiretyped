@@ -6,7 +6,7 @@ import { unwrapErrorType } from './unwrapErrorType.js';
  */
 export class RetryExhaustedError extends Error {
   /** RetryExhaustedError error-name */
-  name = 'RetryExhaustedError';
+  static name = 'RetryExhaustedError';
   /** Internal attempts tried before retry was exhausted */
   #attempts: number;
 
@@ -32,6 +32,6 @@ export function getRetryExhaustedError(error: unknown): null | RetryExhaustedErr
 /**
  * Type guard for {@link RetryExhaustedError}.
  */
-export function isRetryExhaustedError(error: unknown, shallow?: boolean): error is RetryExhaustedError {
-  return isErrorType(RetryExhaustedError, error, shallow);
+export function isRetryExhaustedError(error: unknown): error is RetryExhaustedError {
+  return isErrorType(RetryExhaustedError, error);
 }

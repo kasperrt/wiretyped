@@ -51,19 +51,6 @@ describe('isErrorType', () => {
     expect(isErrorType(CustomError, wrapped7)).toEqual(true);
   });
 
-  it('expect 7 layers deep but shallow check to correctly return false', () => {
-    const err = new CustomError('test');
-    const wrapped1 = new Error('err1', { cause: err });
-    const wrapped2 = new Error('err2', { cause: wrapped1 });
-    const wrapped3 = new Error('err3', { cause: wrapped2 });
-    const wrapped4 = new Error('err4', { cause: wrapped3 });
-    const wrapped5 = new Error('err5', { cause: wrapped4 });
-    const wrapped6 = new Error('err6', { cause: wrapped5 });
-    const wrapped7 = new Error('err7', { cause: wrapped6 });
-
-    expect(isErrorType(CustomError, wrapped7, true)).toEqual(false);
-  });
-
   it('expect 4 layers deep to correctly return true, even though self wraps another', () => {
     const original = new Error('first');
     const err = new CustomError('test', { cause: original });

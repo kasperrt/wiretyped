@@ -5,7 +5,7 @@ import { isErrorType } from './isErrorType.js';
  */
 export class TimeoutError extends Error {
   /** TimeoutError error-name */
-  name = 'TimeoutError';
+  static name = 'TimeoutError';
 }
 
 /**

@@ -7,7 +7,7 @@ import { unwrapErrorType } from './unwrapErrorType.js';
  */
 export class ValidationError extends Error {
   /** ValidationError error-name */
-  name = 'ValidationError';
+  static name = 'ValidationError';
   /** Schema validation issues */
   issues: StandardSchemaV1.Issue[];
 

@@ -6,7 +6,7 @@ import { unwrapErrorType } from './unwrapErrorType.js';
  */
 export class RetrySuppressedError extends Error {
   /** RetrySuppressedError error-name */
-  name = 'RetrySuppressedError';
+  static name = 'RetrySuppressedError';
   /** Internal attempts tried before retry was suppressed */
   #attempts: number;
 
@@ -32,6 +32,6 @@ export function getRetrySuppressedError(error: unknown): null | RetrySuppressedE
 /**
  * Type guard for {@link RetrySuppressedError}.
  */
-export function isRetrySuppressedError(error: unknown, shallow?: boolean): error is RetrySuppressedError {
-  return isErrorType(RetrySuppressedError, error, shallow);
+export function isRetrySuppressedError(error: unknown): error is RetrySuppressedError {
+  return isErrorType(RetrySuppressedError, error);
 }
