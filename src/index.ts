@@ -80,12 +80,12 @@ export { getRetrySuppressedError, isRetrySuppressedError, RetrySuppressedError }
 export { isTimeoutError, TimeoutError } from './error/timeoutError.js';
 
 /**
- * Error thrown when validation of payloads fails.
- */
-/**
  * Type guard that checks if an error is a {@link ValidationError}.
  */
 /**
  * Extracts a {@link ValidationError} from an unknown error value.
+ */
+/**
+ * Error thrown when validation of payloads fails.
  */
 export { getValidationError, isValidationError, ValidationError } from './error/validationError.js';
