@@ -61,8 +61,6 @@ if (isErrorType(ValidationError, err)) {
 }
 ```
 
-If you only want to match the top-level error (no `cause` traversal), pass `true` as the third arg: `isErrorType(ValidationError, err, true)` (or use `instanceof` directly).
-
 ### `unwrapErrorType`
 
 Extract an error instance from an unknown error value, following nested causes:

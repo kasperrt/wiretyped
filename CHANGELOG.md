@@ -1,9 +1,7 @@
 # Releases
 
 ## Contents
-- [v0.3.4-alpha.2](#v0-3-4-alpha-2)
-- [v0.3.4-alpha.1](#v0-3-4-alpha-1)
-- [v0.3.4-alpha.0](#v0-3-4-alpha-0)
+- [v0.3.4](#v0-3-4)
 - [v0.3.3](#v0-3-3)
 - [v0.3.2](#v0-3-2)
 - [v0.3.1](#v0-3-1)
@@ -19,23 +17,17 @@
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
 
-## v0.3.4-alpha.2
+## v0.3.4
 
+- Internal; Handle 205 status-codes more gracefully by defaulting to null returned as body.
+- Internal; Reduce overhead for getResponseData to read response once through `.text()` with attempting parsing on `application/json` or `+json` in the `Content-Type` header.
+- Remove unused shallow flag from isErrorType as it is totally unnecessary.
+- Update name on error-classes to be static for better accessibility.
+- Internal; Use unwrapErrorType + isErrorType internally rather than larger getters and checkers.
 - Internal; Better handle path to string for constructing URLs.
 - Internal; Fix missing trailing `.js` from import in `tryParse.ts` for ESM compatibility.
 - Internal; Simplify retrier to not be recursive in-case heap goes wild.
 - Internal; Cache-client non-arrow functions.
-
-## v0.3.4-alpha.1
-
-- Remove unused shallow flag from isErrorType as it is totally unnecessary.
-- Update name on error-classes to be static for better accessibility.
-- Internal; Use unwrapErrorType + isErrorType internally rather than larger getters and checkers.
-
-## v0.3.4-alpha.0
-
-- Internal; Handle 205 status-codes more gracefully by defaulting to null returned as body.
-- Internal; Reduce overhead for getResponseData to read response once through `.text()` with attempting parsing on `application/json` or `+json` in the `Content-Type` header.
 
 
 ## v0.3.3
