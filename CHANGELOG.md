@@ -1,6 +1,7 @@
 # Releases
 
 ## Contents
+- [v0.3.4-alpha.2](#v0-3-4-alpha-2)
 - [v0.3.4-alpha.1](#v0-3-4-alpha-1)
 - [v0.3.4-alpha.0](#v0-3-4-alpha-0)
 - [v0.3.3](#v0-3-3)
@@ -17,6 +18,13 @@
 - [v0.1.1](#v0-1-1)
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
+
+## v0.3.4-alpha.2
+
+- Internal; Better handle path to string for constructing URLs.
+- Internal; Fix missing trailing `.js` from import in `tryParse.ts` for ESM compatibility.
+- Internal; Simplify retrier to not be recursive in-case heap goes wild.
+- Internal; Cache-client non-arrow functions.
 
 ## v0.3.4-alpha.1
 

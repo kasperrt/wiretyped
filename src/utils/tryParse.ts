@@ -1,4 +1,4 @@
-import { safeWrap } from './wrap';
+import { safeWrap } from './wrap.js';
 
 /**
  * Attempts to parse a string as JSON.

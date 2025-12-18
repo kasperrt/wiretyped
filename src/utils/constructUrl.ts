@@ -18,11 +18,11 @@ export async function constructUrl<
   validation?: boolean,
 ): SafeWrapAsync<Error, string> {
   const searchParams = new URLSearchParams();
-  let result = path.toString();
+  let result = String(path);
 
   // Strip leading slash for clean concatenation with baseUrl
   if (result.startsWith('/')) {
-    result = result.substring(1);
+    result = result.slice(1);
   }
 
   if (!params) {
@@ -68,7 +68,7 @@ export async function constructUrl<
     }
 
     for (const [key, value] of Object.entries(data ?? {})) {
-      result = result.replace(new RegExp(`{${key}}`, 'g'), encodeURIComponent(String(value)));
+      result = result.split(`{${key}}`).join(encodeURIComponent(String(value)));
     }
   }
 
@@ -80,7 +80,7 @@ export async function constructUrl<
     }
 
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-      result = result.replace(new RegExp(`{${key}}`, 'g'), encodeURIComponent(String(value)));
+      result = result.split(`{${key}}`).join(encodeURIComponent(String(value)));
     }
   }
 
