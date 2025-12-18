@@ -39,7 +39,7 @@ features:
 > Small and easy-to-use fetch based client with runtime validation
 
 
-[![CI](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml/badge.svg)](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml) &nbsp; [![Coverage](https://codecov.io/gh/kasperrt/wiretyped/branch/main/graph/badge.svg)](https://codecov.io/gh/kasperrt/wiretyped) &nbsp; [![minzip](https://badgen.net/bundlephobia/minzip/wiretyped@latest)](https://bundlephobia.com/package/wiretyped@latest)
+[![CI](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml/badge.svg)](https://github.com/kasperrt/wiretyped/actions/workflows/ci.yml) &nbsp; [![Coverage](https://codecov.io/gh/kasperrt/wiretyped/branch/main/graph/badge.svg)](https://codecov.io/gh/kasperrt/wiretyped) &nbsp; [![minzip](https://badgen.net/bundlephobia/minzip/wiretyped)](https://bundlephobia.com/package/wiretyped)
 
 [![npm](https://img.shields.io/npm/v/wiretyped.svg)](https://www.npmjs.com/package/wiretyped) &nbsp; [![JSR](https://jsr.io/badges/@kasperrt/wiretyped)](https://jsr.io/@kasperrt/wiretyped)
 
