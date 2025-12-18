@@ -1,4 +1,4 @@
-import { unwrapErrorType } from './unwrapErrorType';
+import { unwrapErrorType } from './unwrapErrorType.js';
 
 /**
  * Generic type guard to check if an unknown error matches a specific error class.

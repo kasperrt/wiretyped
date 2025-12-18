@@ -108,7 +108,7 @@ export class CacheClient {
    * @param {string} key - cache key
    * @param {Promise} request - http request to put in the pending object
    */
-  #addPendingRequest = <T = unknown>(key: string, request: () => SafeWrapAsync<Error, T>, ttl: number) => {
+  #addPendingRequest<T = unknown>(key: string, request: () => SafeWrapAsync<Error, T>, ttl: number) {
     const pending = (async (): SafeWrapAsync<Error, T> => {
       const [errWrapped, wrapped] = await safeWrapAsync(() => request());
       if (errWrapped) {
@@ -129,18 +129,14 @@ export class CacheClient {
 
     this.#pending.set(key, pending);
     return pending;
-  };
+  }
 
   /**
    * Pass a request to the cache
    * @param {string} key - cache key
    * @param {Function} res - http request and data returned.
    */
-  public get = <T = unknown>(
-    key: string,
-    res: () => SafeWrapAsync<Error, T>,
-    ttl = this.#ttl,
-  ): SafeWrapAsync<Error, T> => {
+  public get<T = unknown>(key: string, res: () => SafeWrapAsync<Error, T>, ttl = this.#ttl): SafeWrapAsync<Error, T> {
     const cachedData = this.#getItem<CacheItem<T>>(key);
     if (cachedData) {
       return Promise.resolve([null, cachedData.data]);
@@ -152,7 +148,7 @@ export class CacheClient {
     }
 
     return this.#addPendingRequest(key, res, ttl);
-  };
+  }
 
   /**
    * Constructs a deterministic, unambiguous cache key based on URL + headers.
@@ -179,7 +175,7 @@ export class CacheClient {
    * cleanup that does housekeeping every 30 seconds, removing
    * invalid cache items to prevent unecessary memory usage;
    */
-  #cleanup = () => {
+  #cleanup() {
     clearInterval(this.#intervalId);
 
     this.#intervalId = setInterval(() => {
@@ -187,5 +183,5 @@ export class CacheClient {
         this.#getItem(key);
       }
     }, this.#cleanupInterval);
-  };
+  }
 }

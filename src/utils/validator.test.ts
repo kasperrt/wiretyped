@@ -93,6 +93,6 @@ describe('validate', () => {
     const [err, value] = await validator('test', schema);
 
     expect(value).toBe('test');
-    expect(err).toBeNull;
+    expect(err).toBeNull();
   });
 });
