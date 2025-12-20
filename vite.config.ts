@@ -14,6 +14,7 @@ export default defineConfig({
         error: resolve(__dirname, 'src/error/index.ts'),
       },
     },
+    minify: true,
     outDir: 'dist',
     rolldownOptions: {
       treeshake: true,
@@ -25,7 +26,6 @@ export default defineConfig({
           entryFileNames: '[name].mjs',
           chunkFileNames: '[name]-[hash].mjs',
           exports: 'named',
-          minify: true,
         },
         {
           format: 'cjs',
@@ -34,7 +34,6 @@ export default defineConfig({
           entryFileNames: '[name].cjs',
           chunkFileNames: '[name]-[hash].cjs',
           exports: 'named',
-          minify: true,
         },
       ],
     },
