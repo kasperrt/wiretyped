@@ -1,6 +1,13 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.3.10/schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!!**/dist", "!!**/coverage", "!!**/build"]
+  },
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,
@@ -9,23 +16,18 @@
     "lineEnding": "lf",
     "lineWidth": 120,
     "attributePosition": "auto",
-    "bracketSameLine": true,
     "bracketSpacing": true,
     "expand": "auto",
     "useEditorconfig": true
   },
   "linter": {
     "enabled": true,
-    "domains": {
-      "react": "recommended"
-    },
     "rules": {
       "recommended": true,
       "suspicious": {
         "useAwait": "error"
       },
       "correctness": {
-        "useExhaustiveDependencies": "error",
         "noUnusedVariables": {
           "level": "error",
           "fix": "safe",
@@ -44,9 +46,6 @@
             "ignoreRestSiblings": false
           }
         }
-      },
-      "a11y": {
-        "noSvgWithoutTitle": "off"
       }
     }
   },
@@ -71,6 +70,10 @@
   },
   "assist": {
     "enabled": true,
-    "actions": { "source": { "organizeImports": "on" } }
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   }
 }
