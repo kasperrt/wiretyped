@@ -22,7 +22,7 @@ import { createTimeoutSignal, mergeSignals } from '../utils/signals.js';
 import { sleep } from '../utils/sleep.js';
 import { tryParse } from '../utils/tryParse.js';
 import { validator } from '../utils/validator.js';
-import { type SafeWrap, type SafeWrapAsync, safeWrapAsync } from '../utils/wrap.js';
+import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap.js';
 import type {
   ClientOperation,
   DeleteArgs,
