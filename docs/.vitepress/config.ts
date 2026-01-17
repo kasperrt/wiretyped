@@ -7,6 +7,17 @@ const versionLabel = pkg.version ? `v${pkg.version}` : 'v?';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+  sitemap: {
+    hostname: 'https://wiretyped.io',
+    transformItems(items) {
+      return [
+        ...items,
+        {
+          url: '/llms.txt',
+        },
+      ];
+    },
+  },
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }],
     ['link', { rel: 'shortcut icon', href: '/favicon.ico' }],
