@@ -122,5 +122,10 @@
     "vitepress": "2.0.0-alpha.15",
     "vitest": "^4.0.16",
     "zod": "^4.3.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "undici": ">=6.23.0"
+    }
   }
 }
