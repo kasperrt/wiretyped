@@ -1,0 +1,469 @@
+# WireTyped - LLMs guide (deep)
+
+WireTyped is a small, composable HTTP client for fetch-based runtimes (browser, Node, Bun, Deno, workers). It provides:
+- Typed endpoint definitions (single source of truth for params, bodies, responses)
+- Runtime validation via Standard Schema (@standard-schema/spec)
+- Error-first API ([err, data] tuples)
+- Built-in helpers for retries, caching, timeouts, and SSE
+
+This file is intended to help coding agents quickly understand how to use the client and how behavior is implemented.
+
+## Quick mental model
+- Define endpoints once as a typed map (RequestDefinitions).
+- Construct a RequestClient with hostname, baseUrl, and endpoints.
+- All calls return [error, data]. Check error first for type narrowing.
+- Validation is on by default for request/response payloads.
+- Optional behaviors are per-call (retry, timeout, cacheRequest, validate false) or set as defaults on the client.
+
+## Primary API surface
+- RequestClient: src/core/client.ts (exported from src/index.ts)
+- RequestDefinitions: src/core/types.ts
+- Errors + helpers: src/error/* (AbortError, HTTPError, ValidationError, Retry* errors, TimeoutError)
+
+Entrypoints:
+- Root import: "wiretyped" (client + errors)
+- Core-only: "wiretyped/core"
+- Errors-only: "wiretyped/error"
+
+## Endpoint definitions (RequestDefinitions)
+### Shape
+```ts
+import type { RequestDefinitions } from 'wiretyped';
+
+export const endpoints = {
+  '/some/path': {
+    get: { response: /* schema */ },
+    post: { request: /* schema */, response: /* schema */ },
+  },
+} satisfies RequestDefinitions;
+```
+
+Each key is a URL template string:
+- `/users/{id}` uses `{id}` as a path param (string/number/boolean supported when passed directly)
+- `$path` can constrain or validate path params (enums, objects)
+- `$search` describes query params
+
+### $path
+- Use `$path` when you want validation or constraints (e.g., enums)
+- `$path` is validated (when validation enabled) and then interpolated into `{param}`
+
+```ts
+'/integrations/{provider}': {
+  get: {
+    $path: z.object({ provider: z.enum(['slack', 'github']) }),
+    response: z.object({ ok: z.boolean() }),
+  },
+}
+```
+
+### $search
+- `$search` validates query params
+- Optional `$search` requires explicit `{ $search: undefined }` when omitting query params
+- Values are stringified; null/undefined are omitted
+
+```ts
+'/users': {
+  get: {
+    $search: z.object({ limit: z.number().optional() }).optional(),
+    response: z.array(z.object({ id: z.string() })),
+  },
+}
+```
+
+### request / response
+- `request` defines body for post/put/patch; used for validation and typing
+- `response` defines parsed return data for all methods
+- `download` response must be Blob (or omitted)
+- `url` response must be string (often z.url())
+
+### events (SSE)
+```ts
+'/events': {
+  sse: {
+    events: {
+      message: z.object({ msg: z.string() }),
+      status: z.string(),
+    },
+  },
+}
+```
+
+### Params and null
+- If an endpoint has no params, pass `null` for readability.
+- If params are optional, still pass `null` when you mean “no params.”
+
+## URL construction details (from src/utils/constructUrl.ts)
+- URL templates are relative. Leading slash is stripped before joining with baseUrl.
+- `$search` is applied first (validated if enabled) and serialized via URLSearchParams.
+- `$path` values are validated (if enabled) and interpolated into `{param}`.
+- Direct params (`{ id: '123' }`) are used next; values are URL-encoded.
+- If any `{` or `}` remain, a ConstructURLError is raised.
+- Query values are stringified; null/undefined values are skipped.
+
+## Request lifecycle (HTTP methods)
+1) Construct relative URL from template + params.
+2) Validate request body (if schema present and validation enabled).
+3) Apply GET cache (if cacheRequest true).
+4) Build request options: JSON stringify body, set Content-Type, merge headers.
+5) Execute fetch with retry + timeout handling.
+6) Parse response:
+   - 204/205 => null
+   - Content-Type includes application/json or +json => JSON.parse
+   - otherwise => text
+7) Validate response (if schema present and validation enabled).
+8) Return [err, data].
+
+## Response parsing rules (src/utils/getResponseData.ts)
+- 204/205 => data is null.
+- Body is read as text once. If empty, data is null.
+- If Content-Type includes application/json or +json => JSON.parse.
+- Otherwise, return raw text as the response value.
+
+## Request body rules
+- For post/put/patch, body is JSON.stringified.
+- When body is present, Content-Type is set to application/json.
+
+## Headers and defaults
+- Default header: Accept: application/json.
+- Headers are merged across:
+  - client defaults (fetchOpts.headers)
+  - per-call headers
+- If a header value is null/undefined, it removes that header (merge behavior).
+
+## Client construction and defaults
+```ts
+const client = new RequestClient({
+  hostname: 'https://api.example.com',
+  baseUrl: '/api',
+  endpoints,
+  validation: true,
+  cacheOpts: { ttl: 60_000, cleanupInterval: 30_000 },
+  fetchOpts: {
+    headers: { Authorization: `Bearer ${token}` },
+    timeout: 10_000,
+    retry: { limit: 2, timeout: 1000 },
+  },
+});
+```
+
+### Client options
+- hostname: absolute hostname for url() and absolute URL building
+- baseUrl: base path appended to all endpoints
+- endpoints: the RequestDefinitions map
+- validation: global toggle (default true)
+- cacheOpts: in-memory cache defaults
+- fetchOpts: default headers/credentials/mode + WireTyped retry/timeout
+- fetchProvider: custom fetch provider (optional)
+
+### Runtime config
+Update defaults without recreating the client:
+```ts
+client.config({
+  fetchOpts: {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
+    retry: { limit: 1 },
+    timeout: 10_000,
+  },
+  cacheOpts: { ttl: 5_000, cleanupInterval: 30_000 },
+});
+```
+
+### Disposal
+Call dispose when done to abort in-flight requests and close SSE streams:
+```ts
+client.dispose();
+```
+
+## Methods and options
+All methods return [error, data]. Per-call options include fetch options plus WireTyped flags:
+```ts
+{
+  headers?: Record<string, string>;
+  credentials?: RequestCredentials;
+  mode?: RequestMode;
+  signal?: AbortSignal;
+  timeout?: number | false;
+  retry?: number | {
+    limit?: number;
+    timeout?: number;
+    statusCodes?: number[];
+    ignoreStatusCodes?: number[];
+  };
+  validate?: boolean;
+
+  // GET only
+  cacheRequest?: boolean;
+  cacheTimeToLive?: number;
+}
+```
+
+### Standard HTTP methods
+- get(endpointKey, params, options?)
+- post(endpointKey, params, body, options?)
+- put(endpointKey, params, body, options?)
+- patch(endpointKey, params, body, options?)
+- delete(endpointKey, params, options?)
+
+### download
+- Uses GET under the hood.
+- Returns a Blob from response.blob().
+- Response schema is optional; if provided must validate Blob.
+
+```ts
+'/files/{id}/download': { download: { response: z.instanceof(Blob) } }
+const [err, file] = await client.download('/files/{id}/download', { id: 'file-1' });
+```
+
+### url
+- Builds and validates a URL without making a network request.
+- Uses the same URL construction + validation rules.
+- If baseUrl is relative, hostname is prefixed.
+- Response schema optional but must be string (often z.url()).
+
+```ts
+'/links': { url: { response: z.url() } }
+const [err, link] = await client.url('/links', null);
+```
+
+### sse (Server-Sent Events)
+- Uses fetch + streams (not EventSource).
+- URL is built like HTTP requests.
+- Handler is error-first: ([err, null] or [null, { type, data }]).
+- Messages are parsed as JSON and validated by default.
+
+```ts
+const [err, close] = await client.sse('/events', null, ([errEvent, event]) => {
+  if (errEvent) return console.error(errEvent);
+  if (event.type === 'message') console.log(event.data);
+});
+if (err) return err;
+close();
+```
+
+#### SSE parsing behavior (src/core/client.ts)
+- Each SSE block is parsed by line:
+  - event: sets event name (defaults to message)
+  - data: lines are concatenated with \n
+  - id: stored and sent as Last-Event-ID on reconnect
+  - retry: updates reconnect delay (ms)
+- Unknown event names:
+  - ignored by default
+  - if errorUnknownType true, handler receives an error
+- validate false skips schema validation for event payloads
+- Reconnect behavior:
+  - default delay 1000ms
+  - overridden by SSE retry: field
+  - abort signal or client.dispose stops reconnects
+
+## Validation details
+- Validation uses Standard Schema (@standard-schema/spec).
+- Enabled by default for request bodies and responses.
+- Disable globally via validation: false, or per call with validate: false.
+- Validation errors are wrapped in ValidationError with .issues.
+
+## Caching (GET only)
+- Enable per request with cacheRequest: true.
+- Cache key = JSON.stringify([url, normalizedHeaders]).
+- Headers are lowercased and sorted for deterministic keying.
+- Cache TTL defaults to 500ms; cleanup interval defaults to 30s.
+- If two requests share a key, pending requests are deduplicated and share the same promise.
+- Changing cacheOpts.ttl clears cache + pending entries.
+
+Example:
+```ts
+const [err, users] = await client.get('/users', params, {
+  cacheRequest: true,
+  cacheTimeToLive: 60_000,
+});
+```
+
+## Retries and timeouts (src/utils/retry.ts + src/core/client.ts)
+### Defaults
+- Default timeout: 60_000 ms.
+- Default retry status codes: 408, 429, 500-504.
+- Default retry limit (if no retry config provided): 2 (total attempts = limit + 1).
+
+### Behavior
+- retry can be a number (limit) or object.
+- Timeouts are retried up to limit.
+- Abort errors stop retries immediately.
+- TypeError (fetch/network) is retried.
+- HTTPError:
+  - if status in ignoreStatusCodes => stop retrying
+  - if status in statusCodes (or default list) => retry
+  - otherwise stop retrying
+
+Example:
+```ts
+const [err, data] = await client.get('/users', params, {
+  retry: { limit: 3, timeout: 500, statusCodes: [429, 500], ignoreStatusCodes: [404] },
+});
+```
+
+## Error handling helpers
+Common errors:
+- HTTPError (non-2xx response, has response clone)
+- ValidationError (schema validation issues)
+- TimeoutError, AbortError
+- ConstructURLError (bad/missing params)
+- RetrySuppressedError, RetryExhaustedError
+
+Helpers:
+```ts
+import { getHttpError, isTimeoutError } from 'wiretyped';
+
+const [err] = await client.get('/users/{id}', { $path: { id: '123' } });
+if (err) {
+  const httpError = getHttpError(err);
+  if (httpError) {
+    console.error(httpError.status);
+    return;
+  }
+  if (isTimeoutError(err)) {
+    console.error('timed out');
+  }
+}
+```
+
+Generic type guard and unwrapping:
+```ts
+import { isErrorType, unwrapErrorType, ValidationError } from 'wiretyped';
+
+if (err && isErrorType(ValidationError, err)) {
+  console.error(err.issues);
+}
+
+const validation = err ? unwrapErrorType(ValidationError, err) : null;
+```
+
+## Custom fetch providers
+Override fetch transport if needed:
+```ts
+new RequestClient({
+  hostname,
+  baseUrl,
+  endpoints,
+  fetchProvider: MyFetchProvider,
+});
+```
+
+Provider shape:
+```ts
+interface FetchClientProvider {
+  new (baseUrl: string, opts: FetchClientOptions): FetchClientProviderDefinition;
+}
+
+interface FetchClientProviderDefinition {
+  get(url: string, opts: Omit<FetchOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
+  put(url: string, opts: Omit<FetchOptions, 'method'>): SafeWrapAsync<Error, FetchResponse>;
+  patch(url: string, opts: Omit<FetchOptions, 'method'>): SafeWrapAsync<Error, FetchResponse>;
+  post(url: string, opts: Omit<FetchOptions, 'method'>): SafeWrapAsync<Error, FetchResponse>;
+  delete(url: string, opts: Omit<FetchOptions, 'method' | 'body'>): SafeWrapAsync<Error, FetchResponse>;
+  config(opts: FetchClientOptions): void;
+}
+```
+
+## Full example (endpoints + usage)
+```ts
+import { RequestClient, type RequestDefinitions } from 'wiretyped';
+import { z } from 'zod';
+
+const endpoints = {
+  '/users': {
+    get: {
+      $search: z.object({ limit: z.number().optional() }).optional(),
+      response: z.array(z.object({ id: z.string(), name: z.string() })),
+    },
+    post: {
+      request: z.object({ name: z.string(), email: z.string().email() }),
+      response: z.object({ id: z.string(), name: z.string(), email: z.string() }),
+    },
+  },
+  '/users/{id}': {
+    put: {
+      request: z.object({ name: z.string() }),
+      response: z.object({ id: z.string(), name: z.string() }),
+    },
+    patch: {
+      request: z.object({ name: z.string().optional() }),
+      response: z.object({ id: z.string(), name: z.string() }),
+    },
+    delete: {
+      response: z.object({ deleted: z.boolean() }),
+    },
+  },
+  '/integrations/{provider}': {
+    get: {
+      $path: z.object({ provider: z.enum(['slack', 'github']) }),
+      response: z.object({ provider: z.enum(['slack', 'github']), status: z.string() }),
+    },
+  },
+  '/files/{id}/download': {
+    download: { response: z.instanceof(Blob) },
+  },
+  '/links': {
+    url: { response: z.url() },
+  },
+  '/events': {
+    sse: {
+      events: {
+        message: z.object({ msg: z.string() }),
+        status: z.enum(['starting', 'ready', 'stopping']),
+      },
+    },
+  },
+} satisfies RequestDefinitions;
+
+const client = new RequestClient({
+  hostname: 'https://api.example.com',
+  baseUrl: '/api',
+  endpoints,
+});
+
+const [err, users] = await client.get('/users', { $search: { limit: 10 } });
+if (err) return err;
+```
+
+## Repository layout (for navigation)
+- src/: library source
+  - core/: RequestClient implementation and core types
+  - error/: error types and helpers
+  - fetch/: low-level fetch wrapper
+  - cache/: caching client
+  - utils/: URL construction, parsing, retry, validation
+- docs/: VitePress documentation
+  - guide/: getting-started, endpoints, client, methods, caching, retries, sse, errors
+  - reference/: request-definitions, providers, options
+- e2e/: multi-runtime tests
+- scripts/: build/test helpers
+
+## Key docs to read
+- docs/guide/getting-started.md
+- docs/guide/endpoints.md
+- docs/guide/client.md
+- docs/guide/methods.md
+- docs/guide/errors.md
+- docs/guide/caching.md
+- docs/guide/retries.md
+- docs/guide/sse.md
+- docs/reference/request-definitions.md
+- docs/reference/options.md
+- docs/reference/providers.md
+
+## Development commands
+- Install: pnpm install
+- Typecheck + lint + format: pnpm check
+- Build: pnpm build
+- Tests: pnpm test:integrations (fast) or pnpm test:e2e (full matrix)
+- Docs dev server: pnpm docs:dev
+
+## Notes for automation / agents
+- This is a library repo (no runtime app).
+- Keep changes small and typed.
+- Avoid new dependencies; only runtime dep is @standard-schema/spec.
+- If you change public behavior, update docs under docs/.
+
+## Links
+- Site: https://wiretyped.io
+- Repo: https://github.com/kasperrt/wiretyped
