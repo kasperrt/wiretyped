@@ -25,8 +25,8 @@ importers:
         specifier: ^25.0.9
         version: 25.0.9
       '@vitest/coverage-v8':
-        specifier: ^4.0.17
-        version: 4.0.17(vitest@4.1.0-beta.1(@types/node@25.0.9)(lightningcss@1.30.2)(terser@5.44.1))
+        specifier: ^4.1.0-beta.1
+        version: 4.1.0-beta.1(vitest@4.1.0-beta.1(@types/node@25.0.9)(lightningcss@1.30.2)(terser@5.44.1))
       miniflare:
         specifier: ^4.20260116.0
         version: 4.20260116.0
@@ -857,11 +857,11 @@ packages:
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
       vue: ^3.2.25
 
-  '@vitest/coverage-v8@4.0.17':
-    resolution: {integrity: sha512-/6zU2FLGg0jsd+ePZcwHRy3+WpNTBBhDY56P4JTRqUN/Dp6CvOEa9HrikcQ4KfV2b2kAHUFB4dl1SuocWXSFEw==}
+  '@vitest/coverage-v8@4.1.0-beta.1':
+    resolution: {integrity: sha512-T0X/uxuMc+zD1CQd5hAp30ht+UWpxAHUvZJTb2RE2Et8bBaYy+kNhg1QMBiXS3k9bt3qrWIzAJVEfV+XWNlo4A==}
     peerDependencies:
-      '@vitest/browser': 4.0.17
-      vitest: 4.0.17
+      '@vitest/browser': 4.1.0-beta.1
+      vitest: 4.1.0-beta.1
     peerDependenciesMeta:
       '@vitest/browser':
         optional: true
@@ -880,9 +880,6 @@ packages:
       vite:
         optional: true
 
-  '@vitest/pretty-format@4.0.17':
-    resolution: {integrity: sha512-Ah3VAYmjcEdHg6+MwFE17qyLqBHZ+ni2ScKCiW2XrlSBV4H3Z7vYfPfz7CWQ33gyu76oc0Ai36+kgLU3rfF4nw==}
-
   '@vitest/pretty-format@4.1.0-beta.1':
     resolution: {integrity: sha512-CeI3uthjV/XKA6KBCr/B5HlCQaFdCgprdl7gBg/sUExQPary8BBhYoVWJeAPTeg9u+ppT9S4v/sYjjNjn3Qsrw==}
 
@@ -894,9 +891,6 @@ packages:
 
   '@vitest/spy@4.1.0-beta.1':
     resolution: {integrity: sha512-DzHg9PJuWYivWLt4O9SYF2u5/mGlfM3tgP8DdlSwMr7C+hBusejK+r0rqaCSYwBH47ePhU4jccBm4i6bE2dahg==}
-
-  '@vitest/utils@4.0.17':
-    resolution: {integrity: sha512-RG6iy+IzQpa9SB8HAFHJ9Y+pTzI+h8553MrciN9eC6TFBErqrQaTas4vG+MVj8S4uKk8uTT2p0vgZPnTdxd96w==}
 
   '@vitest/utils@4.1.0-beta.1':
     resolution: {integrity: sha512-IUCsqDFj8E8WJq3wGRQ7MiMb2571tjTnjyrJ1oy+0HODutA2TpZGRqBA8ziLCIWTOL/e4RArE2k6eZh/jXgk9A==}
@@ -2277,10 +2271,10 @@ snapshots:
       vite: 7.2.7(@types/node@25.0.9)(lightningcss@1.30.2)(terser@5.44.1)
       vue: 3.5.25(typescript@5.9.3)
 
-  '@vitest/coverage-v8@4.0.17(vitest@4.1.0-beta.1(@types/node@25.0.9)(lightningcss@1.30.2)(terser@5.44.1))':
+  '@vitest/coverage-v8@4.1.0-beta.1(vitest@4.1.0-beta.1(@types/node@25.0.9)(lightningcss@1.30.2)(terser@5.44.1))':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
-      '@vitest/utils': 4.0.17
+      '@vitest/utils': 4.1.0-beta.1
       ast-v8-to-istanbul: 0.3.10
       istanbul-lib-coverage: 3.2.2
       istanbul-lib-report: 3.0.1
@@ -2308,10 +2302,6 @@ snapshots:
     optionalDependencies:
       vite: 7.2.7(@types/node@25.0.9)(lightningcss@1.30.2)(terser@5.44.1)
 
-  '@vitest/pretty-format@4.0.17':
-    dependencies:
-      tinyrainbow: 3.0.3
-
   '@vitest/pretty-format@4.1.0-beta.1':
     dependencies:
       tinyrainbow: 3.0.3
@@ -2328,11 +2318,6 @@ snapshots:
       pathe: 2.0.3
 
   '@vitest/spy@4.1.0-beta.1': {}
-
-  '@vitest/utils@4.0.17':
-    dependencies:
-      '@vitest/pretty-format': 4.0.17
-      tinyrainbow: 3.0.3
 
   '@vitest/utils@4.1.0-beta.1':
     dependencies:
