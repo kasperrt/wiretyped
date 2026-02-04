@@ -249,8 +249,11 @@ SSE options mirror fetch options except method/body/keepalive, plus:
   credentials?: RequestCredentials;
   signal?: AbortSignal;
   errorUnknownType?: boolean;
+  errorConnect?: boolean;
 }
 ```
+
+When `errorConnect` is `true`, connection/open/reconnect/read failures are forwarded to the handler as `Error('error on open connection', { cause })`; non-OK connection responses use `HTTPError` as `cause`.
 
 For more details (type narrowing, reconnection behavior, `Last-Event-ID`), see [`/guide/sse`](/guide/sse).
 

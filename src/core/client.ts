@@ -406,6 +406,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       headers,
       signal,
       errorUnknownType,
+      errorConnect,
       credentials = this.#credentials,
       ...options
     } = opts;
@@ -501,6 +502,14 @@ export class RequestClient<Schema extends RequestDefinitions> {
       handler([null, { type: eventName, data: validated }]);
     };
 
+    const emitConnectionError = (cause: unknown) => {
+      if (!errorConnect) {
+        return;
+      }
+
+      handler([new Error('error on open connection', { cause }), null]);
+    };
+
     const open = async () => {
       const timeoutSignal = createTimeoutSignal(timeout);
       const mergedSignal = mergeSignals([signal, controller.signal, timeoutSignal, this.#abortController.signal]);
@@ -524,11 +533,23 @@ export class RequestClient<Schema extends RequestDefinitions> {
       );
 
       if (errWrapped || !wrapped) {
+        emitConnectionError(new Error('error no response from fetch provider', { cause: errWrapped }));
         return;
       }
 
       const [errResponse, response] = wrapped;
       if (errResponse || !response?.ok || typeof response.body?.getReader !== 'function') {
+        if (errResponse) {
+          emitConnectionError(errResponse);
+          return;
+        }
+
+        if (response && !response.ok) {
+          emitConnectionError(new HTTPError(response, 'error non-ok response while opening SSE stream'));
+          return;
+        }
+
+        emitConnectionError(new Error('error missing readable response body while opening SSE stream'));
         return;
       }
 
@@ -538,6 +559,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       while (true) {
         const [errRead, chunk] = await safeWrapAsync(() => reader.read());
         if (errRead) {
+          emitConnectionError(errRead);
           break;
         }
 
