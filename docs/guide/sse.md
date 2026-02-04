@@ -11,6 +11,8 @@ WireTyped supports typed SSE streams via `client.sse(endpoint, params, handler, 
 - The client builds URLs with path/query validation just like HTTP requests.
 - Messages are parsed as JSON and validated against the typed event schema by default; set `validate: false` per-call to skip.
 - Unknown event names are ignored unless you pass `errorUnknownType: true`, which forwards an error to the handler.
+- Connection/open/reconnect/read errors are ignored unless you pass `errorConnect: true`, which forwards an error to the handler.
+- Forwarded connection errors use `new Error('error on open connection', { cause })`; non-OK connection responses are wrapped with `HTTPError` in `cause`.
 - The handler is error-first: it receives either `[err, null]` or `[null, { type, data }]` (the latter allows type narrowing).
 - Reconnect delay follows the SSE spec’s `retry:` field (or the client default of `1000ms` if none is sent).
 - When the stream sends an `id:` field, WireTyped stores it and sends it back as the `Last-Event-ID` header on reconnect (SSE spec).

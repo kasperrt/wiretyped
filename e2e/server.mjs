@@ -276,9 +276,13 @@ export async function startE2EServer(endpoints, opts = {}) {
         return;
       }
 
-      increment(`SSE ${sseEndpoint}`);
-
+      const attempt = increment(`SSE ${sseEndpoint}`);
       const mode = url.searchParams.get('error') ?? 'never';
+
+      if (mode === '502-after-first' && attempt > 1) {
+        json(res, 502, { error: 'temporary upstream failure' });
+        return;
+      }
 
       res.statusCode = 200;
       res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -291,6 +295,17 @@ export async function startE2EServer(endpoints, opts = {}) {
       req.on('close', () => {
         closed = true;
       });
+
+      if (mode === 'reset-once' && attempt === 1) {
+        const [errValidate, validated] = await validator({ i: 1 }, schemas.events.message);
+        if (!errValidate) {
+          sse(res, { data: JSON.stringify(validated), retry: 25 });
+        }
+
+        await sleep(1);
+        res.socket?.destroy(new Error('forced sse reset'));
+        return;
+      }
 
       for (let i = 1; i <= 3; i++) {
         if (closed) {

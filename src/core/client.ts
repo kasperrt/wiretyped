@@ -406,6 +406,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       headers,
       signal,
       errorUnknownType,
+      errorConnect,
       credentials = this.#credentials,
       ...options
     } = opts;
@@ -501,6 +502,14 @@ export class RequestClient<Schema extends RequestDefinitions> {
       handler([null, { type: eventName, data: validated }]);
     };
 
+    const emitConnectionError = (cause: unknown) => {
+      if (!errorConnect) {
+        return;
+      }
+
+      handler([new Error('error on open connection', { cause }), null]);
+    };
+
     const open = async () => {
       const timeoutSignal = createTimeoutSignal(timeout);
       const mergedSignal = mergeSignals([signal, controller.signal, timeoutSignal, this.#abortController.signal]);
@@ -524,11 +533,20 @@ export class RequestClient<Schema extends RequestDefinitions> {
       );
 
       if (errWrapped || !wrapped) {
+        emitConnectionError(new Error('error on SSE from fetch', { cause: errWrapped }));
         return;
       }
 
       const [errResponse, response] = wrapped;
-      if (errResponse || !response?.ok || typeof response.body?.getReader !== 'function') {
+      if (errResponse || (response && !response.ok) || typeof response?.body?.getReader !== 'function') {
+        let openError: Error = new Error('error in SSE stream');
+        if (errResponse) {
+          openError = new Error('error from sse get', { cause: errResponse });
+        } else if (response && !response.ok) {
+          openError = new HTTPError(response, 'error response from SSE stream');
+        }
+
+        emitConnectionError(openError);
         return;
       }
 
@@ -538,6 +556,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       while (true) {
         const [errRead, chunk] = await safeWrapAsync(() => reader.read());
         if (errRead) {
+          emitConnectionError(errRead);
           break;
         }
 

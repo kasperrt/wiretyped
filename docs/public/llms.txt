@@ -241,6 +241,19 @@ if (err) return err;
 close();
 ```
 
+SSE options:
+```ts
+{
+  validate?: boolean;
+  timeout?: number | false;
+  headers?: HeadersInit;
+  credentials?: RequestCredentials;
+  signal?: AbortSignal;
+  errorUnknownType?: boolean; // forward unknown event names to handler
+  errorConnect?: boolean; // forward open/reconnect/read errors to handler
+}
+```
+
 #### SSE parsing behavior (src/core/client.ts)
 - Each SSE block is parsed by line:
   - event: sets event name (defaults to message)
@@ -250,6 +263,10 @@ close();
 - Unknown event names:
   - ignored by default
   - if errorUnknownType true, handler receives an error
+- Connection/open/reconnect/read errors:
+  - ignored by default
+  - if errorConnect true, handler receives `Error('error on open connection', { cause })`
+  - non-OK connection responses use HTTPError as `cause` (inspect with getHttpError(err))
 - validate false skips schema validation for event payloads
 - Reconnect behavior:
   - default delay 1000ms

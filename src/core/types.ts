@@ -171,7 +171,7 @@ export type SSEHandlerCallback<T> = { handler(value: SafeWrap<Error, T>): void }
 
 /** SSE Options */
 export type SSEOptions = Omit<FetchOptions, 'body' | 'method' | 'keepalive'> &
-  Pick<RequestOptions, 'timeout' | 'validate'> & { errorUnknownType?: boolean };
+  Pick<RequestOptions, 'timeout' | 'validate'> & { errorUnknownType?: boolean; errorConnect?: boolean };
 
 /**
  * Typed parameters for get function call parameters

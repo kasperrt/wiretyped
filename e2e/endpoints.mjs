@@ -105,7 +105,7 @@ export const endpoints = {
   '/sse': {
     sse: {
       $search: z.object({
-        error: z.enum(['never', 'sometimes']),
+        error: z.enum(['never', 'sometimes', 'reset-once', '502-after-first']),
       }),
       events: {
         message: z.object({ i: z.number() }),

@@ -2999,6 +2999,45 @@ describe('RequestClient', () => {
       expect(handler).not.toHaveBeenCalled();
     });
 
+    test('forwards reader read error when errorConnect=true', async () => {
+      const handler = vi.fn();
+      const readerError = new Error('boom');
+      vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk({
+          ok: true,
+          status: 200,
+          headers: { get: () => 'text/event-stream' },
+          body: {
+            getReader: () => ({
+              read: vi.fn().mockImplementation(() => Promise.reject(readerError)),
+            }),
+          },
+        } as unknown as Response),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { errorConnect: true });
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+
+      await flushPromises();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error on open connection');
+      expect((error as Error).cause).toBe(readerError);
+      expect(data).toBeNull();
+    });
+
     test('breaks response errored', async () => {
       const handler = vi.fn();
       const readerError = new Error('boom');
@@ -3028,6 +3067,44 @@ describe('RequestClient', () => {
       expect(err).toBeNull();
       expect(close).toBeTypeOf('function');
       expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('forwards non-ok response as HTTPError when errorConnect=true', async () => {
+      const handler = vi.fn();
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() =>
+        asyncOk({
+          ok: false,
+          status: 502,
+          headers: { get: () => 'text/event-stream' },
+          body: null,
+        } as unknown as Response),
+      );
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { errorConnect: true });
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+
+      await flushPromises();
+
+      expect(getSpy).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error on open connection');
+      expect(isHttpError((error as Error).cause)).toBe(true);
+      expect(((error as Error).cause as { response: Response }).response.status).toBe(502);
+      expect(data).toBeNull();
+
+      close?.();
     });
 
     test('returns early when merged signal already aborted', async () => {
@@ -3075,6 +3152,40 @@ describe('RequestClient', () => {
       expect(getSpy).toHaveBeenCalledTimes(1);
     });
 
+    test('forwards connection errors to handler when fetch throws and errorConnect is true', async () => {
+      const handler = vi.fn();
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() => {
+        throw new Error('fetch failed');
+      });
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [errThrown, close] = await client.sse('/api/stream', null, handler, { errorConnect: true });
+      expect(errThrown).toBeNull();
+      expect(close).toBeTypeOf('function');
+
+      await flushPromises();
+
+      expect(getSpy).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error on open connection');
+      expect((error as Error).cause).toBeInstanceOf(Error);
+      expect(((error as Error).cause as Error).message).toBe('error on SSE from fetch');
+      expect((((error as Error).cause as Error).cause as Error).message).toBe('fetch failed');
+      expect(data).toBeNull();
+
+      close?.();
+    });
+
     test('returns when provider resolves with error tuple', async () => {
       const handler = vi.fn();
       const getSpy = vi
@@ -3094,6 +3205,70 @@ describe('RequestClient', () => {
       expect(err).toBeNull();
       expect(getSpy).toHaveBeenCalledTimes(1);
       expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('forwards missing readable body error when provider tuple has no response and errorConnect is true', async () => {
+      const handler = vi.fn();
+      const getSpy = vi.spyOn(MOCK_FETCH_PROVIDER.prototype, 'get').mockImplementation(() => asyncOk(undefined));
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { errorConnect: true });
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+
+      await flushPromises();
+
+      expect(getSpy).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error on open connection');
+      expect(((error as Error).cause as Error).message).toBe('error in SSE stream');
+      expect(data).toBeNull();
+
+      close?.();
+    });
+
+    test('forwards connection errors to handler when provider resolves with error tuple and errorConnect is true', async () => {
+      const handler = vi.fn();
+      const getSpy = vi
+        .spyOn(MOCK_FETCH_PROVIDER.prototype, 'get')
+        .mockImplementation(() => asyncErr(new Error('bad')));
+
+      const client = new RequestClient({
+        fetchProvider: MOCK_FETCH_PROVIDER,
+        baseUrl: 'https://api.example.com/base',
+        hostname: 'https://api.example.com',
+        fetchOpts: DEFAULT_REQUEST_OPTS,
+        endpoints: mockSseEndpoints,
+        validation: true,
+      });
+
+      const [err, close] = await client.sse('/api/stream', null, handler, { errorConnect: true });
+      expect(err).toBeNull();
+      expect(close).toBeTypeOf('function');
+
+      await flushPromises();
+
+      expect(getSpy).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledTimes(1);
+      const [error, data] = handler.mock.calls[0][0];
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('error on open connection');
+      expect((error as Error).cause).toBeInstanceOf(Error);
+      expect(((error as Error).cause as Error).message).toBe('error from sse get');
+      expect((((error as Error).cause as Error).cause as Error).message).toBe('bad');
+      expect(data).toBeNull();
+
+      close?.();
     });
 
     test('returns early when merged signal is aborted before fetch', async () => {

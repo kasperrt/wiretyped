@@ -523,6 +523,116 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
         close?.();
       },
     },
+    {
+      name: 'SSE /sse forwards connection-reset errors when errorConnect=true',
+      run: async () => {
+        const errReset = await admin.reset();
+        assert(errReset === null, 'reset failed');
+
+        const isBunRuntime = typeof Bun !== 'undefined';
+        const errors = [];
+        const messages = [];
+        let sawDone = false;
+        let resolveDone = null;
+        let rejectDone = null;
+        const done = new Promise((resolve, reject) => {
+          resolveDone = resolve;
+          rejectDone = reject;
+        });
+
+        const timer = setTimeout(() => rejectDone?.(new Error('timeout waiting for reset+done')), 5_000);
+
+        const [errOpen, close] = await client.sse(
+          '/sse',
+          { $search: { error: 'reset-once' } },
+          ([err, event]) => {
+            if (err) {
+              errors.push(err);
+              if (sawDone || isBunRuntime) {
+                resolveDone?.();
+              }
+              return;
+            }
+
+            if (event.type === 'message') {
+              messages.push(event.data.i);
+            }
+
+            if (event.type === 'done') {
+              sawDone = true;
+              if (errors.length > 0 || isBunRuntime) {
+                resolveDone?.();
+              }
+            }
+          },
+          { timeout: 5_000, errorConnect: true },
+        );
+
+        assert(errOpen === null, 'expected errOpen to be null');
+        await done;
+        clearTimeout(timer);
+        close?.();
+
+        const messageOnes = messages.filter((i) => i === 1).length;
+        assert(messageOnes >= 2, 'expected stream to reconnect (message 1 should appear twice)');
+
+        if (!isBunRuntime) {
+          assert(errors.length >= 1, 'expected at least 1 forwarded connection error');
+          assert(
+            (errors[0]?.message ?? '') === 'error on open connection',
+            'expected wrapped connection error message',
+          );
+          assert(getHttpError(errors[0]) === null, 'expected no HTTPError for a socket reset');
+        }
+      },
+    },
+    {
+      name: 'SSE /sse forwards HTTPError on reconnect when server starts returning 502',
+      run: async () => {
+        const errReset = await admin.reset();
+        assert(errReset === null, 'reset failed');
+
+        const errors = [];
+        let httpStatus = null;
+        let resolveDone = null;
+        let rejectDone = null;
+        const done = new Promise((resolve, reject) => {
+          resolveDone = resolve;
+          rejectDone = reject;
+        });
+
+        const timer = setTimeout(() => rejectDone?.(new Error('timeout waiting for 502 reconnect error')), 5_000);
+
+        const [errOpen, close] = await client.sse(
+          '/sse',
+          { $search: { error: '502-after-first' } },
+          ([err]) => {
+            if (!err) {
+              return;
+            }
+
+            errors.push(err);
+            const httpError = getHttpError(err);
+            if (httpError) {
+              httpStatus = httpError.response.status;
+            }
+
+            if (httpStatus === 502) {
+              resolveDone?.();
+            }
+          },
+          { timeout: 5_000, errorConnect: true },
+        );
+
+        assert(errOpen === null, 'expected errOpen to be null');
+        await done;
+        clearTimeout(timer);
+        close?.();
+
+        assert(errors.length >= 1, 'expected at least 1 forwarded connection error');
+        assert(httpStatus === 502, 'expected wrapped HTTPError status=502');
+      },
+    },
   ];
 }
 
