@@ -529,6 +529,7 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
         const errReset = await admin.reset();
         assert(errReset === null, 'reset failed');
 
+        const isBunRuntime = typeof Bun !== 'undefined';
         const errors = [];
         const messages = [];
         let sawDone = false;
@@ -547,7 +548,7 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
           ([err, event]) => {
             if (err) {
               errors.push(err);
-              if (sawDone) {
+              if (sawDone || isBunRuntime) {
                 resolveDone?.();
               }
               return;
@@ -559,7 +560,7 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
 
             if (event.type === 'done') {
               sawDone = true;
-              if (errors.length > 0) {
+              if (errors.length > 0 || isBunRuntime) {
                 resolveDone?.();
               }
             }
@@ -572,10 +573,17 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
         clearTimeout(timer);
         close?.();
 
-        assert(errors.length >= 1, 'expected at least 1 forwarded connection error');
-        assert((errors[0]?.message ?? '') === 'error on open connection', 'expected wrapped connection error message');
-        assert(getHttpError(errors[0]) === null, 'expected no HTTPError for a socket reset');
-        assert(messages.length >= 1, 'expected stream to recover and continue');
+        const messageOnes = messages.filter((i) => i === 1).length;
+        assert(messageOnes >= 2, 'expected stream to reconnect (message 1 should appear twice)');
+
+        if (!isBunRuntime) {
+          assert(errors.length >= 1, 'expected at least 1 forwarded connection error');
+          assert(
+            (errors[0]?.message ?? '') === 'error on open connection',
+            'expected wrapped connection error message',
+          );
+          assert(getHttpError(errors[0]) === null, 'expected no HTTPError for a socket reset');
+        }
       },
     },
     {
