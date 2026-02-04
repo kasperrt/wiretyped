@@ -533,23 +533,20 @@ export class RequestClient<Schema extends RequestDefinitions> {
       );
 
       if (errWrapped || !wrapped) {
-        emitConnectionError(new Error('error no response from fetch provider', { cause: errWrapped }));
+        emitConnectionError(new Error('error on SSE from fetch', { cause: errWrapped }));
         return;
       }
 
       const [errResponse, response] = wrapped;
-      if (errResponse || !response?.ok || typeof response.body?.getReader !== 'function') {
+      if (errResponse || (response && !response.ok) || typeof response?.body?.getReader !== 'function') {
+        let openError: Error = new Error('error in SSE stream');
         if (errResponse) {
-          emitConnectionError(errResponse);
-          return;
+          openError = new Error('error from sse get', { cause: errResponse });
+        } else if (response && !response.ok) {
+          openError = new HTTPError(response, 'error response from SSE stream');
         }
 
-        if (response && !response.ok) {
-          emitConnectionError(new HTTPError(response, 'error non-ok response while opening SSE stream'));
-          return;
-        }
-
-        emitConnectionError(new Error('error missing readable response body while opening SSE stream'));
+        emitConnectionError(openError);
         return;
       }
 

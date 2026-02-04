@@ -3179,7 +3179,7 @@ describe('RequestClient', () => {
       expect(error).toBeInstanceOf(Error);
       expect((error as Error).message).toBe('error on open connection');
       expect((error as Error).cause).toBeInstanceOf(Error);
-      expect(((error as Error).cause as Error).message).toBe('error no response from fetch provider');
+      expect(((error as Error).cause as Error).message).toBe('error on SSE from fetch');
       expect((((error as Error).cause as Error).cause as Error).message).toBe('fetch failed');
       expect(data).toBeNull();
 
@@ -3231,9 +3231,7 @@ describe('RequestClient', () => {
       const [error, data] = handler.mock.calls[0][0];
       expect(error).toBeInstanceOf(Error);
       expect((error as Error).message).toBe('error on open connection');
-      expect(((error as Error).cause as Error).message).toBe(
-        'error missing readable response body while opening SSE stream',
-      );
+      expect(((error as Error).cause as Error).message).toBe('error in SSE stream');
       expect(data).toBeNull();
 
       close?.();
@@ -3266,7 +3264,8 @@ describe('RequestClient', () => {
       expect(error).toBeInstanceOf(Error);
       expect((error as Error).message).toBe('error on open connection');
       expect((error as Error).cause).toBeInstanceOf(Error);
-      expect(((error as Error).cause as Error).message).toBe('bad');
+      expect(((error as Error).cause as Error).message).toBe('error from sse get');
+      expect((((error as Error).cause as Error).cause as Error).message).toBe('bad');
       expect(data).toBeNull();
 
       close?.();
