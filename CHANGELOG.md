@@ -1,7 +1,7 @@
 # Releases
 
 ## Contents
-- [v0.3.5-alpha.1](#v0-3-5-alpha-1)
+- [v0.3.5](#v0-3-5)
 - [v0.3.4](#v0-3-4)
 - [v0.3.3](#v0-3-3)
 - [v0.3.2](#v0-3-2)
@@ -18,7 +18,7 @@
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
 
-## v0.3.5-alpha.1
+## v0.3.5
 
 - Add `errorConnect` option to `client.sse(...)` for forwarding open/reconnect/read errors to the SSE handler.
 
