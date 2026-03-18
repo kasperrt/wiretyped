@@ -1,6 +1,7 @@
 # Releases
 
 ## Contents
+- [v0.3.6](#v0-3-6)
 - [v0.3.5](#v0-3-5)
 - [v0.3.4](#v0-3-4)
 - [v0.3.3](#v0-3-3)
@@ -17,6 +18,13 @@
 - [v0.1.1](#v0-1-1)
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
+
+## v0.3.6
+
+- Update packages
+  - pnpm@10.32.1
+  - vite@8 + vite ecosystem updates
+  - undici@7.24.4 + rollup@4.59.0
 
 ## v0.3.5
 
