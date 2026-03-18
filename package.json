@@ -125,6 +125,7 @@
   },
   "pnpm": {
     "overrides": {
+      "rollup": ">=4.59.0",
       "undici": ">=7.18.2"
     }
   }
