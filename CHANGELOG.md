@@ -1,6 +1,7 @@
 # Releases
 
 ## Contents
+- [v0.3.7](#v0-3-7)
 - [v0.3.6](#v0-3-6)
 - [v0.3.5](#v0-3-5)
 - [v0.3.4](#v0-3-4)
@@ -18,6 +19,19 @@
 - [v0.1.1](#v0-1-1)
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
+
+## v0.3.7
+
+- Internal; Update packages
+  - pnpm@10.33.0
+  - typescript@6 + @types/node@25.5.2
+  - vite@8.0.5 + vitest@4.1.2 + @vitest/coverage-v8@4.1.2
+  - @biomejs/biome@2.4.10
+  - playwright@1.59.1
+  - miniflare@4.20260401.0
+  - vitepress@2.0.0-alpha.17
+- Internal; Move pnpm overrides from package.json to pnpm-workspace.yaml
+- Internal; Add picomatch@>=4.0.4 override
 
 ## v0.3.6
 
