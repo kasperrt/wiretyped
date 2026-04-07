@@ -45,16 +45,39 @@ doc_json="$(deno doc "${deno_doc_args[@]}" "${eps[@]}")"
 coverage_json="$(
   printf '%s' "$doc_json" | jq '
     # Normalize deno doc JSON into a flat array of DocNodes.
+    # Supports:
+    #   v1 – array of DocNodes, or { nodes: DocNode[] }
+    #   v2 – { version: 2, nodes: { "<file>": { symbols: [{name, declarations}] } } }
     def allnodes:
       if type == "array" then
-        # If the array elements have .nodes, unwrap them.
         if (length > 0 and (.[0] | type=="object") and (.[0] | has("nodes"))) then
           (map(.nodes? // []) | add) // []
         else
           .
         end
       elif type == "object" then
-        if has("nodes") then (.nodes? // []) else [.] end
+        if (.version? // 0) >= 2 then
+          # v2: .nodes is a map of file -> { symbols: [{name, declarations: [decl]}] }
+          # Flatten each symbol declaration into a v1-like DocNode.
+          [ .nodes | to_entries[].value.symbols[]?
+            | . as $sym
+            | .declarations[]?
+            | . + { name: $sym.name }
+          ]
+        elif has("nodes") then
+          if (.nodes | type) == "array" then
+            .nodes
+          else
+            # v2-like without version field; same map-of-files structure.
+            [ .nodes | to_entries[].value.symbols[]?
+              | . as $sym
+              | .declarations[]?
+              | . + { name: $sym.name }
+            ]
+          end
+        else
+          [.]
+        end
       else
         []
       end;
