@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "Universal fetch-based HTTP client with robust error handling, retries, caching, SSE, and Standard Schema validation.",
   "type": "module",
   "keywords": [
@@ -33,7 +33,7 @@
     "type": "git",
     "url": "git+https://github.com/kasperrt/wiretyped.git"
   },
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@10.33.2",
   "sideEffects": false,
   "main": "./dist/index.mjs",
   "types": "./dist/types/index.d.mts",
@@ -111,17 +111,17 @@
     "@standard-schema/spec": "^1.1.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.10",
-    "@codecov/vite-plugin": "^1.9.1",
-    "@types/node": "^25.5.2",
-    "@vitest/coverage-v8": "^4.1.2",
-    "miniflare": "^4.20260401.0",
-    "oxc-minify": "^0.124.0",
+    "@biomejs/biome": "^2.4.14",
+    "@codecov/vite-plugin": "^2.0.1",
+    "@types/node": "^25.6.0",
+    "@vitest/coverage-v8": "^4.1.5",
+    "miniflare": "^4.20260430.0",
+    "oxc-minify": "^0.128.0",
     "playwright": "^1.59.1",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.5",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10",
     "vitepress": "2.0.0-alpha.17",
-    "vitest": "^4.1.2",
-    "zod": "^4.3.6"
+    "vitest": "^4.1.5",
+    "zod": "^4.4.3"
   }
 }
