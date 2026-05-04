@@ -52,6 +52,9 @@ export default defineConfig({
       {
         text: versionLabel,
         items: [
+          { text: 'v0.3.7', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.7' },
+          { text: 'v0.3.6', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.6' },
+          { text: 'v0.3.5', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.5' },
           { text: 'v0.3.4', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.4' },
           { text: 'v0.3.3', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.3' },
           { text: 'v0.3.2', link: 'https://github.com/kasperrt/wiretyped/tree/v0.3.2' },

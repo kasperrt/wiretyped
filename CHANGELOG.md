@@ -1,6 +1,7 @@
 # Releases
 
 ## Contents
+- [v0.3.8](#v0-3-8)
 - [v0.3.7](#v0-3-7)
 - [v0.3.6](#v0-3-6)
 - [v0.3.5](#v0-3-5)
@@ -19,6 +20,19 @@
 - [v0.1.1](#v0-1-1)
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
+
+## v0.3.8
+
+- Internal; Update packages
+  - @biomejs/biome@2.4.14
+  - @codecov/vite-plugin@2.0.1
+  - @types/node@25.6.0
+  - @vitest/coverage-v8@4.1.5
+  - miniflare@4.20260430.0
+  - oxc-minify@0.128.0
+  - typescript@6.0.3
+  - vitest@4.1.5
+  - zod@4.4.3
 
 ## v0.3.7
 
