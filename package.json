@@ -33,7 +33,7 @@
     "type": "git",
     "url": "git+https://github.com/kasperrt/wiretyped.git"
   },
-  "packageManager": "pnpm@10.33.2",
+  "packageManager": "pnpm@10.33.4",
   "sideEffects": false,
   "main": "./dist/index.mjs",
   "types": "./dist/types/index.d.mts",
@@ -115,11 +115,11 @@
     "@codecov/vite-plugin": "^2.0.1",
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.1.5",
-    "miniflare": "^4.20260430.0",
-    "oxc-minify": "^0.128.0",
+    "miniflare": "^4.20260504.0",
+    "oxc-minify": "^0.129.0",
     "playwright": "^1.59.1",
     "typescript": "^6.0.3",
-    "vite": "^8.0.10",
+    "vite": "^8.0.11",
     "vitepress": "2.0.0-alpha.17",
     "vitest": "^4.1.5",
     "zod": "^4.4.3"
