@@ -21,6 +21,12 @@
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
 
+## v0.3.9
+
+- Internal / dev sec; Update packages
+  - vite@8.0.11
+  - postcss pinned to >=8.5.10
+
 ## v0.3.8
 
 - Internal; Update packages
