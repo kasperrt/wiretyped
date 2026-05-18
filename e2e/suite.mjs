@@ -548,7 +548,7 @@ export function getE2ETestCases({ wiretyped, client, admin }) {
           ([err, event]) => {
             if (err) {
               errors.push(err);
-              if (sawDone || isBunRuntime) {
+              if (sawDone) {
                 resolveDone?.();
               }
               return;
