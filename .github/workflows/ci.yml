@@ -125,30 +125,39 @@ jobs:
         include:
           - runtime: node
             node-version: 18
+            pnpm-version: 10.23.0
             command: pnpm run test:e2e:node
           - runtime: node
             node-version: 20
+            pnpm-version: 10.23.0
             command: pnpm run test:e2e:node
           - runtime: node
             node-version: 22
+            pnpm-version: 11.1.2
             command: pnpm run test:e2e:node
           - runtime: node
             node-version: 24
+            pnpm-version: 11.1.2
             command: pnpm run test:e2e:node
           - runtime: node
             node-version: 25
+            pnpm-version: 11.1.2
             command: pnpm run test:e2e:node
           - runtime: bun
             node-version: 25
+            pnpm-version: 11.1.2
             command: pnpm run test:e2e:bun
           - runtime: deno
             node-version: 25
+            pnpm-version: 11.1.2
             command: pnpm run test:e2e:deno
           - runtime: browser
             node-version: 25
+            pnpm-version: 11.1.2
             command: pnpm run test:e2e:browser
           - runtime: workers
             node-version: 25
+            pnpm-version: 11.1.2
             command: pnpm run test:e2e:workers
 
     permissions:
@@ -159,7 +168,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.1.2
+          version: ${{ matrix.pnpm-version }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
