@@ -114,7 +114,7 @@
     "@codecov/vite-plugin": "2.0.1",
     "@types/node": "25.8.0",
     "@vitest/coverage-v8": "4.1.9",
-    "miniflare": "4.20260623.0",
+    "miniflare": "4.20260625.0",
     "oxc-minify": "0.131.0",
     "playwright": "1.60.0",
     "typescript": "6.0.3",
