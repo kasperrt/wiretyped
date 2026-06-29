@@ -116,7 +116,7 @@
     "@vitest/coverage-v8": "4.1.9",
     "miniflare": "4.20260623.0",
     "oxc-minify": "0.131.0",
-    "playwright": "1.60.0",
+    "playwright": "1.61.1",
     "typescript": "6.0.3",
     "vite": "8.1.0",
     "vitepress": "2.0.0-alpha.17",
