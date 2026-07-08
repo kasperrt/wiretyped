@@ -107,20 +107,20 @@
     "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
-    "@standard-schema/spec": "^1.1.0"
+    "@standard-schema/spec": "1.1.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.15",
-    "@codecov/vite-plugin": "^2.0.1",
-    "@types/node": "^25.8.0",
-    "@vitest/coverage-v8": "^4.1.6",
-    "miniflare": "^4.20260515.0",
-    "oxc-minify": "^0.131.0",
-    "playwright": "^1.60.0",
-    "typescript": "7.0.2",
-    "vite": "^8.0.13",
+    "@biomejs/biome": "2.4.15",
+    "@codecov/vite-plugin": "2.0.1",
+    "@types/node": "25.8.0",
+    "@vitest/coverage-v8": "4.1.9",
+    "miniflare": "4.20260623.0",
+    "oxc-minify": "0.131.0",
+    "playwright": "1.60.0",
+    "typescript": "^7.0.2",
+    "vite": "8.1.0",
     "vitepress": "2.0.0-alpha.17",
-    "vitest": "^4.1.6",
-    "zod": "^4.4.3"
+    "vitest": "4.1.9",
+    "zod": "4.4.3"
   }
 }
