@@ -7,4 +7,4 @@ onlyBuiltDependencies:
   - sharp
   - workerd
 overrides:
-  vite: "8.1.0"
+  vite: "8.1.2"
