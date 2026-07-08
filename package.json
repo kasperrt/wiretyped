@@ -115,7 +115,7 @@
     "@types/node": "25.8.0",
     "@vitest/coverage-v8": "4.1.9",
     "miniflare": "4.20260623.0",
-    "oxc-minify": "0.131.0",
+    "oxc-minify": "0.139.0",
     "playwright": "1.60.0",
     "typescript": "^7.0.2",
     "vite": "8.1.2",
