@@ -112,7 +112,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
     "@codecov/vite-plugin": "2.0.1",
-    "@types/node": "25.8.0",
+    "@types/node": "26.1.1",
     "@vitest/coverage-v8": "4.1.9",
     "miniflare": "4.20260623.0",
     "oxc-minify": "0.131.0",
