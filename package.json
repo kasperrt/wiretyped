@@ -119,7 +119,7 @@
     "playwright": "1.60.0",
     "typescript": "^7.0.2",
     "vite": "8.1.2",
-    "vitepress": "2.0.0-alpha.17",
+    "vitepress": "2.0.0-alpha.19",
     "vitest": "4.1.9",
     "zod": "4.4.3"
   }
