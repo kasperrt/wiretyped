@@ -22,7 +22,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.1.2
+          version: 11.8.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -87,7 +87,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.1.2
+          version: 11.8.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -125,39 +125,30 @@ jobs:
         include:
           - runtime: node
             node-version: 18
-            pnpm-version: 10.23.0
-            command: pnpm run test:e2e:node
+            command: node e2e/run-node.mjs
           - runtime: node
             node-version: 20
-            pnpm-version: 10.23.0
-            command: pnpm run test:e2e:node
+            command: node e2e/run-node.mjs
           - runtime: node
             node-version: 22
-            pnpm-version: 11.1.2
-            command: pnpm run test:e2e:node
+            command: node e2e/run-node.mjs
           - runtime: node
             node-version: 24
-            pnpm-version: 11.1.2
-            command: pnpm run test:e2e:node
+            command: node e2e/run-node.mjs
           - runtime: node
             node-version: 25
-            pnpm-version: 11.1.2
-            command: pnpm run test:e2e:node
+            command: node e2e/run-node.mjs
           - runtime: bun
             node-version: 25
-            pnpm-version: 11.1.2
             command: pnpm run test:e2e:bun
           - runtime: deno
             node-version: 25
-            pnpm-version: 11.1.2
             command: pnpm run test:e2e:deno
           - runtime: browser
             node-version: 25
-            pnpm-version: 11.1.2
             command: pnpm run test:e2e:browser
           - runtime: workers
             node-version: 25
-            pnpm-version: 11.1.2
             command: pnpm run test:e2e:workers
 
     permissions:
@@ -168,12 +159,13 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: ${{ matrix.pnpm-version }}
+          version: 11.8.0
 
-      - name: Setup Node.js
+      # Install development tools on a supported runtime before selecting the test runtime.
+      - name: Setup Node.js for tooling
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
@@ -198,6 +190,17 @@ jobs:
         uses: denoland/setup-deno@v1
         with:
           deno-version: v2.x
+
+      - name: Setup Node.js for runtime tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Verify Node.js test runtime
+        if: matrix.runtime == 'node'
+        env:
+          EXPECTED_NODE_MAJOR: ${{ matrix.node-version }}
+        run: node -e 'console.log(process.version); if (process.versions.node.split(".")[0] !== process.env.EXPECTED_NODE_MAJOR) process.exit(1)'
 
       - name: Run e2e for ${{ matrix.runtime }}
         run: ${{ matrix.command }}
