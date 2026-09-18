@@ -110,17 +110,17 @@
     "@standard-schema/spec": "1.1.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.15",
+    "@biomejs/biome": "2.5.14",
     "@codecov/vite-plugin": "2.0.1",
-    "@types/node": "25.8.0",
-    "@vitest/coverage-v8": "4.1.9",
-    "miniflare": "4.20260623.0",
-    "oxc-minify": "0.131.0",
-    "playwright": "1.60.0",
+    "@types/node": "26.6.1",
+    "@vitest/coverage-v8": "4.1.11",
+    "miniflare": "4.20260730.0",
+    "oxc-minify": "0.150.0",
+    "playwright": "1.63.0",
     "typescript": "^7.0.2",
-    "vite": "8.1.2",
-    "vitepress": "2.0.0-alpha.17",
-    "vitest": "4.1.9",
-    "zod": "4.4.3"
+    "vite": "8.3.0",
+    "vitepress": "2.0.0-alpha.20",
+    "vitest": "4.1.11",
+    "zod": "4.6.5"
   }
 }

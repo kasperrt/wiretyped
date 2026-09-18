@@ -47,7 +47,7 @@ describe('validate', () => {
     expect(value).toBeNull();
     expect(err).toBeInstanceOf(ValidationError);
     expect(err?.message).toBe('error validating on validation start; issues: []');
-    expect((err?.cause as Error).message).toBe('oops');
+    expect(err?.cause).toEqual(new Error('oops'));
   });
 
   it('returns error when validation returns empty result', async () => {
