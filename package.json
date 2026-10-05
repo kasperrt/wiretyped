@@ -110,7 +110,7 @@
     "@standard-schema/spec": "1.1.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.14",
+    "@biomejs/biome": "2.5.15",
     "@codecov/vite-plugin": "2.0.1",
     "@types/node": "26.6.1",
     "@vitest/coverage-v8": "4.1.11",
