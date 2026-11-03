@@ -40,10 +40,10 @@
   - vitest@5.1.0
   - zod@4.6.7
   - typescript@7.0.2
-- Internal; Pin patched transitive packages
-  - postcss@8.5.32
+- Internal; Drop the postcss and vite overrides. Both already resolve to the current versions.
+- Internal; Keep overrides only where a dependency exact-pins an older release
   - sharp@0.35.5
-  - undici@7.30.1
+  - undici@8.12.3
 
 ## v0.3.9
 
