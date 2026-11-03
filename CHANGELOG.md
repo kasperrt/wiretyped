@@ -39,6 +39,11 @@
   - vitepress@2.0.0-alpha.21
   - vitest@5.1.0
   - zod@4.6.7
+  - typescript@7.0.2
+- Internal; Pin patched transitive packages
+  - postcss@8.5.32
+  - sharp@0.35.5
+  - undici@7.30.1
 
 ## v0.3.9
 

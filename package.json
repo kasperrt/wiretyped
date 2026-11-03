@@ -117,7 +117,7 @@
     "miniflare": "4.20260730.0",
     "oxc-minify": "0.157.0",
     "playwright": "1.64.1",
-    "typescript": "^7.0.2",
+    "typescript": "7.0.2",
     "vite": "8.3.5",
     "vitepress": "2.0.0-alpha.21",
     "vitest": "5.1.0",

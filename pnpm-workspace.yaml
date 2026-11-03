@@ -26,7 +26,7 @@ minimumReleaseAgeExclude:
   - oxc-minify@0.157.0
 
 overrides:
-  postcss: 8.5.28
-  sharp: 0.35.4
-  undici: 7.29.1
+  postcss: 8.5.32
+  sharp: 0.35.5
+  undici: 7.30.1
   vite: 8.3.5
