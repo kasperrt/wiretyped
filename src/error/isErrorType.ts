@@ -1,13 +1,9 @@
-import { unwrapErrorType } from './unwrapErrorType.js';
+import { type ErrorConstructor, unwrapErrorType } from './unwrapErrorType.js';
 
 /**
- * Generic type guard to check if an unknown error matches a specific error class.
- * Traverses nested `cause` chains unless `shallow` is true.
+ * Generic type guard to check if a thrown value matches a specific error class.
+ * Traverses nested `cause` chains.
  */
-export function isErrorType<T extends Error>(
-  // biome-ignore lint/suspicious/noExplicitAny: errorClass needs to handle any type of class handling, hence the any class-type
-  errorClass: new (...args: any[]) => T,
-  err: unknown,
-): err is T {
-  return Boolean(unwrapErrorType(errorClass, err));
+export function isErrorType<T extends Error, Caught>(errorClass: ErrorConstructor<T>, err: Caught): err is Caught & T {
+  return !!unwrapErrorType(errorClass, err);
 }

@@ -14,21 +14,16 @@ import { type SafeWrapAsync, safeWrap, safeWrapAsync } from './wrap.js';
  *   `"error validating data"` and the collected issues is returned as `[ValidationError, null]`.
  * - On successful validation without issues, returns `[null, result.value]`.
  *
- * @template T extends StandardSchemaV1
- * @param {StandardSchemaV1.InferInput<T>} input - The value to validate.
- * @param {T} schema - The StandardSchemaV1 schema used for validation.
- * @returns {Promise<SafeWrapAsync<StandardSchemaV1.InferOutput<T>>>}
- *   A promise resolving to `[ValidationError | null, StandardSchemaV1.InferOutput<T> | null]`.
+ * @template Schema - Standard Schema whose output type is returned on success.
+ * @param input - The value to validate. The schema decides whether it is accepted.
+ * @param schema - The Standard Schema used for validation.
+ * @returns A promise resolving to `[error, value]` where `value` is the schema output.
  */
-export async function validator<T extends StandardSchemaV1>(
-  input: StandardSchemaV1.InferInput<T>,
-  schema: T,
-): SafeWrapAsync<Error, StandardSchemaV1.InferOutput<T>> {
-  type ValidationResult = StandardSchemaV1.Result<StandardSchemaV1.InferOutput<T>>;
-
-  let [err, result] = safeWrap<Error, ValidationResult | Promise<ValidationResult>>(() =>
-    schema['~standard'].validate(input),
-  );
+export async function validator<Schema extends StandardSchemaV1, Input>(
+  input: Input,
+  schema: Schema,
+): SafeWrapAsync<Error, StandardSchemaV1.InferOutput<Schema>> {
+  let [err, result] = safeWrap(() => schema['~standard'].validate(input));
 
   if (err) {
     return [new ValidationError('error validating on validation start', [], { cause: err }), null];

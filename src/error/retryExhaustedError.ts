@@ -23,15 +23,15 @@ export class RetryExhaustedError extends Error {
 }
 
 /**
- * Extract an {@link RetryExhaustedError} from an unknown error value, following nested causes.
+ * Extract a {@link RetryExhaustedError} from a thrown value, following nested causes.
  */
-export function getRetryExhaustedError(error: unknown): null | RetryExhaustedError {
+export function getRetryExhaustedError<Caught>(error: Caught): null | RetryExhaustedError {
   return unwrapErrorType(RetryExhaustedError, error);
 }
 
 /**
  * Type guard for {@link RetryExhaustedError}.
  */
-export function isRetryExhaustedError(error: unknown): error is RetryExhaustedError {
+export function isRetryExhaustedError<Caught>(error: Caught): error is Caught & RetryExhaustedError {
   return isErrorType(RetryExhaustedError, error);
 }

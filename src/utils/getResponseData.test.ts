@@ -46,7 +46,7 @@ describe('getResponseData', () => {
     expect(value).toBeNull();
   });
 
-  it('returns parsed text to json for 200', async () => {
+  it('returns the text body for a non-json 200', async () => {
     const response = {
       text: () => 'this is a normal string',
       ok: true,
@@ -59,7 +59,7 @@ describe('getResponseData', () => {
     expect(value).toBe('this is a normal string');
   });
 
-  it('returns parsed text to json for 200', async () => {
+  it('returns parsed json for an application/json 200', async () => {
     const response = {
       text: () => '{"data": "foo"}',
       ok: true,

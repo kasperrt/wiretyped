@@ -173,16 +173,15 @@ Structured similarly to other operations, but `response` is optional and only ac
 ```ts
 const endpoints = {
   // Response not strictly needed, but only accepts string derivatives
-  '/links': { 
-    url: { response: z.url() }
+  '/links': {
+    url: { response: z.url() },
   },
-  '/links/{integration}': { 
-    url: { 
-      $path: z.object({ integration: z.enum(['slack', 'github']) }) 
-    } 
+  '/links/{integration}': {
+    url: {
+      $path: z.object({ integration: z.enum(['slack', 'github']) }),
+    },
   },
 } satisfies RequestDefinitions;
-
 
 const [err, link] = await client.url('/links', null);
 ```

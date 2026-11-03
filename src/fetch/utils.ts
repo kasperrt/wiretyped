@@ -1,17 +1,13 @@
 import type { HeaderOptions } from '../types/request.js';
 
-/**
- * Filters out unsupported values and turns remaining into strings.
- */
-function sanitize(value: unknown): string | null {
+/** Turns a header value into a string. Objects, functions, and symbols are dropped. */
+function headerText<Value>(value: Value): string | null {
   const type = typeof value;
   return type === 'object' || type === 'function' || type === 'symbol' ? null : String(value);
 }
 
-/**
- * Normalizes the different header container shapes into a consistent iterable.
- */
-function toEntries(headers?: HeaderOptions): Iterable<[string, unknown]> {
+/** Normalizes the different header container shapes into one iterable. */
+function toEntries(headers?: HeaderOptions): Iterable<[string, string | null]> {
   if (!headers) {
     return [];
   }
@@ -39,7 +35,7 @@ export function mergeHeaderOptions(globalHeaders?: HeaderOptions, localHeaders?:
       continue;
     }
 
-    const clean = sanitize(value);
+    const clean = headerText(value);
     if (clean !== null) {
       merged.set(key, clean);
     }

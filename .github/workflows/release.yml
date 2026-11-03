@@ -2,8 +2,8 @@ name: Release
 
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches: [ main ]
+    tags: [ "v*" ]
 
 permissions:
   id-token: write
@@ -155,12 +155,12 @@ jobs:
 
   ci:
     if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.run == 'true'
-    needs: [detect]
+    needs: [ detect ]
     uses: ./.github/workflows/ci.yml
 
   tag:
     if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.run == 'true' && needs.ci.result == 'success'
-    needs: [detect, ci]
+    needs: [ detect, ci ]
     runs-on: ubuntu-latest
 
     steps:
@@ -198,7 +198,7 @@ jobs:
 
   release:
     if: github.repository == 'kasperrt/wiretyped' && needs.detect.outputs.run == 'true' && needs.ci.result == 'success' && needs.tag.result == 'success'
-    needs: [detect, ci, tag]
+    needs: [ detect, ci, tag ]
     runs-on: ubuntu-latest
 
     steps:

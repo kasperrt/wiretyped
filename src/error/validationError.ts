@@ -22,13 +22,13 @@ export class ValidationError extends Error {
 /**
  * Type guard for {@link ValidationError}.
  */
-export function isValidationError(error: unknown): error is ValidationError {
+export function isValidationError<Caught>(error: Caught): error is Caught & ValidationError {
   return isErrorType(ValidationError, error);
 }
 
 /**
- * Extract an {@link ValidationError} from an unknown error value, following nested causes.
+ * Extract a {@link ValidationError} from a thrown value, following nested causes.
  */
-export function getValidationError(error: unknown): null | ValidationError {
+export function getValidationError<Caught>(error: Caught): null | ValidationError {
   return unwrapErrorType(ValidationError, error);
 }

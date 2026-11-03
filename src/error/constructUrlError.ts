@@ -23,15 +23,15 @@ export class ConstructURLError extends Error {
 }
 
 /**
- * Extract an {@link ConstructURLError} from an unknown error value, following nested causes.
+ * Extract a {@link ConstructURLError} from a thrown value, following nested causes.
  */
-export function getConstructURLError(error: unknown): null | ConstructURLError {
+export function getConstructURLError<Caught>(error: Caught): null | ConstructURLError {
   return unwrapErrorType(ConstructURLError, error);
 }
 
 /**
  * Type guard for {@link ConstructURLError}.
  */
-export function isConstructURLError(error: unknown): error is ConstructURLError {
+export function isConstructURLError<Caught>(error: Caught): error is Caught & ConstructURLError {
   return isErrorType(ConstructURLError, error);
 }

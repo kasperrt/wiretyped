@@ -32,12 +32,7 @@ export interface RetryOptions<R> {
  * @param timeout how long the wait-time should be
  * @param errFn optional errorFunction on whether we want to skip retrying and propagate the error (true = stop, false = retry and move on)
  */
-export async function retry<R = unknown>({
-  fn,
-  attempts = 10,
-  timeout = 1000,
-  errFn,
-}: RetryOptions<R>): SafeWrapAsync<Error, R> {
+export async function retry<R>({ fn, attempts = 10, timeout = 1000, errFn }: RetryOptions<R>): SafeWrapAsync<Error, R> {
   for (let attempt = 1; ; attempt += 1) {
     const [err, data] = await fn();
     if (!err) {

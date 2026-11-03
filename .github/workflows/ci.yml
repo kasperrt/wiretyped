@@ -2,10 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches: [ main ]
+    tags: [ "v*" ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
   workflow_call: {}
 
 jobs:
@@ -79,7 +79,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [types, entrypoints, resolve, pack, dts]
+        runtime: [ types, entrypoints, resolve, pack, dts ]
     permissions:
       contents: read
     steps:

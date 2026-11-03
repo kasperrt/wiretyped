@@ -9,9 +9,9 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
-        index: resolve(__dirname, 'src/index.ts'),
-        core: resolve(__dirname, 'src/core/index.ts'),
-        error: resolve(__dirname, 'src/error/index.ts'),
+        index: resolve(import.meta.dirname, 'src/index.ts'),
+        core: resolve(import.meta.dirname, 'src/core/index.ts'),
+        error: resolve(import.meta.dirname, 'src/error/index.ts'),
       },
     },
     minify: true,
@@ -26,6 +26,12 @@ export default defineConfig({
           entryFileNames: '[name].mjs',
           chunkFileNames: '[name]-[hash].mjs',
           exports: 'named',
+          // Vite leaves ESM library output pretty-printed (`codegen: false`).
+          // Turn the minifier's codegen back on so the published files drop whitespace.
+          minify: {
+            codegen: true,
+          },
+          comments: false,
         },
         {
           format: 'cjs',

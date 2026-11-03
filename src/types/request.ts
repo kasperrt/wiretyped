@@ -79,11 +79,12 @@ export interface FetchOptions extends Omit<RequestInit, 'headers'> {
   signal?: AbortSignal;
 }
 
-/** Fetch response with a narrowed status code union. */
-export interface FetchResponse extends Response {
-  /** "Strong" type of status-codes {@link StatusCode} */
-  status: StatusCode;
-}
+/**
+ * Response returned by the fetch provider.
+ * Alias of the platform `Response`: status stays a `number` because servers can
+ * return codes outside the retry {@link StatusCode} list.
+ */
+export type FetchResponse = Response;
 
 /** Options for retry logic and standard */
 export type RetryOptions = {

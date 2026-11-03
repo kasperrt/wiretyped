@@ -9,7 +9,7 @@ import { safeWrap } from './wrap.js';
  * @param input - The string to parse.
  * @returns The parsed JSON value, or `input` if it isn't valid JSON.
  */
-export function tryParse(input: string): unknown {
+export function tryParse(input: string) {
   const [errParsed, parsed] = safeWrap(() => JSON.parse(input));
   if (errParsed) {
     return input;

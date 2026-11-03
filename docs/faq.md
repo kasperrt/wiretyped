@@ -16,7 +16,7 @@ If you care about the status code, it’s almost always because of an error. On 
 
 ## Why always return both error and data?
 
-So you don’t end up with “floaty” types. You either have an `error` defined *or* you have `data` defined.
+So you don’t end up with “floaty” types. You either have an `error` defined _or_ you have `data` defined.
 
 ## I saw `safeWrap` and `safeWrapAsync` internally, what is it?
 

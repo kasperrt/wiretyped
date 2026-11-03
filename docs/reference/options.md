@@ -80,4 +80,3 @@ Notes:
 
 - Define endpoints in [`/reference/request-definitions`](/reference/request-definitions).
 - See runtime provider interfaces in [`/reference/providers`](/reference/providers).
-

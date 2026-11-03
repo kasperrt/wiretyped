@@ -24,34 +24,17 @@ import { tryParse } from '../utils/tryParse.js';
 import { validator } from '../utils/validator.js';
 import { type SafeWrapAsync, safeWrapAsync } from '../utils/wrap.js';
 import type {
+  CallArgs,
+  CallReturn,
   ClientOperation,
-  DeleteArgs,
-  DeleteEndpoint,
-  DeleteReturn,
-  DownloadArgs,
-  DownloadEndpoint,
-  EndpointsWithMethod,
-  GetArgs,
-  GetEndpoint,
-  GetReturn,
+  EndpointOf,
   HttpMethod,
   Params,
-  PatchArgs,
-  PatchEndpoint,
-  PatchReturn,
-  PostArgs,
-  PostEndpoint,
-  PostReturn,
-  PutArgs,
-  PutEndpoint,
-  PutReturn,
   RequestDefinitions,
+  RequestType,
   SSEArgs,
   SSEDataReturn,
-  SSEEndpoint,
   SSEReturn,
-  UrlArgs,
-  UrlEndpoint,
 } from './types.js';
 
 /** Configuration for constructing a typed {@link RequestClient}, extends {@link Config}. */
@@ -211,11 +194,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, options]`.
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
-  get<Endpoint extends GetEndpoint<Schema>>(
-    ...args: GetArgs<Schema, Endpoint>
-  ): SafeWrapAsync<Error, GetReturn<Schema, Endpoint>> {
+  get<Endpoint extends EndpointOf<Schema, 'get'>>(
+    ...args: CallArgs<Schema, 'get', Endpoint>
+  ): SafeWrapAsync<Error, CallReturn<Schema, 'get', Endpoint>> {
     const [endpoint, params, opts = {}] = args;
-    return this.#execute<'get', Endpoint, GetReturn<Schema, Endpoint>>('get', endpoint, params, opts, getResponseData);
+    return this.#execute('get', endpoint, params, opts, getResponseData);
   }
 
   /**
@@ -229,18 +212,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, body, options]`.
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
-  post<Endpoint extends PostEndpoint<Schema>>(
-    ...args: PostArgs<Schema, Endpoint>
-  ): SafeWrapAsync<Error, PostReturn<Schema, Endpoint>> {
+  post<Endpoint extends EndpointOf<Schema, 'post'>>(
+    ...args: CallArgs<Schema, 'post', Endpoint>
+  ): SafeWrapAsync<Error, CallReturn<Schema, 'post', Endpoint>> {
     const [endpoint, params, data, opts = {}] = args;
-    return this.#execute<'post', Endpoint, PostReturn<Schema, Endpoint>>(
-      'post',
-      endpoint,
-      params,
-      { ...opts, cacheRequest: false },
-      getResponseData,
-      data,
-    );
+    return this.#execute('post', endpoint, params, { ...opts, cacheRequest: false }, getResponseData, data);
   }
 
   /**
@@ -254,18 +230,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, body, options]`.
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
-  put<Endpoint extends PutEndpoint<Schema>>(
-    ...args: PutArgs<Schema, Endpoint>
-  ): SafeWrapAsync<Error, PutReturn<Schema, Endpoint>> {
+  put<Endpoint extends EndpointOf<Schema, 'put'>>(
+    ...args: CallArgs<Schema, 'put', Endpoint>
+  ): SafeWrapAsync<Error, CallReturn<Schema, 'put', Endpoint>> {
     const [endpoint, params, data, opts = {}] = args;
-    return this.#execute<'put', Endpoint, PutReturn<Schema, Endpoint>>(
-      'put',
-      endpoint,
-      params,
-      { ...opts, cacheRequest: false },
-      getResponseData,
-      data,
-    );
+    return this.#execute('put', endpoint, params, { ...opts, cacheRequest: false }, getResponseData, data);
   }
 
   /**
@@ -279,19 +248,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, body, options]`.
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
-  patch<Endpoint extends PatchEndpoint<Schema>>(
-    ...args: PatchArgs<Schema, Endpoint>
-  ): SafeWrapAsync<Error, PatchReturn<Schema, Endpoint>> {
+  patch<Endpoint extends EndpointOf<Schema, 'patch'>>(
+    ...args: CallArgs<Schema, 'patch', Endpoint>
+  ): SafeWrapAsync<Error, CallReturn<Schema, 'patch', Endpoint>> {
     const [endpoint, params, data, opts = {}] = args;
-
-    return this.#execute<'patch', Endpoint, PatchReturn<Schema, Endpoint>>(
-      'patch',
-      endpoint,
-      params,
-      { ...opts, cacheRequest: false },
-      getResponseData,
-      data,
-    );
+    return this.#execute('patch', endpoint, params, { ...opts, cacheRequest: false }, getResponseData, data);
   }
 
   /**
@@ -304,18 +265,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, options]`.
    * @returns A promise resolving to `[error, data]` where `data` is the typed response.
    */
-  delete<Endpoint extends DeleteEndpoint<Schema>>(
-    ...args: DeleteArgs<Schema, Endpoint>
-  ): SafeWrapAsync<Error, DeleteReturn<Schema, Endpoint>> {
+  delete<Endpoint extends EndpointOf<Schema, 'delete'>>(
+    ...args: CallArgs<Schema, 'delete', Endpoint>
+  ): SafeWrapAsync<Error, CallReturn<Schema, 'delete', Endpoint>> {
     const [endpoint, params, opts = {}] = args;
-
-    return this.#execute<'delete', Endpoint, DeleteReturn<Schema, Endpoint>>(
-      'delete',
-      endpoint,
-      params,
-      opts,
-      getResponseData,
-    );
+    return this.#execute('delete', endpoint, params, opts, getResponseData);
   }
 
   /**
@@ -328,14 +282,11 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params, options]`.
    * @returns A promise resolving to `[error, blob]`.
    */
-  download<Endpoint extends DownloadEndpoint<Schema>>(
-    ...args: DownloadArgs<Schema, Endpoint>
-  ): SafeWrapAsync<Error, Blob> {
+  download<Endpoint extends EndpointOf<Schema, 'download'>>(
+    ...args: CallArgs<Schema, 'download', Endpoint>
+  ): SafeWrapAsync<Error, CallReturn<Schema, 'download', Endpoint>> {
     const [endpoint, params, opts = {}] = args;
-
-    return this.#execute<'download', Endpoint, Blob>('download', endpoint, params, opts, (response) =>
-      safeWrapAsync(() => response.blob()),
-    );
+    return this.#execute('download', endpoint, params, opts, (response) => safeWrapAsync(() => response.blob()));
   }
 
   /**
@@ -348,7 +299,9 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param args - Tuple of `[endpoint, params]`.
    * @returns A tuple `[error, url]` where `url` is the resolved absolute URL.
    */
-  async url<Endpoint extends UrlEndpoint<Schema>>(...args: UrlArgs<Schema, Endpoint>): SafeWrapAsync<Error, string> {
+  async url<Endpoint extends EndpointOf<Schema, 'url'>>(
+    ...args: CallArgs<Schema, 'url', Endpoint>
+  ): SafeWrapAsync<Error, CallReturn<Schema, 'url', Endpoint>> {
     const [endpoint, params, { validate = this.#validation } = {}] = args;
     const schemas = this.#endpoints[endpoint]?.url;
     if (!schemas) {
@@ -396,7 +349,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @returns A promise resolving to `[error, close]` where `close` is a function
    *          that closes the SSE stream.
    */
-  async sse<Endpoint extends SSEEndpoint<Schema>>(
+  async sse<Endpoint extends EndpointOf<Schema, 'sse'>>(
     ...args: SSEArgs<Schema, Endpoint, SSEDataReturn<Schema, Endpoint>>
   ): SafeWrapAsync<Error, SSEReturn> {
     const [endpoint, params, handler, opts = {}]: SSEArgs<Schema, Endpoint> = args;
@@ -502,7 +455,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       handler([null, { type: eventName, data: validated }]);
     };
 
-    const emitConnectionError = (cause: unknown) => {
+    const emitConnectionError = (cause: Error) => {
       if (!errorConnect) {
         return;
       }
@@ -602,7 +555,6 @@ export class RequestClient<Schema extends RequestDefinitions> {
    *
    * @typeParam Method - Client operation such as `get`, `post`, or `download`.
    * @typeParam Endpoint - Endpoint key supporting the provided method.
-   * @typeParam ResponseType - Parsed response shape expected from the parser.
    * @param operation - Client operation identifier (maps `download` to a GET request internally).
    * @param endpoint - Endpoint key used to resolve schemas and construct the URL.
    * @param params - Path/query params for the endpoint.
@@ -611,18 +563,14 @@ export class RequestClient<Schema extends RequestDefinitions> {
    * @param rawData - Optional request body before validation/serialization.
    * @returns A tuple `[error, result]` where `result` is the typed response.
    */
-  async #execute<
-    Method extends Exclude<ClientOperation, 'url' | 'sse'>,
-    Endpoint extends EndpointsWithMethod<Method, Schema> & string,
-    ResponseType,
-  >(
+  async #execute<Method extends Exclude<ClientOperation, 'url' | 'sse'>, Endpoint extends EndpointOf<Schema, Method>>(
     operation: Method,
     endpoint: Endpoint,
     params: Params<Schema, Endpoint, Method>,
     opts: FetchOptions & RequestOptions,
-    parser: (response: FetchResponse) => SafeWrapAsync<Error, ResponseType>,
-    rawData?: unknown,
-  ): SafeWrapAsync<Error, ResponseType> {
+    parser: (response: FetchResponse) => SafeWrapAsync<Error, CallReturn<Schema, Method, Endpoint>>,
+    rawData?: RequestType<Schema, Endpoint, Method>,
+  ): SafeWrapAsync<Error, CallReturn<Schema, Method, Endpoint>> {
     const method: HttpMethod = operation === 'download' ? 'get' : operation;
     const schemas = this.#endpoints[endpoint]?.[operation];
     if (!schemas) {
@@ -647,7 +595,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
     if (cacheRequest && method === 'get') {
       const cacheKey = this.#cacheClient.key(url, mergeHeaderOptions(this.#defaultHeaders, options.headers));
-      const [errCacheClient, result] = await this.#cacheClient.get<ResponseType>(
+      const [errCacheClient, result] = await this.#cacheClient.get(
         cacheKey,
         async () => {
           const [err, uncached] = await this.#execute(
@@ -694,7 +642,7 @@ export class RequestClient<Schema extends RequestDefinitions> {
       );
     }
 
-    const [errReq, result] = await this.#request<ResponseType>(method, url, requestOptions, parser);
+    const [errReq, result] = await this.#request(method, url, requestOptions, parser);
     if (errReq) {
       return [new Error(`error doing request in ${operation}`, { cause: errReq }), null];
     }
@@ -739,8 +687,8 @@ export class RequestClient<Schema extends RequestDefinitions> {
 
     let retryAttempts = 2;
     let retryTimeout = 1000;
-    let retryIgnoreStatusCodes: StatusCode[] = [];
-    let retryStatusCodes: StatusCode[] = this.#defaultRetryCodes;
+    let retryIgnoreStatusCodes: number[] = [];
+    let retryStatusCodes: number[] = this.#defaultRetryCodes;
 
     if (simpleRetry) {
       retryAttempts = retryOptions;
