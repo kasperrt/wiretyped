@@ -33,13 +33,13 @@
   - @biomejs/biome@2.6.4
   - @types/node@26.6.6
   - @vitest/coverage-v8@5.1.0
-  - oxc-minify@0.157.0
   - playwright@1.64.1
   - vite@8.3.5
   - vitepress@2.0.0-alpha.21
   - vitest@5.1.0
   - zod@4.6.7
   - typescript@7.0.2
+- Internal; Drop the unused `oxc-minify` dev dependency. Vite already minifies through Rolldown, and the direct package was only there to force a same-day release past pnpm's release-age check.
 - Internal; Drop the postcss and vite overrides. Both already resolve to the current versions.
 - Internal; Keep overrides only where a dependency exact-pins an older release
   - sharp@0.35.5
