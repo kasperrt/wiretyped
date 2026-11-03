@@ -32,7 +32,6 @@ Be careful enabling retries on non-idempotent verbs (POST/PATCH/PUT/DELETE) to a
 
 ## Examples
 
-
 Number only:
 
 ```ts

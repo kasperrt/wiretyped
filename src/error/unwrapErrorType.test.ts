@@ -43,7 +43,7 @@ describe('unwrapErrorType', () => {
     expect(unwrapped?.name).toEqual(err.name);
   });
 
-  it('unwrap simplest layer', () => {
+  it('unwraps a target error nested one cause deep', () => {
     const err = new NonRecoverableError('non-recoverable-test', 'this-key');
     const wrapped = new Error('not-same-error', { cause: err });
     const unwrapped = unwrapErrorType(NonRecoverableError, wrapped);
@@ -82,7 +82,7 @@ describe('unwrapErrorType', () => {
     expect(unwrapped?.name).toEqual(err.name);
   });
 
-  it('expect 4 layers deep to correctly return true, even though self wraps another', () => {
+  it('unwraps four layers deep when another error type sits in the cause chain', () => {
     const original = new Error('first');
     const err = new CustomError('test', { cause: original });
     const wrapped1 = new Error('err1', { cause: err });
@@ -117,7 +117,7 @@ describe('unwrapErrorType', () => {
     expect(unwrapped?.name).not.toEqual(err.name);
   });
 
-  it('expect false on wrapped different error', () => {
+  it('returns null when a different error wraps the chain', () => {
     const err = new DifferentError('err');
     const err1 = new Error('err1', { cause: err });
     const err2 = new DifferentError('err2', { cause: err1 });

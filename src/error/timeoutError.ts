@@ -11,6 +11,6 @@ export class TimeoutError extends Error {
 /**
  * Type guard for {@link TimeoutError}.
  */
-export function isTimeoutError(error: unknown): error is TimeoutError {
+export function isTimeoutError<Caught>(error: Caught): error is Caught & TimeoutError {
   return isErrorType(TimeoutError, error);
 }

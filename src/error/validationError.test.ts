@@ -14,7 +14,7 @@ describe('isErrorType', () => {
     expect(isValidationError(err)).toEqual(false);
   });
 
-  it('expect non ValidationError to return false', () => {
+  it('returns the ValidationError nested in a cause', () => {
     const validationErr = new ValidationError('error-validating', []);
     const err = new Error('error', { cause: validationErr });
 

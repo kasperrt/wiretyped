@@ -23,15 +23,15 @@ export class RetrySuppressedError extends Error {
 }
 
 /**
- * Extract an {@link RetrySuppressedError} from an unknown error value, following nested causes.
+ * Extract a {@link RetrySuppressedError} from a thrown value, following nested causes.
  */
-export function getRetrySuppressedError(error: unknown): null | RetrySuppressedError {
+export function getRetrySuppressedError<Caught>(error: Caught): null | RetrySuppressedError {
   return unwrapErrorType(RetrySuppressedError, error);
 }
 
 /**
  * Type guard for {@link RetrySuppressedError}.
  */
-export function isRetrySuppressedError(error: unknown): error is RetrySuppressedError {
+export function isRetrySuppressedError<Caught>(error: Caught): error is Caught & RetrySuppressedError {
   return isErrorType(RetrySuppressedError, error);
 }

@@ -74,7 +74,7 @@ For HTTP methods that accept a body (`post`, `put`, `patch`), `request` describe
 ```ts
 {
   get: {
-    response: z.object({ id: z.string() })
+    response: z.object({ id: z.string() });
   }
 }
 ```
@@ -166,9 +166,11 @@ export const exampleEndpoints = {
   },
   '/authorization/{provider}': {
     url: {
-      $search: z.object({
-        popup: z.boolean(),
-      }).optional(),
+      $search: z
+        .object({
+          popup: z.boolean(),
+        })
+        .optional(),
       $path: z.object({
         provider: z.enum(['microsoft', 'google']),
       }),

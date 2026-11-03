@@ -181,7 +181,7 @@ describe('CacheClient', () => {
     expect(successFetch2).not.toHaveBeenCalled();
   });
 
-  it('returns tuple errors when resolver throws synchronously and allows retry', async () => {
+  it('returns tuple errors when a promise resolver throws and allows retry', async () => {
     const client = new CacheClient({ ttl: 5_000, cleanupInterval: 30_000 });
     const error = new Error('boom');
     const throwing = vi.fn(() => {

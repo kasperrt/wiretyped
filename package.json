@@ -1,6 +1,6 @@
 {
   "name": "wiretyped",
-  "version": "0.3.9",
+  "version": "0.3.10-beta.1",
   "description": "Universal fetch-based HTTP client with robust error handling, retries, caching, SSE, and Standard Schema validation.",
   "type": "module",
   "keywords": [
@@ -110,17 +110,16 @@
     "@standard-schema/spec": "1.1.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.14",
+    "@biomejs/biome": "2.6.4",
     "@codecov/vite-plugin": "2.0.1",
-    "@types/node": "26.6.1",
-    "@vitest/coverage-v8": "4.1.11",
+    "@types/node": "26.6.6",
+    "@vitest/coverage-v8": "5.1.0",
     "miniflare": "4.20260730.0",
-    "oxc-minify": "0.150.0",
-    "playwright": "1.63.0",
-    "typescript": "^7.0.2",
-    "vite": "8.3.0",
-    "vitepress": "2.0.0-alpha.20",
-    "vitest": "4.1.11",
-    "zod": "4.6.5"
+    "playwright": "1.64.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vitepress": "2.0.0-alpha.21",
+    "vitest": "5.1.0",
+    "zod": "4.6.7"
   }
 }

@@ -62,7 +62,7 @@ describe('isErrorType', () => {
     expect(isErrorType(CustomError, wrapped4)).toEqual(true);
   });
 
-  it('expect 4 layers deep to correctly return true, even though self wraps another', () => {
+  it('returns true four layers deep when another error type sits in the cause chain', () => {
     const original = new Error('first');
     const err = new CustomError('test', { cause: original });
     const wrapped1 = new Error('err1', { cause: err });
@@ -86,7 +86,7 @@ describe('isErrorType', () => {
     expect(isErrorType(CustomError, err2)).toEqual(false);
   });
 
-  it('expect false on wrapped different error', () => {
+  it('returns false when a different error wraps the chain', () => {
     const err = new DifferentError('err');
     const err1 = new Error('err1', { cause: err });
     const err2 = new DifferentError('err2', { cause: err1 });

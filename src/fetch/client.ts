@@ -156,8 +156,7 @@ export class FetchClient {
       return [new HTTPError(res, `error in ${opts.method} request in fetchClient`), null];
     }
 
-    // Cast this for some more type-safety on http-status-codes
-    return [null, res as FetchResponse];
+    return [null, res];
   }
 
   /**

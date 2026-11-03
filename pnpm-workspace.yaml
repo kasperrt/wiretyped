@@ -4,7 +4,5 @@ allowBuilds:
   workerd: false
 
 overrides:
-  postcss: 8.5.28
-  sharp: 0.35.4
-  undici: 7.29.1
-  vite: 8.3.0
+  sharp: 0.35.5
+  undici: 8.12.3

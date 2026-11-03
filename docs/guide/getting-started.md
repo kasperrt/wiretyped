@@ -21,6 +21,7 @@ pnpm add wiretyped
 Define your endpoints (with the schema of your choice) and create a `RequestClient`.
 
 ### Path params
+
 - Use `$path` when you want constrained values (e.g. enums for `/integrations/{provider}`).
 - For dynamic segments that accept generic strings/numbers, you can omit `$path`; the URL template (e.g., `/users/{id}`) already infers string/number.
 

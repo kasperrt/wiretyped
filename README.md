@@ -1,6 +1,7 @@
 <div align="center">
 
 # WireTyped
+
 <br />
 <img src="./docs/public/wiretyped.png" alt="WireTyped logo" width="200" />
 <br />

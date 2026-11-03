@@ -1,6 +1,9 @@
 # Releases
 
 ## Contents
+
+- [v0.3.10-beta.1](#v0-3-10-beta-1)
+- [v0.3.9](#v0-3-9)
 - [v0.3.8](#v0-3-8)
 - [v0.3.7](#v0-3-7)
 - [v0.3.6](#v0-3-6)
@@ -20,6 +23,27 @@
 - [v0.1.1](#v0-1-1)
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
+
+## v0.3.10-beta.1
+
+- Collapse the per-method call types into shared `CallArgs`, `CallReturn`, and `EndpointOf`. `#execute` stays inferred from the method name.
+- `unwrapErrorType` only follows `Error` causes, in a shorter loop.
+- Minify the published ESM build. Against v0.3.9 that is about 5.0 kB less raw, 1.4 kB gzip, and 1.3 kB brotli.
+- Internal; Update packages
+  - @biomejs/biome@2.6.4
+  - @types/node@26.6.6
+  - @vitest/coverage-v8@5.1.0
+  - playwright@1.64.1
+  - vite@8.3.5
+  - vitepress@2.0.0-alpha.21
+  - vitest@5.1.0
+  - zod@4.6.7
+  - typescript@7.0.2
+- Internal; Drop the unused `oxc-minify` dev dependency. Vite already minifies through Rolldown, and the direct package was only there to force a same-day release past pnpm's release-age check.
+- Internal; Drop the postcss and vite overrides. Both already resolve to the current versions.
+- Internal; Keep overrides only where a dependency exact-pins an older release
+  - sharp@0.35.5
+  - undici@8.12.3
 
 ## v0.3.9
 
@@ -122,7 +146,7 @@
 ## v0.3.0
 
 - Switch SSE to use fetch streaming instead of EventSource; schemas now define an `events` map of typed event payloads, e.g.:
-  
+
 ```ts
 const endpoints = {
   '/events': {

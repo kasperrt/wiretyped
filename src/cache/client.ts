@@ -15,7 +15,7 @@ export interface CacheClientOptions {
   cleanupInterval?: number;
 }
 
-interface CacheItem<T = unknown> {
+interface CacheItem<T> {
   key: string;
   data: T;
   expires: number;
@@ -31,7 +31,7 @@ export class CacheClient {
   #ttl: number;
   #cleanupInterval: number;
   #intervalId: Interval;
-  #cache: Map<string, CacheItem> = new Map();
+  #cache: Map<string, CacheItem<unknown>> = new Map();
   #pending: Map<string, SafeWrapAsync<Error, unknown>> = new Map();
 
   /**
@@ -79,7 +79,7 @@ export class CacheClient {
    * @param {string} key - cache key
    * @param {Object} data - cache data
    */
-  #add<T = unknown>(key: string, data: T, ttl: number) {
+  #add<T>(key: string, data: T, ttl: number) {
     this.#cache.set(key, { key, data, expires: Date.now() + ttl });
   }
 
@@ -87,7 +87,7 @@ export class CacheClient {
    * Get item from cache by provided key if exists
    * @param {string} key - Cache key
    */
-  #getItem<T>(key: string) {
+  #getItem<T>(key: string): T | null {
     const item = this.#cache.get(key);
     if (!item) {
       return null;
@@ -108,7 +108,7 @@ export class CacheClient {
    * @param {string} key - cache key
    * @param {Promise} request - http request to put in the pending object
    */
-  #addPendingRequest<T = unknown>(key: string, request: () => SafeWrapAsync<Error, T>, ttl: number) {
+  #addPendingRequest<T>(key: string, request: () => SafeWrapAsync<Error, T>, ttl: number) {
     const pending = (async (): SafeWrapAsync<Error, T> => {
       const [errWrapped, wrapped] = await safeWrapAsync(() => request());
       if (errWrapped) {
@@ -136,7 +136,7 @@ export class CacheClient {
    * @param {string} key - cache key
    * @param {Function} res - http request and data returned.
    */
-  public get<T = unknown>(key: string, res: () => SafeWrapAsync<Error, T>, ttl = this.#ttl): SafeWrapAsync<Error, T> {
+  public get<T>(key: string, res: () => SafeWrapAsync<Error, T>, ttl = this.#ttl): SafeWrapAsync<Error, T> {
     const cachedData = this.#getItem<CacheItem<T>>(key);
     if (cachedData) {
       return Promise.resolve([null, cachedData.data]);
@@ -157,9 +157,9 @@ export class CacheClient {
    * - Deterministic: lowercases header names and sorts (name, then value).
    *
    */
-  public key(url: string, headers: Headers): string {
+  public key(url: string, headers: Iterable<[string, string]>): string {
     const normalizedHeaders = [...headers]
-      .map(([k, v]) => [k.toLowerCase(), v] as const)
+      .map(([key, value]): [string, string] => [key.toLowerCase(), value])
       .sort(([ak, av], [bk, bv]) => {
         if (ak === bk) {
           return av < bv ? -1 : av > bv ? 1 : 0;
