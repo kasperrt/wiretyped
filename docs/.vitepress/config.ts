@@ -4,36 +4,29 @@ import { defineConfig } from 'vitepress';
 const require = createRequire(import.meta.url);
 const pkg = require('../../package.json') as { version?: string };
 const versionLabel = pkg.version ? `v${pkg.version}` : 'v?';
+const base = process.env.DOCS_BASE ?? '/wiretyped/';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   sitemap: {
-    hostname: 'https://wiretyped.io',
+    hostname: `https://kasperrt.github.io${base}`,
     transformItems(items) {
       return [
         ...items,
         {
-          url: '/llms.txt',
+          url: 'llms.txt',
         },
       ];
     },
   },
   head: [
-    ['link', { rel: 'icon', href: '/favicon.ico' }],
-    ['link', { rel: 'shortcut icon', href: '/favicon.ico' }],
-    [
-      'script',
-      {
-        defer: 'true',
-        'data-domain': 'wiretyped.io',
-        src: 'https://analytics.wiretyped.io/js/script.js',
-      },
-    ],
+    ['link', { rel: 'icon', href: `${base}favicon.ico` }],
+    ['link', { rel: 'shortcut icon', href: `${base}favicon.ico` }],
   ],
   title: 'WireTyped',
   description:
     'Universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.',
-  base: process.env.DOCS_BASE ?? '/',
+  base,
   appearance: 'force-dark',
   markdown: {
     theme: 'one-dark-pro',
