@@ -482,5 +482,5 @@ if (err) return err;
 - If you change public behavior, update docs under docs/.
 
 ## Links
-- Site: https://wiretyped.io
+- Site: https://kasperrt.github.io/wiretyped
 - Repo: https://github.com/kasperrt/wiretyped

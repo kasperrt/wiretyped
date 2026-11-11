@@ -20,7 +20,7 @@
 
 Universal fetch-based, typed HTTP client with error-first ergonomics, retries, caching, SSE, and Standard Schema validation.
 
-https://wiretyped.io
+https://kasperrt.github.io/wiretyped
 
 
 ## Installation
@@ -63,13 +63,13 @@ console.log(user.name);
 
 ## Guide
 
-- [Getting Started](https://wiretyped.io/guide/getting-started)
-- [Endpoints](https://wiretyped.io/guide/endpoints)
-- [Client](https://wiretyped.io/guide/client)
-- [Methods](https://wiretyped.io/guide/methods)
-- [Caching](https://wiretyped.io/guide/caching)
-- [Retries](https://wiretyped.io/guide/retries)
-- [SSE](https://wiretyped.io/guide/sse)
-- [Error Handling](https://wiretyped.io/guide/errors)
-- [FAQ](https://wiretyped.io/faq)
-- [Changelog](https://wiretyped.io/changelog)
+- [Getting Started](https://kasperrt.github.io/wiretyped/guide/getting-started)
+- [Endpoints](https://kasperrt.github.io/wiretyped/guide/endpoints)
+- [Client](https://kasperrt.github.io/wiretyped/guide/client)
+- [Methods](https://kasperrt.github.io/wiretyped/guide/methods)
+- [Caching](https://kasperrt.github.io/wiretyped/guide/caching)
+- [Retries](https://kasperrt.github.io/wiretyped/guide/retries)
+- [SSE](https://kasperrt.github.io/wiretyped/guide/sse)
+- [Error Handling](https://kasperrt.github.io/wiretyped/guide/errors)
+- [FAQ](https://kasperrt.github.io/wiretyped/faq)
+- [Changelog](https://kasperrt.github.io/wiretyped/changelog)
