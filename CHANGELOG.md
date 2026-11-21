@@ -2,6 +2,7 @@
 
 ## Contents
 
+- [v0.3.10](#v0-3-10)
 - [v0.3.10-beta.1](#v0-3-10-beta-1)
 - [v0.3.9](#v0-3-9)
 - [v0.3.8](#v0-3-8)
@@ -23,6 +24,11 @@
 - [v0.1.1](#v0-1-1)
 - [v0.1.0](#v0-1-0)
 - [v0.0.8](#v0-0-8)
+
+## v0.3.10
+
+- Everything in v0.3.10-beta.1, now on `latest`.
+- Docs moved from wiretyped.io to https://kasperrt.github.io/wiretyped/. The npm `homepage` and the README links now point there.
 
 ## v0.3.10-beta.1
 
