@@ -3,7 +3,6 @@
 ## Contents
 
 - [v0.3.10](#v0-3-10)
-- [v0.3.10-beta.1](#v0-3-10-beta-1)
 - [v0.3.9](#v0-3-9)
 - [v0.3.8](#v0-3-8)
 - [v0.3.7](#v0-3-7)
@@ -27,11 +26,7 @@
 
 ## v0.3.10
 
-- Everything in v0.3.10-beta.1, now on `latest`.
 - Docs moved from wiretyped.io to https://kasperrt.github.io/wiretyped/. The npm `homepage` and the README links now point there.
-
-## v0.3.10-beta.1
-
 - Collapse the per-method call types into shared `CallArgs`, `CallReturn`, and `EndpointOf`. `#execute` stays inferred from the method name.
 - `unwrapErrorType` only follows `Error` causes, in a shorter loop.
 - Minify the published ESM build. Against v0.3.9 that is about 5.0 kB less raw, 1.4 kB gzip, and 1.3 kB brotli.
